@@ -303,6 +303,11 @@ function getFilteredData(){
 // ====== VIEW / NAV ======
 function setView(v){
   currentView = v;
+  // עדכון מצב כפתורים (active)
+  document.querySelectorAll('.view-switch button').forEach(b => b.classList.remove('active-view'));
+  if(v === 'week') viewWeek.classList.add('active-view');
+  if(v === 'month') viewMonth.classList.add('active-view');
+  if(v === 'worker') viewWorker.classList.add('active-view');
   renderCalendar();
 }
 
@@ -321,10 +326,11 @@ function renderCalendar(){
   const data = getFilteredData();
   grid.innerHTML = '';
 
+  // ===== תצוגת שבוע =====
   if(currentView === 'week'){
     const start = new Date(currentDate);
     start.setDate(start.getDate() - start.getDay());
-    navTitle.textContent = start.toLocaleDateString('he-IL');
+    navTitle.textContent = 'שבוע החל מ־' + start.toLocaleDateString('he-IL');
 
     for(let i=0;i<6;i++){
       const dayDate = new Date(start);
@@ -340,8 +346,61 @@ function renderCalendar(){
         }
       });
 
-      grid.innerHTML += '<div class="day"><strong>' + days[i] + '</strong>' + (html || '—') + '</div>';
+      grid.innerHTML += '<div class="day"><strong>' + days[i] + '</strong>' + (html || '<div style="color:#94a3b8">—</div>') + '</div>';
     }
+    return;
+  }
+
+  // ===== תצוגת חודש =====
+  if(currentView === 'month'){
+    const month = currentDate.getMonth();
+    const year = currentDate.getFullYear();
+    navTitle.textContent = 'חודש ' + (month+1) + '/' + year;
+
+    const byDay = {};
+    data.forEach(r => {
+      for(let j=1;j<=16;j++){
+        const d = parseDate(r['תאריך'+j]);
+        if(d && d.getMonth() === month && d.getFullYear() === year){
+          const key = d.toISOString().slice(0,10);
+          if(!byDay[key]) byDay[key] = [];
+          byDay[key].push((r['עובד']||'') + ' – מפגש ' + j);
+        }
+      }
+    });
+
+    Object.keys(byDay).sort().forEach(day => {
+      grid.innerHTML += '<div class="day"><strong>' + new Date(day).toLocaleDateString('he-IL') + '</strong>' +
+        byDay[day].map(e => '<div class="event">'+e+'</div>').join('') + '</div>';
+    });
+    if(!grid.innerHTML) grid.innerHTML = '<div style="color:#64748b">אין פעילויות בחודש זה</div>';
+    return;
+  }
+
+  // ===== תצוגת עובד =====
+  if(currentView === 'worker'){
+    navTitle.textContent = 'תצוגת עובד';
+    const byWorker = {};
+    data.forEach(r => {
+      if(!byWorker[r['עובד']]) byWorker[r['עובד']] = [];
+      for(let j=1;j<=16;j++){
+        const d = parseDate(r['תאריך'+j]);
+        if(d){ byWorker[r['עובד']].push({date:d, meet:j}); }
+      }
+    });
+
+    Object.keys(byWorker).forEach(w => {
+      const items = byWorker[w].sort((a,b)=>a.date-b.date);
+      const first = items[0];
+      const last = items[items.length-1];
+      grid.innerHTML += '<div class="day"><strong>' + w + '</strong>' +
+        '<div class="event">מפגשים: ' + items.length + '</div>' +
+        '<div class="event">ראשון: ' + first.date.toLocaleDateString('he-IL') + '</div>' +
+        '<div class="event">אחרון: ' + last.date.toLocaleDateString('he-IL') + '</div>' +
+        '</div>';
+    });
+    if(!grid.innerHTML) grid.innerHTML = '<div style="color:#64748b">אין נתונים להצגה</div>';
+    return;
   }
 }
 
