@@ -220,11 +220,35 @@ function normalize(str){
 }
 
 function parseDate(val){
+  // מספר סידורי של אקסל
   if(typeof val === 'number'){
     const epoch = new Date(1899,11,30);
     const d = new Date(epoch.getTime() + val * 86400000);
     d.setHours(0,0,0,0);
     return d;
+  }
+
+  // מחרוזת תאריך (01/02/2026)
+  if(typeof val === 'string' && val.trim()){
+    const v = val.trim();
+
+    if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v)){
+      const [day, month, year] = v.split('/').map(Number);
+      const d = new Date(year, month-1, day);
+      d.setHours(0,0,0,0);
+      return d;
+    }
+
+    const iso = new Date(v);
+    if(!isNaN(iso.getTime())){
+      iso.setHours(0,0,0,0);
+      return iso;
+    }
+  }
+
+  return null;
+}
+
   }
   return null;
 }
