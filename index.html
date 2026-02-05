@@ -21,6 +21,7 @@ body{
   margin:0;
   font-family:Assistant,system-ui,sans-serif;
   background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));
+  color:var(--text-main);
 }
 
 header{
@@ -39,9 +40,7 @@ header{
 
 .app-logo{height:42px;}
 
-.controls,
-.view-switch,
-.nav-controls{
+.controls,.view-switch,.nav-controls{
   display:flex;
   justify-content:center;
   gap:8px;
@@ -59,20 +58,9 @@ select,button{
   box-shadow:0 2px 4px rgba(0,0,0,.08);
 }
 
-.view-switch button{
-  width:70px;
-}
-
-.active-view{
-  background:var(--accent);
-  color:#fff;
-}
-
-.nav-btn{
-  width:30px;
-  height:30px;
-  border-radius:999px;
-}
+.view-switch button{width:70px;}
+.active-view{background:var(--accent);color:#fff;}
+.nav-btn{width:30px;height:30px;border-radius:999px;}
 
 .calendar-grid{
   max-width:1200px;
@@ -87,7 +75,7 @@ select,button{
   background:var(--card-bg);
   border-radius:14px;
   padding:12px;
-  min-width:180px;
+  min-width:200px;
   box-shadow:0 6px 16px rgba(0,0,0,.1);
 }
 
@@ -98,9 +86,13 @@ select,button{
   margin-top:6px;
   font-size:13px;
 }
+
+.meta{
+  font-size:12px;
+  color:var(--text-muted);
+}
 </style>
 </head>
-
 <body>
 
 <header>
@@ -108,7 +100,7 @@ select,button{
     <img src="logo.png" class="app-logo">
     <div>
       <strong>דשבורד פעילות ותוכניות</strong><br>
-      <span style="font-size:13px;color:#64748b">ניהול ומעקב</span>
+      <span class="meta">ניהול ומעקב תהליכי</span>
     </div>
   </div>
 </header>
@@ -163,16 +155,13 @@ function parseDate(val){
   return null;
 }
 
-function sameDay(a,b){
-  return a && b && a.getTime()===b.getTime();
-}
+function sameDay(a,b){return a&&b&&a.getTime()===b.getTime();}
 
 async function loadExcel(){
   const res = await fetch(EXCEL_URL,{cache:'no-store'});
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf,{type:'array'});
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
-  rawData = rows;
+  rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
   initFilters();
   render();
 }
@@ -193,19 +182,19 @@ function fill(id,key){
 function filtered(){
   return rawData.filter(r=>{
     return (!managerFilter.value||r['מנהל']===managerFilter.value)
-    && (!workerFilter.value||r['עובד']===workerFilter.value)
-    && (!programFilter.value||r['תוכנית']===programFilter.value);
+      && (!workerFilter.value||r['עובד']===workerFilter.value)
+      && (!programFilter.value||r['תוכנית']===programFilter.value);
   });
 }
 
 function render(){
   calendarGrid.innerHTML='';
-  const data=filtered();
+  const data = filtered();
 
   if(currentView==='week'){
     const start=new Date(currentDate);
     start.setDate(start.getDate()-start.getDay());
-    navTitle.textContent='שבוע '+start.toLocaleDateString('he-IL');
+    navTitle.textContent='שבוע החל מ־'+start.toLocaleDateString('he-IL');
 
     for(let i=0;i<6;i++){
       const d=new Date(start);
@@ -215,11 +204,15 @@ function render(){
         for(let j=1;j<=16;j++){
           const pd=parseDate(r['תאריך'+j]);
           if(pd&&sameDay(pd,d)){
-            html+=`<div class="event">${r['עובד']} – מפגש ${j}</div>`;
+            html+=`<div class="event">
+              <strong>${r['עובד']}</strong>
+              <div class="meta">${r['בית ספר']||''} · ${r['רשות']||''}</div>
+              <div class="meta">${r['תוכנית']} · מפגש ${j}</div>
+            </div>`;
           }
         }
       });
-      calendarGrid.innerHTML+=`<div class="day"><strong>${days[i]}</strong>${html||'—'}</div>`;
+      calendarGrid.innerHTML+=`<div class="day"><strong>${days[i]}</strong>${html||'<div class="meta">—</div>'}</div>`;
     }
   }
 
@@ -228,8 +221,15 @@ function render(){
     data.forEach(r=>{
       for(let j=1;j<=16;j++){
         const d=parseDate(r['תאריך'+j]);
-        if(d&&d.getMonth()===currentDate.getMonth()){
-          calendarGrid.innerHTML+=`<div class="day"><strong>${d.toLocaleDateString('he-IL')}</strong><div class="event">${r['עובד']} – מפגש ${j}</div></div>`;
+        if(d && d.getMonth()===currentDate.getMonth()){
+          calendarGrid.innerHTML+=`<div class="day">
+            <strong>${d.toLocaleDateString('he-IL')}</strong>
+            <div class="event">
+              <strong>${r['עובד']}</strong>
+              <div class="meta">${r['בית ספר']} · ${r['רשות']}</div>
+              <div class="meta">${r['תוכנית']} · מפגש ${j}</div>
+            </div>
+          </div>`;
         }
       }
     });
@@ -239,18 +239,23 @@ function render(){
     navTitle.textContent='תצוגת עובד';
     const by={};
     data.forEach(r=>{
-      if(!by[r['עובד']]) by[r['עובד']]=[];
+      if(!by[r['עובד']]) by[r['עובד']]={info:r,dates:[]};
       for(let j=1;j<=16;j++){
         const d=parseDate(r['תאריך'+j]);
-        if(d) by[r['עובד']].push(d);
+        if(d) by[r['עובד']].dates.push(d);
       }
     });
     Object.keys(by).forEach(w=>{
-      const arr=by[w].sort((a,b)=>a-b);
-      calendarGrid.innerHTML+=`<div class="day"><strong>${w}</strong>
-      <div class="event">מפגשים: ${arr.length}</div>
-      <div class="event">ראשון: ${arr[0].toLocaleDateString('he-IL')}</div>
-      <div class="event">אחרון: ${arr[arr.length-1].toLocaleDateString('he-IL')}</div></div>`;
+      const arr=by[w].dates.sort((a,b)=>a-b);
+      const info=by[w].info;
+      calendarGrid.innerHTML+=`<div class="day">
+        <strong>${w}</strong>
+        <div class="meta">${info['בית ספר']} · ${info['רשות']}</div>
+        <div class="event">${info['תוכנית']}</div>
+        <div class="meta">מפגשים: ${arr.length}</div>
+        <div class="meta">ראשון: ${arr[0]?.toLocaleDateString('he-IL')||'-'}</div>
+        <div class="meta">אחרון: ${arr[arr.length-1]?.toLocaleDateString('he-IL')||'-'}</div>
+      </div>`;
     });
   }
 }
