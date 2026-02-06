@@ -413,6 +413,15 @@ function filteredData(){
   });
 }
 
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday
+  const diff = d.getDate() - day;
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 // ================= RENDER =================
 function render(){
   calendarGrid.innerHTML = '';
@@ -503,6 +512,44 @@ function render(){
       </div>`;
     });
   }
+}
+
+function getDurationHours(startTime, endTime) {
+  const toMinutes = (t) => {
+    if (t == null) return null;
+
+    if (typeof t === 'string' && t.includes(':')) {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    if (t instanceof Date) {
+      return t.getHours() * 60 + t.getMinutes();
+    }
+
+    if (typeof t === 'number') {
+      // Excel / numeric minutes
+      return t > 24 ? t : Math.round(t * 24 * 60);
+    }
+
+    if (typeof t === 'object') {
+      if ('hours' in t && 'minutes' in t) {
+        return t.hours * 60 + t.minutes;
+      }
+      if ('h' in t && 'm' in t) {
+        return t.h * 60 + t.m;
+      }
+    }
+
+    return null;
+  };
+
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+
+  if (start === null || end === null || end <= start) return 0;
+
+  return (end - start) / 60;
 }
 
 function buildWeeklySessions(data){
