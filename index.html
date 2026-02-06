@@ -131,18 +131,35 @@ function filteredData(){
 function buildRecords(rows){
   if(!rows.length) return [];
   const h = rows[0].map(x=>String(x||'').trim());
+
+  // helper: find column by case-insensitive name
+  const col = (name)=>{
+    const idx = h.findIndex(k=>k.toLowerCase()===name.toLowerCase());
+    return idx>-1 ? idx : null;
+  };
+
   return rows.slice(1).map(r=>{
-    const o={}; h.forEach((k,i)=>o[k]=r[i]);
+    const get = (name)=>{
+      const i = col(name);
+      return i!==null ? r[i] : '';
+    };
+
+    const dates = [];
+    for(let i=1;i<=16;i++){
+      const v = get('date'+i) || get('Date'+i) || get('DATE'+i);
+      dates.push(parseDateSafe(v));
+    }
+
     return{
-      Manager:o['Manager']||'',
-      Employee:o['Employee']||'',
-      Program:o['Program']||'',
-      School:o['School']||'',
-      Authority:o['Authority']||'',
-      StartTime:formatTime(o['StartTime']),
-      EndTime:formatTime(o['EndTime']),
-      EventType:(o['EventType']||'COURSE').toUpperCase(),
-      Dates:Array.from({length:16},(_,i)=>parseDateSafe(o['date'+(i+1)]))
+      Manager:get('Manager')||get('מנהל')||'',
+      Employee:get('Employee')||get('עובד')||'',
+      Program:get('Program')||get('תוכנית')||'',
+      School:get('School')||get('בית ספר')||'',
+      Authority:get('Authority')||get('רשות')||'',
+      StartTime:formatTime(get('StartTime')||get('שעת התחלה')),
+      EndTime:formatTime(get('EndTime')||get('שעת סיום')),
+      EventType:(get('EventType')||'COURSE').toUpperCase(),
+      Dates:dates
     };
   });
 }
@@ -245,6 +262,10 @@ clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter
 [managerFilter,programFilter,employeeFilter].forEach(el=>el.onchange=render);
 
 loadExcel();
+
+// ברירת מחדל: פתיחה לפי TODAY בלבד
+// אין קפיצה אוטומטית לחודש עם נתונים
+
 });
 </script>
 </body>
