@@ -21,16 +21,19 @@ button.active{background:var(--accent);color:#fff;}
 
 .nav-controls{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
 
-.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:12px;} 
+.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;} 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);} 
-.day.inactive{opacity:.25} 
+.day.inactive{opacity:.35} 
 .day-header{font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;} 
 .badge{background:var(--accent);color:#fff;border-radius:999px;padding:0 6px;font-size:11px;}
 .event{background:linear-gradient(135deg,var(--accent-soft),#fff);border-radius:10px;padding:8px;margin-top:6px;font-size:13px;} 
 .meta{font-size:12px;color:var(--text-muted);} 
-.calendar-grid>.meta{font-size:28px;font-weight:800;text-align:center;color:#0f172a;} 
+.calendar-grid>.meta{font-size:20px;font-weight:800;text-align:center;color:#0f172a;} 
 
 @media(max-width:768px){.calendar-grid{grid-template-columns:1fr;}}
+
+.missing{color:#dc2626;font-weight:700;}
+.event.holiday{background:linear-gradient(135deg,#fef9c3,#ffffff);border:2px solid #fde047;}
 </style>
 </head>
 <body>
@@ -48,14 +51,12 @@ button.active{background:var(--accent);color:#fff;}
   <button id="clearFilters">נקה סינון</button>
 </div>
 
-<div class="nav-controls" id="navControls">
-  <div class="nav-main">
-    <button id="viewMonthBtn" class="active">חודש</button>
-    <button id="viewWeekBtn">שבוע</button>
-    <button id="prevNav" class="nav-btn">▶</button>
-    <span id="navTitle"></span>
-    <button id="nextNav" class="nav-btn">◀</button>
-  </div>
+<div class="nav-controls">
+  <button id="viewMonthBtn" class="active">חודש</button>
+  <button id="viewWeekBtn">שבוע</button>
+  <button id="prevNav" class="nav-btn">▶</button>
+  <span id="navTitle"></span>
+  <button id="nextNav" class="nav-btn">◀</button>
 </div>
 
 <div id="calendarGrid" class="calendar-grid"></div>
@@ -68,13 +69,28 @@ let currentDate=new Date();currentDate.setHours(0,0,0,0);
 let currentMode='month';
 let activeWeeks=[];
 let activeWeekIndex=0;
-const dayNames=['א','ב','ג','ד','ה','ו'];
+const dayNames=['א','ב','ג','ד','ה','ו','ש'];
 
 // ================= HELPERS =================
 const sameDay=(a,b)=>a&&b&&a.getTime()===b.getTime();
 const startOfWeek=d=>{const x=new Date(d);x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x;};
 const formatTime=v=>{if(v==null||v==='')return'';if(typeof v==='string')return v.slice(0,5);if(typeof v==='number'){const t=Math.round(v*24*60);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}return'';};
-const parseDateSafe=v=>{if(!v)return null;const d=new Date(v);if(!isNaN(d)){d.setHours(0,0,0,0);return d;}return null;};
+const parseDateSafe=v=>{
+  if(!v) return null;
+  if(typeof v==='number'){
+    const d=XLSX.SSF.parse_date_code(v);
+    if(!d) return null;
+    const js=new Date(d.y,d.m-1,d.d);
+    js.setHours(0,0,0,0);
+    return js;
+  }
+  const d=new Date(v);
+  if(!isNaN(d)){
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  return null;
+};
 
 // ================= LOAD =================
 async function loadExcel(){
@@ -89,7 +105,7 @@ async function loadExcel(){
 }
 
 function buildRecords(rows){
-  if(!rows.length)return[];
+  if(!rows.length) return [];
   const h=rows[0].map(x=>String(x||'').toLowerCase().replace(/\s+/g,''));
   return rows.slice(1).map(r=>{
     const o={};h.forEach((k,i)=>o[k]=r[i]);
@@ -99,6 +115,7 @@ function buildRecords(rows){
       Program:o.program||'',
       School:o.school||'',
       Authority:o.municipality||o.authority||'',
+      EventType:(o.eventtype||'COURSE').toUpperCase(),
       StartTime:o.starttime,
       EndTime:o.endtime,
       Dates:Array.from({length:16},(_,i)=>parseDateSafe(o['date'+(i+1)]))
@@ -138,7 +155,7 @@ function render(){
   viewMonthBtn.classList.toggle('active',currentMode==='month');
   viewWeekBtn.classList.toggle('active',currentMode==='week');
   if(!data.length){navTitle.textContent='';return;}
-  if(currentMode==='week')renderWeek(data);
+  if(currentMode==='week') renderWeek(data);
   else renderMonth(data);
 }
 
@@ -147,47 +164,87 @@ function renderMonth(data){
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   const first=new Date(y,m,1),last=new Date(y,m+1,0);
   dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
-  for(let i=0;i<first.getDay();i++) if(i!==6) calendarGrid.appendChild(document.createElement('div'));
+  for(let i=0;i<first.getDay();i++) calendarGrid.appendChild(document.createElement('div'));
   for(let d=1;d<=last.getDate();d++){
-    const cur=new Date(y,m,d);if(cur.getDay()===6)continue;
+    const cur=new Date(y,m,d);
     const cell=document.createElement('div');cell.className='day';
     let count=0;
     data.forEach(r=>r.Dates.forEach((dd,idx)=>{
       if(dd&&sameDay(dd,cur)){
         count++;
-        const ev=document.createElement('div');ev.className='event';
-        ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;
+        const ev=document.createElement('div');
+        ev.className='event';
+        const isHoliday = r.EventType === 'HOLIDAY';
+
+        if (isHoliday) {
+          ev.classList.add('holiday');
+          ev.innerHTML = `<strong>🎉 ${r.Program || 'חג / אירוע כללי'}</strong>
+            <div class=\"meta\">אירוע חג – ללא פעילות קורס</div>`;
+        } else {
+          const emp = r.Employee || '<span class=\"missing\">חסר עובד</span>';
+          const prog = r.Program || '<span class=\"missing\">חסרה תוכנית</span>';
+          const school = r.School || '<span class=\"missing\">חסר בית ספר</span>';
+          const auth = r.Authority || '<span class=\"missing\">חסרה רשות</span>';
+          const time = (r.StartTime || r.EndTime)
+            ? `שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}`
+            : '<span class=\"missing\">חסרות שעות</span>';
+
+          ev.innerHTML = `<strong>${emp}</strong>
+            <div class=\"meta\">${prog} · מפגש ${idx+1}</div>
+            <div class=\"meta\">${school} · ${auth}</div>
+            <div class=\"meta\">${time}</div>`;
+        }
         cell.appendChild(ev);
       }
     }));
     const h=document.createElement('div');h.className='day-header';h.innerHTML=`<span>${d}</span>${count?`<span class="badge">${count}</span>`:''}`;
     cell.prepend(h);
-    if(!count)cell.classList.add('inactive');
+    if(!count) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
   }
 }
 
 function renderWeek(data){
-  if(!activeWeeks.length)return;
+  if(!activeWeeks.length) return;
   const start=activeWeeks[activeWeekIndex]||activeWeeks[0];
-  const end=new Date(start);end.setDate(start.getDate()+5);
+  const end=new Date(start);end.setDate(start.getDate()+6);
   navTitle.textContent=`${start.toLocaleDateString('he-IL')} – ${end.toLocaleDateString('he-IL')}`;
   dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
-  for(let i=0;i<6;i++){
+  for(let i=0;i<7;i++){
     const cur=new Date(start);cur.setDate(start.getDate()+i);
     const cell=document.createElement('div');cell.className='day';
     let count=0;
     data.forEach(r=>r.Dates.forEach((dd,idx)=>{
       if(dd&&sameDay(dd,cur)){
         count++;
-        const ev=document.createElement('div');ev.className='event';
-        ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;
+        const ev=document.createElement('div');
+        ev.className='event';
+        const isHoliday = r.EventType === 'HOLIDAY';
+
+        if (isHoliday) {
+          ev.classList.add('holiday');
+          ev.innerHTML = `<strong>🎉 ${r.Program || 'חג / אירוע כללי'}</strong>
+            <div class=\"meta\">אירוע חג – ללא פעילות קורס</div>`;
+        } else {
+          const emp = r.Employee || '<span class=\"missing\">חסר עובד</span>';
+          const prog = r.Program || '<span class=\"missing\">חסרה תוכנית</span>';
+          const school = r.School || '<span class=\"missing\">חסר בית ספר</span>';
+          const auth = r.Authority || '<span class=\"missing\">חסרה רשות</span>';
+          const time = (r.StartTime || r.EndTime)
+            ? `שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}`
+            : '<span class=\"missing\">חסרות שעות</span>';
+
+          ev.innerHTML = `<strong>${emp}</strong>
+            <div class=\"meta\">${prog} · מפגש ${idx+1}</div>
+            <div class=\"meta\">${school} · ${auth}</div>
+            <div class=\"meta\">${time}</div>`;
+        }
         cell.appendChild(ev);
       }
     }));
     const h=document.createElement('div');h.className='day-header';h.innerHTML=`<span>${cur.getDate()}</span>${count?`<span class="badge">${count}</span>`:''}`;
     cell.prepend(h);
-    if(!count)cell.classList.add('inactive');
+    if(!count) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
   }
 }
