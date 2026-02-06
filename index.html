@@ -139,6 +139,20 @@ currentDate.setHours(0,0,0,0);
 
 const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי'];
 
+// ================= NORMALIZATION =================
+function normalizeText(value){
+  if(typeof value !== 'string') return value;
+  return value
+    .replace(/\u00A0/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function normalizeHeader(value){
+  if(typeof value !== 'string') return '';
+  return value.toLowerCase().replace(/\s+/g,'');
+}
+
 // ================= DATE PARSER =================
 function parseDate(val){
   if(typeof val === 'number'){
@@ -166,14 +180,86 @@ function parseDate(val){
 
 function sameDay(a,b){return a && b && a.getTime()===b.getTime();}
 
+function parseDateSafe(value, rowIndex, header){
+  if(!value) return null;
+  if(value instanceof Date){
+    const dt = new Date(value);
+    dt.setHours(0,0,0,0);
+    return dt;
+  }
+  const parsed = parseDate(value);
+  if(parsed) return parsed;
+
+  if(typeof value === 'string'){
+    const v = value.trim();
+    const match = v.match(/^(\d{2})\.(\d{2})\.(\d{2})$/);
+    if(match){
+      const [,d,m,y] = match;
+      const dt = new Date(`20${y}-${m}-${d}`);
+      if(!isNaN(dt)){
+        dt.setHours(0,0,0,0);
+        return dt;
+      }
+    }
+  }
+
+  console.warn('Unparsed date value:', value, 'in row', rowIndex, 'header', header);
+  return null;
+}
+
 // ================= LOAD EXCEL =================
 async function loadExcel(){
   const res = await fetch(EXCEL_URL,{cache:'no-store'});
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf,{type:'array'});
-  rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+  rawData = buildRecords(rows);
   initFilters();
   render();
+}
+
+function buildRecords(rows){
+  if(!rows.length) return [];
+  const headers = rows[0] || [];
+  const mappedHeaders = headers.map((header)=>{
+    const normalized = normalizeHeader(String(header || ''));
+    if(!normalized) return null;
+    if(normalized === 'employee') return 'Employee';
+    if(normalized === 'program') return 'Program';
+    if(normalized === 'municipality') return 'Municipality';
+    if(normalized === 'authority') return 'Authority';
+    if(normalized === 'manager') return 'Manager';
+    if(normalized === 'school') return 'School';
+    if(normalized === 'day') return 'Day';
+    if(normalized === 'starttime') return 'StartTime';
+    if(normalized === 'endtime') return 'EndTime';
+    if(/^date\d+$/.test(normalized)){
+      const index = Number(normalized.replace('date',''));
+      if(index >= 1 && index <= 16){
+        return `Date${index}`;
+      }
+      console.warn('Unrecognized Date column:', header);
+      return null;
+    }
+    return header || null;
+  });
+
+  return rows.slice(1).map((row,rowIndex)=>{
+    const record = {__rowIndex: rowIndex + 2};
+    mappedHeaders.forEach((key,cellIndex)=>{
+      if(!key) return;
+      record[key] = row[cellIndex] ?? '';
+    });
+
+    ['Employee','Manager','Program','Authority','School'].forEach((field)=>{
+      if(field in record){
+        record[field] = normalizeText(record[field]);
+      }
+    });
+
+    return record;
+  });
 }
 
 // ================= FILTERS =================
@@ -192,9 +278,29 @@ function fillFilter(id,key){
 
 function filteredData(){
   return rawData.filter(r=>{
-    return (!managerFilter.value || r.Manager===managerFilter.value)
-      && (!workerFilter.value || r.Employee===workerFilter.value)
-      && (!programFilter.value || r.Program===programFilter.value);
+    const selectedManager = normalizeText(managerFilter.value);
+    const selectedWorker = normalizeText(workerFilter.value);
+    const selectedProgram = normalizeText(programFilter.value);
+    const manager = normalizeText(r.Manager);
+    const worker = normalizeText(r.Employee);
+    const program = normalizeText(r.Program);
+
+    if(selectedManager && !manager){
+      console.warn('Record filtered due to empty Manager value:', r, 'row', r.__rowIndex);
+      return false;
+    }
+    if(selectedWorker && !worker){
+      console.warn('Record filtered due to empty Employee value:', r, 'row', r.__rowIndex);
+      return false;
+    }
+    if(selectedProgram && !program){
+      console.warn('Record filtered due to empty Program value:', r, 'row', r.__rowIndex);
+      return false;
+    }
+
+    return (!selectedManager || manager===selectedManager)
+      && (!selectedWorker || worker===selectedWorker)
+      && (!selectedProgram || program===selectedProgram);
   });
 }
 
@@ -216,7 +322,7 @@ function render(){
       let html='';
       data.forEach(r=>{
         for(let j=1;j<=16;j++){
-          const d = parseDate(r['Date'+j]);
+          const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
           if(d && sameDay(d,dayDate)){
             html += `<div class="event">
               <strong>${r.Employee}</strong>
@@ -237,7 +343,7 @@ function render(){
 
     data.forEach(r=>{
       for(let j=1;j<=16;j++){
-        const d = parseDate(r['Date'+j]);
+        const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
         if(d && d.getMonth()===currentDate.getMonth() && d.getFullYear()===currentDate.getFullYear()){
           calendarGrid.innerHTML += `<div class="day">
             <strong>${d.toLocaleDateString('he-IL')}</strong>
@@ -262,7 +368,7 @@ function render(){
         byWorker[r.Employee] = {info:r, dates:[]};
       }
       for(let j=1;j<=16;j++){
-        const d = parseDate(r['Date'+j]);
+        const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
         if(d) byWorker[r.Employee].dates.push(d);
       }
     });
