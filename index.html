@@ -388,7 +388,7 @@ function renderWeek(data){
 
     const h = document.createElement('div');
     h.className = 'day-header';
-    h.innerHTML = `<span>${date.getDate()}</span>${count ? `<span class="badge">${count}</span>` : ''}`;
+    h.innerHTML = `<span>${date.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})}</span>`;${count ? `<span class="badge">${count}</span>` : ''}`;
     cell.prepend(h);
     if(!count) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
