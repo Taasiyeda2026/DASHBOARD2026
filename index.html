@@ -646,6 +646,43 @@ window.onresize = ()=>{
 };
 
 loadExcel();
+
+window.getDurationHours = function (startTime, endTime) {
+  const toMinutes = (t) => {
+    if (t == null) return null;
+
+    if (typeof t === 'string') {
+      if (!t.includes(':')) return null;
+      const parts = t.split(':');
+      if (parts.length < 2) return null;
+      const h = Number(parts[0]);
+      const m = Number(parts[1]);
+      if (isNaN(h) || isNaN(m)) return null;
+      return h * 60 + m;
+    }
+
+    if (t instanceof Date) {
+      return t.getHours() * 60 + t.getMinutes();
+    }
+
+    if (typeof t === 'number') {
+      return t > 24 ? t : Math.round(t * 24 * 60);
+    }
+
+    if (typeof t === 'object') {
+      if ('hours' in t && 'minutes' in t) return t.hours * 60 + t.minutes;
+      if ('h' in t && 'm' in t) return t.h * 60 + t.m;
+    }
+
+    return null;
+  };
+
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+
+  if (start == null || end == null || end <= start) return 0;
+  return (end - start) / 60;
+};
 </script>
 </body>
 </html>
