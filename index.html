@@ -122,7 +122,19 @@ function initFilters(){
 
 function filteredData(){const m=managerFilter.value,p=programFilter.value,e=employeeFilter.value;return rawData.filter(r=>(!m||r.Manager===m)&&(!p||r.Program===p)&&(!e||r.Employee===e));}
 
-function render(){calendarGrid.innerHTML='';const data=filteredData();viewMonthBtn.classList.toggle('active',currentMode==='month');viewWeekBtn.classList.toggle('active',currentMode==='week');if(!data.length){navTitle.textContent='';return;}currentMode==='week'?renderWeek(data):renderMonth(data);} 
+function render(){
+  calendarGrid.innerHTML='';
+  const data=filteredData();
+  viewMonthBtn.classList.toggle('active',currentMode==='month');
+  viewWeekBtn.classList.toggle('active',currentMode==='week');
+
+  // תמיד מציגים לוח (גם אם אין נתונים)
+  if(currentMode==='week'){
+    renderWeek(data);
+  } else {
+    renderMonth(data);
+  }
+}
 
 function renderMonth(data){
   navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
