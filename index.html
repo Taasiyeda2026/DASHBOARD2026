@@ -515,39 +515,15 @@ function render(){
 }
 
 function getDurationHours(startTime, endTime) {
-  const toMinutes = (t) => {
-    if (t == null) return null;
+  if (!startTime || !endTime) return 0;
 
-    if (typeof t === 'string' && t.includes(':')) {
-      const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
-    }
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
 
-    if (t instanceof Date) {
-      return t.getHours() * 60 + t.getMinutes();
-    }
+  const start = sh * 60 + sm;
+  const end = eh * 60 + em;
 
-    if (typeof t === 'number') {
-      // Excel / numeric minutes
-      return t > 24 ? t : Math.round(t * 24 * 60);
-    }
-
-    if (typeof t === 'object') {
-      if ('hours' in t && 'minutes' in t) {
-        return t.hours * 60 + t.minutes;
-      }
-      if ('h' in t && 'm' in t) {
-        return t.h * 60 + t.m;
-      }
-    }
-
-    return null;
-  };
-
-  const start = toMinutes(startTime);
-  const end = toMinutes(endTime);
-
-  if (start === null || end === null || end <= start) return 0;
+  if (end <= start) return 0;
 
   return (end - start) / 60;
 }
