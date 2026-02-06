@@ -10,22 +10,43 @@
 :root{
   --bg-main:#f8fafc;--bg-surface:#eef2f7;--card-bg:#ffffff;--accent:#2563eb;--accent-soft:#e0ecff;--text-main:#0f172a;--text-muted:#475569;--border:#e2e8f0;
 }
-body{margin:0;font-family:Assistant,system-ui,sans-serif;background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));color:var(--text-main);} 
+body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));color:var(--text-main);} 
 header{background:#fff;border-bottom:1px solid var(--border);} 
 .header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:16px;align-items:center;} 
 .app-logo{height:42px;} 
 
 .controls,.nav-controls{display:flex;justify-content:center;gap:8px;margin:10px auto;flex-wrap:wrap;} 
-select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);cursor:pointer;} 
-button.active{background:var(--accent);color:#fff;border-color:var(--accent);} 
-.nav-btn{width:32px;height:32px;border-radius:999px;} 
+select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);cursor:pointer;}
+/* כפתורי חודש / שבוע */
+#viewMonthBtn, #viewWeekBtn{
+  background:#e0f2fe;
+  border-color:#7dd3fc;
+  color:#0f172a;
+}
+#viewMonthBtn.active, #viewWeekBtn.active{
+  background:#bae6fd;
+  border-color:#38bdf8;
+}
+
+/* חיצי ניווט בלבד */
+.nav-btn{
+  width:32px;
+  height:32px;
+  border-radius:999px;
+  background:#fef9c3;
+  border-color:#fde047;
+  color:#2563eb; /* צבע החץ */
+  font-weight:700;
+}
+.nav-btn:hover{background:#fde047;}
+.nav-btn:hover{background:#fde047;} 
 
 .nav-controls{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
 
 .calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;} 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);min-height:100px;} 
 .day.inactive{background:#f1f5f9;opacity:0.6;} 
-.day-header{font-weight:700;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;} 
+.day-header{font-weight:600;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-size:12px;} 
 .event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:6px solid var(--accent);border:1px solid rgba(15,23,42,0.08);background:#ffffff;} 
 .meta{font-size:12px;color:var(--text-muted);} 
 .calendar-grid>.meta{font-size:16px;font-weight:800;text-align:center;padding:10px 0;} 
@@ -207,7 +228,7 @@ function renderMonth(data){
       cell.appendChild(ev);
     });
 
-    const h=document.createElement('div'); h.className='day-header'; h.textContent=d;
+    const h=document.createElement('div'); h.className='day-header'; h.textContent = `${d}/${m+1}/${y}`;
     cell.prepend(h);
     if(!events.length) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
@@ -239,7 +260,7 @@ function renderWeek(data){
       cell.appendChild(ev);
     });
 
-    const h=document.createElement('div'); h.className='day-header'; h.textContent=dayNames[i] + " " + cur.getDate() + "/" + (cur.getMonth()+1);
+    const h=document.createElement('div'); h.className='day-header'; h.textContent = `${dayNames[i]} ${cur.getDate()}/${cur.getMonth()+1}/${cur.getFullYear()}`;
     cell.prepend(h);
     if(!events.length) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
