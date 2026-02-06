@@ -25,37 +25,26 @@ button.active{background:var(--accent);color:#fff;}
 .calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;} 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);} 
 .day.inactive{background:#f1f5f9;} 
-.day-header{font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;} 
-.badge{background:var(--accent);color:#fff;border-radius:999px;padding:0 6px;font-size:11px;}
-.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-left:6px solid var(--accent);} 
+.day-header{font-weight:700;margin-bottom:6px;} 
+.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-left:6px solid var(--accent);border:1px solid rgba(15,23,42,0.08);background:#ffffff;} 
 .meta{font-size:12px;color:var(--text-muted);} 
-.calendar-grid>.meta{font-size:20px;font-weight:800;text-align:center;color:#0f172a;} 
+.calendar-grid>.meta{font-size:18px;font-weight:800;text-align:center;} 
+.missing{color:#dc2626;font-weight:700;} 
+.event.holiday{background:#fef9c3;border-color:#fde047;}
 
 @media(max-width:768px){
   header .header-inner{flex-direction:column;align-items:flex-start;gap:8px;}
   .controls{gap:6px;margin:6px;}
-  select,button{width:100%;max-width:100%;}
-
-  .nav-controls{flex-wrap:wrap;gap:6px;}
-
-  .calendar-grid{grid-template-columns:1fr;padding:8px;}
+  select,button{width:100%;}
+  .calendar-grid{grid-template-columns:1fr;}
   .calendar-grid>.meta{display:none;}
-
-  .day{padding:12px;background:#ffffff;}
-  .day.inactive{background:#f8fafc;}
-  .day-header{font-size:16px;}
-  .event{font-size:14px;}
 }
-
-.missing{color:#dc2626;font-weight:700;}
-.event.holiday{background:linear-gradient(135deg,#fef9c3,#ffffff);border:2px solid #fde047;}
 </style>
 </head>
 <body>
 <header>
   <div class="header-inner">
-    <img src="logo.png" class="app-logo" alt="לוגו" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='inline-flex';">
-    <div id="logoFallback" style="display:none;width:42px;height:42px;border-radius:10px;background:#e5e7eb;color:#0f172a;align-items:center;justify-content:center;font-weight:800;">LOGO</div>
+    <img src="logo.png" class="app-logo" alt="לוגו">
     <div><strong>דשבורד פעילות ותוכניות</strong><br><span class="meta">תצוגה חודשית / שבועית לפי תאריכים</span></div>
   </div>
 </header>
@@ -77,76 +66,57 @@ button.active{background:var(--accent);color:#fff;}
 
 <div id="calendarGrid" class="calendar-grid"></div>
 
-<!-- SheetJS ESM build ללא eval (תואם CSP של GitHub Pages) -->
-<script type="module">
-import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs';
-
-let rawData=[];
-let currentDate=new Date();currentDate.setHours(0,0,0,0);
-let currentMode='month';
-const dayNames=['א','ב','ג','ד','ה','ו','ש'];
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// הבטחת הרצה רק אחרי טעינת DOM מלאה
+window.addEventListener('DOMContentLoaded', () => {
 
 const calendarGrid = document.getElementById('calendarGrid');
+const navTitle = document.getElementById('navTitle');
 const managerFilter = document.getElementById('managerFilter');
 const programFilter = document.getElementById('programFilter');
 const employeeFilter = document.getElementById('employeeFilter');
+const clearFilters = document.getElementById('clearFilters');
 const viewMonthBtn = document.getElementById('viewMonthBtn');
 const viewWeekBtn = document.getElementById('viewWeekBtn');
 const prevNav = document.getElementById('prevNav');
 const nextNav = document.getElementById('nextNav');
-const navTitle = document.getElementById('navTitle');
-const clearFilters = document.getElementById('clearFilters');
+
+let rawData = [];
+let currentDate = new Date(); currentDate.setHours(0,0,0,0);
+let currentMode = 'month';
+
+const dayNames = ['א','ב','ג','ד','ה','ו','ש'];
+const sameDay = (a,b)=>a&&b&&a.getTime()===b.getTime();
+
+function parseDateSafe(v){
+  if(v==null||v==='') return null;
+  if(typeof v==='number'){
+    const d = XLSX.SSF.parse_date_code(v);
+    if(d) return new Date(d.y,d.m-1,d.d);
+  }
+  const d=new Date(v);
+  return isNaN(d)?null:d;
+}
 
 function colorForEmployee(name){
   if(!name) return '#94a3b8';
-  let hash=0;
-  for(let i=0;i<name.length;i++){
-    hash=name.charCodeAt(i)+((hash<<5)-hash);
-  }
-  return `hsl(${Math.abs(hash)%360},70%,55%)`;
+  let h=0; for(const c of name) h=c.charCodeAt(0)+((h<<5)-h);
+  return `hsl(${Math.abs(h)%360},70%,55%)`;
 }
 
-const sameDay=(a,b)=>a&&b&&a.getTime()===b.getTime();
-const startOfWeek=d=>{const x=new Date(d);x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x;};
+function initFilters(){
+  const fill=(el,arr,ph)=>{
+    el.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');
+  };
+  fill(managerFilter,[...new Set(rawData.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');
+  fill(programFilter,[...new Set(rawData.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');
+  fill(employeeFilter,[...new Set(rawData.map(r=>r.Employee).filter(Boolean))],'בחר עובד');
+}
 
-const parseDateSafe = v => {
-  if (!v) return null;
-
-  // אם זה מספר – תאריך אקסל (Serial Date)
-  if (typeof v === 'number') {
-    const d = XLSX.SSF.parse_date_code(v);
-    if (d) {
-      const jsDate = new Date(d.y, d.m - 1, d.d);
-      jsDate.setHours(0, 0, 0, 0);
-      return jsDate;
-    }
-  }
-
-  // אם זה מחרוזת / Date רגיל
-  const d = new Date(v);
-  if (!isNaN(d)) {
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-
-  return null;
-};
-
-async function loadExcel(){
-  try{
-    const res=await fetch('DASHBOARD.xlsx',{cache:'no-store'});
-    if(!res.ok) throw new Error('Excel not found');
-    const buf=await res.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
-    const sheet=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
-    rawData=buildRecords(rows);
-    initFilters();
-  } catch(e){
-    console.warn('Excel load failed, rendering empty calendar', e);
-    rawData=[];
-  }
-  render();
+function filteredData(){
+  const m=managerFilter.value,p=programFilter.value,e=employeeFilter.value;
+  return rawData.filter(r=>(!m||r.Manager===m)&&(!p||r.Program===p)&&(!e||r.Employee===e));
 }
 
 function buildRecords(rows){
@@ -158,127 +128,113 @@ function buildRecords(rows){
       Manager:o.manager||'',
       Employee:o.employee||'',
       Program:o.program||'',
-      School:o.school||'',
-      Authority:o.authority||'',
+      StartTime:o.starttime||'',
+      EndTime:o.endtime||'',
       EventType:(o.eventtype||'COURSE').toUpperCase(),
       Dates:Array.from({length:16},(_,i)=>parseDateSafe(o['date'+(i+1)]))
     };
   });
 }
 
-function initFilters(){
-  const set=(id,arr,ph)=>{
-    const s=document.getElementById(id);
-    s.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');
-    s.onchange=render;
-  };
-  set('managerFilter',[...new Set(rawData.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');
-  set('programFilter',[...new Set(rawData.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');
-  set('employeeFilter',[...new Set(rawData.map(r=>r.Employee).filter(Boolean))],'בחר עובד');
-}
-
-function filteredData(){
-  const m=managerFilter.value,p=programFilter.value,e=employeeFilter.value;
-  return rawData.filter(r=>(!m||r.Manager===m)&&(!p||r.Program===p)&&(!e||r.Employee===e));
+async function loadExcel(){
+  try{
+    const res = await fetch('DASHBOARD.xlsx',{cache:'no-store'});
+    if(!res.ok) throw new Error('Excel not found');
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf,{type:'array'});
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+    rawData = buildRecords(rows);
+    initFilters();
+  }catch(e){
+    console.warn('Excel load failed',e);
+    rawData=[];
+  }
+  render();
 }
 
 function render(){
   calendarGrid.innerHTML='';
-  const data=filteredData();
-  viewMonthBtn.classList.toggle('active',currentMode==='month');
-  viewWeekBtn.classList.toggle('active',currentMode==='week');
-  currentMode==='week'?renderWeek(data):renderMonth(data);
+  navTitle.textContent = currentMode==='month'
+    ? currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'})
+    : currentDate.toLocaleDateString('he-IL');
+
+  const data = filteredData();
+  if(currentMode==='month') renderMonth(data);
+  else renderWeek(data);
 }
 
 function renderMonth(data){
-  navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+  dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   const first=new Date(y,m,1),last=new Date(y,m+1,0);
-  dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
   for(let i=0;i<first.getDay();i++) calendarGrid.appendChild(document.createElement('div'));
+
   for(let d=1;d<=last.getDate();d++){
     const cur=new Date(y,m,d);
-    const cell=document.createElement('div');cell.className='day';
-    let count=0;
-    data.forEach(r=>r.Dates.forEach(dd=>{
-      if(dd&&sameDay(dd,cur)){
-        count++;
-        const ev=document.createElement('div');
-        const isHoliday = r.EventType === 'HOLIDAY';
-        ev.className = 'event' + (isHoliday ? ' holiday' : '');
-        if(!isHoliday && r.Employee) ev.style.borderLeftColor = colorForEmployee(r.Employee);
-        if(isHoliday){
-          ev.innerHTML = `<strong>חג</strong>`
-            + `<div class=\"meta\">${r.Program||'אירוע חג'}</div>`
-            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
-        } else {
-          ev.innerHTML = `<strong>${r.Employee||'<span class=\"missing\">חסר עובד</span>'}</strong>`
-            + `<div class=\"meta\">${r.Program||''}</div>`
-            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
-        }
-        cell.appendChild(ev);
-      }
-    }));
-    const h=document.createElement('div');h.className='day-header';h.innerHTML=`<span>${d}</span>${count?`<span class="badge">${count}</span>`:''}`;
+    const cell=document.createElement('div'); cell.className='day';
+    const events=[];
+    data.forEach(r=>r.Dates.forEach((dd,idx)=>{if(sameDay(dd,cur)) events.push({r,idx});}));
+    events.sort((a,b)=>(a.r.StartTime||'').localeCompare(b.r.StartTime||''));
+
+    events.forEach(({r,idx})=>{
+      const ev=document.createElement('div');
+      const isHoliday=r.EventType==='HOLIDAY';
+      ev.className='event'+(isHoliday?' holiday':'');
+      if(!isHoliday) ev.style.borderLeftColor=colorForEmployee(r.Employee);
+      ev.innerHTML=isHoliday
+        ? `<strong>חג</strong><div class=meta>${r.Program||''}</div>`
+        : `<strong>${r.Employee||'<span class=missing>חסר עובד</span>'}</strong>`
+          + `<div class=meta>${r.Program||''} · מפגש ${idx+1}</div>`
+          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`;
+      cell.appendChild(ev);
+    });
+
+    const h=document.createElement('div'); h.className='day-header'; h.textContent=d;
     cell.prepend(h);
-    if(!count) cell.classList.add('inactive');
+    if(!events.length) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
   }
 }
 
 function renderWeek(data){
-  const start=startOfWeek(currentDate);
-  const end=new Date(start);end.setDate(start.getDate()+6);
-  navTitle.textContent=`${start.toLocaleDateString('he-IL')} – ${end.toLocaleDateString('he-IL')}`;
-  dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
+  const start=new Date(currentDate); start.setDate(start.getDate()-start.getDay());
   for(let i=0;i<7;i++){
-    const cur=new Date(start);cur.setDate(start.getDate()+i);
-    const cell=document.createElement('div');cell.className='day';
-    let count=0;
-    data.forEach(r=>r.Dates.forEach(dd=>{
-      if(dd&&sameDay(dd,cur)){
-        count++;
-        const ev=document.createElement('div');
-        const isHoliday = r.EventType === 'HOLIDAY';
-        ev.className = 'event' + (isHoliday ? ' holiday' : '');
-        if(!isHoliday && r.Employee) ev.style.borderLeftColor = colorForEmployee(r.Employee);
-        if(isHoliday){
-          ev.innerHTML = `<strong>חג</strong>`
-            + `<div class=\"meta\">${r.Program||'אירוע חג'}</div>`
-            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
-        } else {
-          ev.innerHTML = `<strong>${r.Employee||'<span class=\"missing\">חסר עובד</span>'}</strong>`
-            + `<div class=\"meta\">${r.Program||''}</div>`
-            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
-        }
-        cell.appendChild(ev);
-      }
-    }));
-    const h=document.createElement('div');h.className='day-header';h.innerHTML=`<span>${cur.getDate()}</span>${count?`<span class="badge">${count}</span>`:''}`;
+    const cur=new Date(start); cur.setDate(start.getDate()+i);
+    const cell=document.createElement('div'); cell.className='day';
+    const events=[];
+    data.forEach(r=>r.Dates.forEach((dd,idx)=>{if(sameDay(dd,cur)) events.push({r,idx});}));
+    events.sort((a,b)=>(a.r.StartTime||'').localeCompare(b.r.StartTime||''));
+
+    events.forEach(({r,idx})=>{
+      const ev=document.createElement('div');
+      const isHoliday=r.EventType==='HOLIDAY';
+      ev.className='event'+(isHoliday?' holiday':'');
+      if(!isHoliday) ev.style.borderLeftColor=colorForEmployee(r.Employee);
+      ev.innerHTML=isHoliday
+        ? `<strong>חג</strong><div class=meta>${r.Program||''}</div>`
+        : `<strong>${r.Employee||'<span class=missing>חסר עובד</span>'}</strong>`
+          + `<div class=meta>${r.Program||''} · מפגש ${idx+1}</div>`
+          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`;
+      cell.appendChild(ev);
+    });
+
+    const h=document.createElement('div'); h.className='day-header'; h.textContent=cur.getDate();
     cell.prepend(h);
-    if(!count) cell.classList.add('inactive');
+    if(!events.length) cell.classList.add('inactive');
     calendarGrid.appendChild(cell);
   }
 }
 
-prevNav.onclick=()=>{
-  if(currentMode==='month') currentDate.setMonth(currentDate.getMonth()-1);
-  else currentDate.setDate(currentDate.getDate()-7);
-  render();
-};
-
-nextNav.onclick=()=>{
-  if(currentMode==='month') currentDate.setMonth(currentDate.getMonth()+1);
-  else currentDate.setDate(currentDate.getDate()+7);
-  render();
-};
-
+prevNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()-1):currentDate.setDate(currentDate.getDate()-7);render();};
+nextNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()+1):currentDate.setDate(currentDate.getDate()+7);render();};
 viewMonthBtn.onclick=()=>{currentMode='month';render();};
 viewWeekBtn.onclick=()=>{currentMode='week';render();};
 clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter.value='';render();};
 
 loadExcel();
 
+});
 </script>
 </body>
 </html>
