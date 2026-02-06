@@ -84,6 +84,17 @@ let currentDate=new Date();currentDate.setHours(0,0,0,0);
 let currentMode='month';
 const dayNames=['א','ב','ג','ד','ה','ו','ש'];
 
+const calendarGrid = document.getElementById('calendarGrid');
+const managerFilter = document.getElementById('managerFilter');
+const programFilter = document.getElementById('programFilter');
+const employeeFilter = document.getElementById('employeeFilter');
+const viewMonthBtn = document.getElementById('viewMonthBtn');
+const viewWeekBtn = document.getElementById('viewWeekBtn');
+const prevNav = document.getElementById('prevNav');
+const nextNav = document.getElementById('nextNav');
+const navTitle = document.getElementById('navTitle');
+const clearFilters = document.getElementById('clearFilters');
+
 function colorForEmployee(name){
   if(!name) return '#94a3b8';
   let hash=0;
@@ -178,9 +189,18 @@ function renderMonth(data){
       if(dd&&sameDay(dd,cur)){
         count++;
         const ev=document.createElement('div');
-        ev.className='event';
-        if(r.Employee) ev.style.borderLeftColor=colorForEmployee(r.Employee);
-        ev.innerHTML=`<strong>${r.Employee||'<span class="missing">חסר עובד</span>'}</strong><div class="meta">${r.Program||''}</div>`;
+        const isHoliday = r.EventType === 'HOLIDAY';
+        ev.className = 'event' + (isHoliday ? ' holiday' : '');
+        if(!isHoliday && r.Employee) ev.style.borderLeftColor = colorForEmployee(r.Employee);
+        if(isHoliday){
+          ev.innerHTML = `<strong>חג</strong>`
+            + `<div class=\"meta\">${r.Program||'אירוע חג'}</div>`
+            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
+        } else {
+          ev.innerHTML = `<strong>${r.Employee||'<span class=\"missing\">חסר עובד</span>'}</strong>`
+            + `<div class=\"meta\">${r.Program||''}</div>`
+            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
+        }
         cell.appendChild(ev);
       }
     }));
@@ -203,9 +223,19 @@ function renderWeek(data){
     data.forEach(r=>r.Dates.forEach(dd=>{
       if(dd&&sameDay(dd,cur)){
         count++;
-        const ev=document.createElement('div');ev.className='event';
-        if(r.Employee) ev.style.borderLeftColor=colorForEmployee(r.Employee);
-        ev.innerHTML=`<strong>${r.Employee||''}</strong>`;
+        const ev=document.createElement('div');
+        const isHoliday = r.EventType === 'HOLIDAY';
+        ev.className = 'event' + (isHoliday ? ' holiday' : '');
+        if(!isHoliday && r.Employee) ev.style.borderLeftColor = colorForEmployee(r.Employee);
+        if(isHoliday){
+          ev.innerHTML = `<strong>חג</strong>`
+            + `<div class=\"meta\">${r.Program||'אירוע חג'}</div>`
+            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
+        } else {
+          ev.innerHTML = `<strong>${r.Employee||'<span class=\"missing\">חסר עובד</span>'}</strong>`
+            + `<div class=\"meta\">${r.Program||''}</div>`
+            + `<div class=\"meta\">${[r.School, r.Authority].filter(Boolean).join(' · ')}</div>`;
+        }
         cell.appendChild(ev);
       }
     }));
