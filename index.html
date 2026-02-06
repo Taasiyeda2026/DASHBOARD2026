@@ -75,7 +75,8 @@ button.active{background:var(--accent);color:#fff;}
 
 <div id="calendarGrid" class="calendar-grid"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- SheetJS build ללא eval (תואם CSP של GitHub Pages) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.core.min.js"></script>
 <script>
 let rawData=[];
 let currentDate=new Date();currentDate.setHours(0,0,0,0);
@@ -105,13 +106,19 @@ const parseDateSafe=v=>{
 };
 
 async function loadExcel(){
-  const res=await fetch('DASHBOARD.xlsx',{cache:'no-store'});
-  const buf=await res.arrayBuffer();
-  const wb=XLSX.read(buf,{type:'array'});
-  const sheet=wb.Sheets[wb.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
-  rawData=buildRecords(rows);
-  initFilters();
+  try{
+    const res=await fetch('DASHBOARD.xlsx',{cache:'no-store'});
+    if(!res.ok) throw new Error('Excel not found');
+    const buf=await res.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const sheet=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+    rawData=buildRecords(rows);
+    initFilters();
+  } catch(e){
+    console.warn('Excel load failed, rendering empty calendar', e);
+    rawData=[];
+  }
   render();
 }
 
