@@ -94,11 +94,44 @@ async function loadExcel(){const r=await fetch('DASHBOARD.xlsx',{cache:'no-store
 function buildRecords(rows){const h=rows[0].map(x=>String(x).toLowerCase().replace(/\s+/g,''));return rows.slice(1).map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]);return{Manager:o.manager||'',Employee:o.employee||'',Program:o.program||'',School:o.school||'',Authority:o.municipality||o.authority||'',StartTime:o.starttime,EndTime:o.endtime,Dates:Array.from({length:16},(_,i)=>parseDateSafe(o['date'+(i+1)]))};});}
 function initFilters(){const set=(id,arr,ph)=>{const s=document.getElementById(id);s.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');s.onchange=render;};set('managerFilter',[...new Set(rawData.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');set('programFilter',[...new Set(rawData.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');set('employeeFilter',[...new Set(rawData.map(r=>r.Employee).filter(Boolean))],'בחר עובד');}
 function filteredData(){return rawData.filter(r=>(!managerFilter.value||r.Manager===managerFilter.value)&&(!programFilter.value||r.Program===programFilter.value)&&(!employeeFilter.value||r.Employee===employeeFilter.value));}
-function computeActiveWeeks(data){const s=new Set();data.forEach(r=>r.Dates.forEach(d=>d&&s.add(startOfWeek(d).getTime())));activeWeeks=[...s].sort().map(t=>new Date(t));}
+function computeActiveWeeks(data){
+  const s=new Set();
+  data.forEach(r=>r.Dates.forEach(d=>d&&s.add(startOfWeek(d).getTime())));
+  activeWeeks=[...s].sort().map(t=>new Date(t));
+  if(activeWeeks.length){
+    const cur=startOfWeek(currentDate);
+    const idx=activeWeeks.findIndex(w=>w.getTime()===cur.getTime());
+    activeWeekIndex=idx>=0?idx:0;
+  }
+}
+
+function syncWeekIndexByDate(date){
+  const w=startOfWeek(date);
+  const idx=activeWeeks.findIndex(x=>x.getTime()===w.getTime());
+  if(idx>=0) activeWeekIndex=idx;
+}
+}
+
+function syncWeekIndexByDate(date){
+  const w=startOfWeek(date);
+  const idx=activeWeeks.findIndex(x=>x.getTime()===w.getTime());
+  if(idx>=0) activeWeekIndex=idx;
+}
 function render(){calendarGrid.innerHTML='';empty.style.display='none';const data=filteredData();computeActiveWeeks(data);viewMonthBtn.classList.toggle('active',currentMode==='month');viewWeekBtn.classList.toggle('active',currentMode==='week');if(!data.length){empty.style.display='block';navTitle.textContent='';return;}currentMode==='week'?renderWeek(data):renderMonth(data);} 
-function renderMonth(data){navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});const y=currentDate.getFullYear(),m=currentDate.getMonth();const first=new Date(y,m,1),last=new Date(y,m+1,0);dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));for(let i=0;i<first.getDay();i++)if(i!==6)calendarGrid.appendChild(document.createElement('div'));for(let d=1;d<=last.getDate();d++){const date=new Date(y,m,d);date.setHours(0,0,0,0);if(date.getDay()===6)continue;const cell=document.createElement('div');cell.className='day';const events=[];data.forEach(r=>r.Dates.forEach((dd,idx)=>dd&&sameDay(dd,date)&&events.push({r,idx})));events.forEach(({r,idx})=>{const ev=document.createElement('div');ev.className=r.Employee?'event':'event error';if(r.Employee){const c=colorForEmployee(r.Employee);if(c)ev.style.background=`linear-gradient(135deg, ${c}, #ffffff)`;}ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;cell.appendChild(ev);});const h=document.createElement('div');h.className='day-header';const fd=date.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});h.innerHTML=`<span>${fd}</span>${events.length?`<span class="badge">${events.length}</span>`:''}`;h.onclick=()=>{currentDate=date;currentMode='week';render();};cell.prepend(h);if(!events.length)cell.classList.add('inactive');calendarGrid.appendChild(cell);} }
+function renderMonth(data){navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});const y=currentDate.getFullYear(),m=currentDate.getMonth();const first=new Date(y,m,1),last=new Date(y,m+1,0);dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));for(let i=0;i<first.getDay();i++)if(i!==6)calendarGrid.appendChild(document.createElement('div'));for(let d=1;d<=last.getDate();d++){const date=new Date(y,m,d);date.setHours(0,0,0,0);if(date.getDay()===6)continue;const cell=document.createElement('div');cell.className='day';const events=[];data.forEach(r=>r.Dates.forEach((dd,idx)=>dd&&sameDay(dd,date)&&events.push({r,idx})));events.forEach(({r,idx})=>{const ev=document.createElement('div');ev.className=r.Employee?'event':'event error';if(r.Employee){const c=colorForEmployee(r.Employee);if(c)ev.style.background=`linear-gradient(135deg, ${c}, #ffffff)`;}ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;cell.appendChild(ev);});const h=document.createElement('div');h.className='day-header';const fd=date.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});h.innerHTML=`<span>${fd}</span>${events.length?`<span class="badge">${events.length}</span>`:''}`;h.onclick = ()=>{
+  currentDate = date;
+  currentMode = 'week';
+  syncWeekIndexByDate(date);
+  render();
+};cell.prepend(h);if(!events.length)cell.classList.add('inactive');calendarGrid.appendChild(cell);} }
 function renderWeek(data){if(!activeWeeks.length){navTitle.textContent='';return;}const start=activeWeeks[activeWeekIndex],end=new Date(start);end.setDate(start.getDate()+5);navTitle.textContent=`${start.toLocaleDateString('he-IL')} – ${end.toLocaleDateString('he-IL')}`;dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));for(let i=0;i<6;i++){const date=new Date(start);date.setDate(start.getDate()+i);date.setHours(0,0,0,0);const cell=document.createElement('div');cell.className='day';const events=[];data.forEach(r=>r.Dates.forEach((dd,idx)=>dd&&sameDay(dd,date)&&events.push({r,idx})));events.forEach(({r,idx})=>{const ev=document.createElement('div');ev.className=r.Employee?'event':'event error';if(r.Employee){const c=colorForEmployee(r.Employee);if(c)ev.style.background=`linear-gradient(135deg, ${c}, #ffffff)`;}ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;cell.appendChild(ev);});const h=document.createElement('div');h.className='day-header';const fd=date.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});h.innerHTML=`<span>${fd}</span>${events.length?`<span class="badge">${events.length}</span>`:''}`;cell.prepend(h);if(!events.length)cell.classList.add('inactive');calendarGrid.appendChild(cell);} }
-navToggle.onclick=()=>navControls.classList.toggle('open');viewMonthBtn.onclick=()=>{currentMode='month';render();};viewWeekBtn.onclick=()=>{currentMode='week';render();};prevNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()-1):activeWeekIndex>0&&activeWeekIndex--;render();};nextNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()+1):activeWeekIndex<activeWeeks.length-1&&activeWeekIndex++;render();};clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter.value='';render();};
+navToggle.onclick=()=>navControls.classList.toggle('open');viewMonthBtn.onclick = ()=>{
+  if(currentMode === 'week' && activeWeeks[activeWeekIndex]){
+    currentDate = new Date(activeWeeks[activeWeekIndex]);
+  }
+  currentMode = 'month';
+  render();
+};viewWeekBtn.onclick=()=>{currentMode='week';render();};prevNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()-1):activeWeekIndex>0&&activeWeekIndex--;render();};nextNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()+1):activeWeekIndex<activeWeeks.length-1&&activeWeekIndex++;render();};clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter.value='';render();};
 loadExcel();
 </script>
 </body>
