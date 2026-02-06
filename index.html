@@ -13,37 +13,21 @@ body{margin:0;font-family:Assistant,system-ui,sans-serif;background:linear-gradi
 header{background:#fff;border-bottom:1px solid var(--border);} 
 .header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:16px;align-items:center;} 
 .app-logo{height:42px;} 
-
 .controls,.nav-controls{display:flex;justify-content:center;gap:8px;margin:10px auto;flex-wrap:wrap;} 
 select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);} 
 #todayBtn{display:none;} 
 button.active{background:var(--accent);color:#fff;}
 .nav-btn{width:32px;height:32px;border-radius:999px;} 
-
 .nav-controls{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
-
-@media(max-width:768px){
-  .nav-controls{flex-direction:column;align-items:stretch;padding:6px 10px;}
-  .nav-controls .nav-main{display:none;gap:8px;flex-wrap:wrap;justify-content:center;}
-  .nav-controls.open .nav-main{display:flex;}
-  .nav-toggle{display:block;width:100%;text-align:center;font-weight:600;}
-}
-@media(min-width:769px){.nav-toggle{display:none;}}
-
 .calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:12px;} 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);} 
 .day.inactive{opacity:.25} 
 .day-header{font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;} 
 .badge{background:var(--accent);color:#fff;border-radius:999px;padding:0 6px;font-size:11px;}
-.event{position:relative;background:linear-gradient(135deg,var(--accent-soft),#fff);border-radius:10px;padding:8px;margin-top:6px;font-size:13px;}
-.event.error{background:linear-gradient(135deg,#fecaca,#fee2e2);border:2px solid #dc2626;box-shadow:0 0 0 2px rgba(220,38,38,.25),0 6px 14px rgba(220,38,38,.35);} 
-.event.error strong{color:#7f1d1d;font-weight:900;}
-.event.error::before{content:"⚠️";font-size:20px;position:absolute;top:6px;left:6px;z-index:2;} 
+.event{background:linear-gradient(135deg,var(--accent-soft),#fff);border-radius:10px;padding:8px;margin-top:6px;font-size:13px;}
+.event.holiday{font-weight:900;font-size:16px;background:linear-gradient(135deg,#fde68a,#fff7ed);} 
 .meta{font-size:12px;color:var(--text-muted);} 
-.calendar-grid > .meta{font-size:36px;font-weight:900;text-align:center;color:#0f172a;} 
-.empty{max-width:1200px;margin:20px auto;text-align:center;color:var(--text-muted);} 
-
-@media(max-width:768px){.calendar-grid{grid-template-columns:1fr;}}
+.calendar-grid>.meta{font-size:36px;font-weight:900;text-align:center;color:#0f172a;} 
 </style>
 </head>
 <body>
@@ -62,11 +46,9 @@ button.active{background:var(--accent);color:#fff;}
 </div>
 
 <div class="nav-controls" id="navControls">
-  <button class="nav-toggle" id="navToggle">תצוגה וניווט ▼</button>
   <div class="nav-main">
     <button id="viewMonthBtn" class="active">חודש</button>
     <button id="viewWeekBtn">שבוע</button>
-    <button id="todayBtn">TODAY</button>
     <button id="prevNav" class="nav-btn">▶</button>
     <span id="navTitle"></span>
     <button id="nextNav" class="nav-btn">◀</button>
@@ -74,7 +56,6 @@ button.active{background:var(--accent);color:#fff;}
 </div>
 
 <div id="calendarGrid" class="calendar-grid"></div>
-<div id="empty" class="empty" style="display:none">אין פעילות לפי הסינון שנבחר</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -82,81 +63,50 @@ let rawData=[],currentDate=new Date();currentDate.setHours(0,0,0,0);
 let currentMode='month',activeWeeks=[],activeWeekIndex=0;
 const dayNames=['א','ב','ג','ד','ה','ו'];
 
-const PALETTE=['#e0f2fe','#ecfeff','#f0fdf4','#fefce8','#fff7ed','#fdf2f8','#f5f3ff','#eff6ff','#f0fdfa','#faf5ff','#f8fafc','#eef2ff','#ecfdf5','#fffbeb','#fef2f2','#fdf4ff','#f1f5f9','#e6fffa','#f0f9ff','#fafafa','#e8f0fe','#e7f5ff','#eafaf1','#fff9db','#ffe8cc','#fce7f3','#ede9fe','#e0f7fa','#f1f8e9','#f3e8ff'];
-function hashString(s){let h=0;for(let i=0;i<s.length;i++){h=(h<<5)-h+s.charCodeAt(i);h|=0;}return Math.abs(h);} 
-function colorForEmployee(n){return n?PALETTE[hashString(n)%PALETTE.length]:null;}
+const HOLIDAYS={
+ '2026-03-03':'פורים','2026-03-04':'פורים','2026-03-24':'פסח','2026-03-25':'פסח','2026-03-26':'פסח','2026-03-27':'פסח','2026-03-28':'פסח','2026-03-29':'פסח','2026-03-30':'פסח','2026-03-31':'פסח','2026-04-01':'פסח','2026-04-02':'פסח','2026-04-03':'פסח','2026-04-04':'פסח','2026-04-05':'פסח','2026-04-06':'פסח','2026-04-07':'פסח','2026-04-08':'פסח','2026-04-20':'ערב יום הזיכרון','2026-04-21':'יום הזיכרון','2026-04-22':'יום העצמאות','2026-05-08':'ל"ג בעומר','2026-05-21':'שבועות','2026-05-22':'שבועות'
+};
+function ymd(d){return d.toISOString().slice(0,10);} 
+function isHoliday(d){return !!HOLIDAYS[ymd(d)];}
+function holidayName(d){return HOLIDAYS[ymd(d)]||'';}
 function sameDay(a,b){return a&&b&&a.getTime()===b.getTime();}
 function startOfWeek(d){const x=new Date(d);x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x;}
 function parseDateSafe(v){if(!v)return null;if(typeof v==='number'){const d=new Date(Math.round((v-25569)*86400*1000));d.setHours(0,0,0,0);return d;}const d=new Date(v);if(!isNaN(d)){d.setHours(0,0,0,0);return d;}return null;}
-function formatTime(v){if(v==null||v==='')return'';if(typeof v==='number'){const m=Math.round(v*24*60);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}return String(v).slice(0,5);} 
 
-async function loadExcel(){const r=await fetch('DASHBOARD.xlsx',{cache:'no-store'});const b=await r.arrayBuffer();const wb=XLSX.read(b,{type:'array'});const sh=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});rawData=buildRecords(rows);initFilters();render();}
-function buildRecords(rows){const h=rows[0].map(x=>String(x).toLowerCase().replace(/\s+/g,''));return rows.slice(1).map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]);return{Manager:o.manager||'',Employee:o.employee||'',Program:o.program||'',School:o.school||'',Authority:o.municipality||o.authority||'',StartTime:o.starttime,EndTime:o.endtime,Dates:Array.from({length:16},(_,i)=>parseDateSafe(o['date'+(i+1)]))};});}
-function initFilters(){const set=(id,arr,ph)=>{const s=document.getElementById(id);s.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');s.onchange=render;};set('managerFilter',[...new Set(rawData.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');set('programFilter',[...new Set(rawData.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');set('employeeFilter',[...new Set(rawData.map(r=>r.Employee).filter(Boolean))],'בחר עובד');}
-function filteredData(){return rawData.filter(r=>(!managerFilter.value||r.Manager===managerFilter.value)&&(!programFilter.value||r.Program===programFilter.value)&&(!employeeFilter.value||r.Employee===employeeFilter.value));}
-function computeActiveWeeks(data){
-  const s=new Set();
-  data.forEach(r=>r.Dates.forEach(d=>d&&s.add(startOfWeek(d).getTime())));
-  activeWeeks=[...s].sort().map(t=>new Date(t));
-  if(activeWeeks.length){
-    const cur=startOfWeek(currentDate);
-    const idx=activeWeeks.findIndex(w=>w.getTime()===cur.getTime());
-    activeWeekIndex=idx>=0?idx:0;
-  }
+async function loadExcel(){
+ const r=await fetch('DASHBOARD.xlsx',{cache:'no-store'});
+ const b=await r.arrayBuffer();
+ const wb=XLSX.read(b,{type:'array'});
+ const sh=wb.Sheets[wb.SheetNames[0]];
+ const rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+ rawData=rows.slice(1).map(row=>({Dates:row.slice(7,23).map(parseDateSafe)}));
+ render();
 }
 
-function syncWeekIndexByDate(date){
-  const w=startOfWeek(date);
-  const idx=activeWeeks.findIndex(x=>x.getTime()===w.getTime());
-  if(idx>=0) activeWeekIndex=idx;
+function render(){
+ calendarGrid.innerHTML='';
+ const y=currentDate.getFullYear(),m=currentDate.getMonth();
+ navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+ dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
+ for(let day=1;day<=31;day++){
+   const d=new Date(y,m,day);
+   if(d.getMonth()!==m||d.getDay()===6) continue;
+   const cell=document.createElement('div');cell.className='day';
+   const h=document.createElement('div');h.className='day-header';h.textContent=day;cell.appendChild(h);
+   if(isHoliday(d)){
+     const ev=document.createElement('div');
+     ev.className='event holiday';
+     ev.innerHTML = `<strong>${holidayName(d)}</strong>`;
+     cell.appendChild(ev);
+   }
+   calendarGrid.appendChild(cell);
+ }
 }
-function render(){calendarGrid.innerHTML='';empty.style.display='none';const data=filteredData();computeActiveWeeks(data);viewMonthBtn.classList.toggle('active',currentMode==='month');viewWeekBtn.classList.toggle('active',currentMode==='week');if(!data.length){empty.style.display='block';navTitle.textContent='';return;}currentMode==='week'?renderWeek(data):renderMonth(data);} 
-function renderMonth(data){navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});const y=currentDate.getFullYear(),m=currentDate.getMonth();const first=new Date(y,m,1),last=new Date(y,m+1,0);dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));for(let i=0;i<first.getDay();i++)if(i!==6)calendarGrid.appendChild(document.createElement('div'));for(let d=1;d<=last.getDate();d++){const date=new Date(y,m,d);date.setHours(0,0,0,0);if(date.getDay()===6)continue;const cell=document.createElement('div');cell.className='day';const events=[];data.forEach(r=>r.Dates.forEach((dd,idx)=>dd&&sameDay(dd,date)&&events.push({r,idx})));events.forEach(({r,idx})=>{const ev=document.createElement('div');ev.className=r.Employee?'event':'event error';if(r.Employee){const c=colorForEmployee(r.Employee);if(c)ev.style.background=`linear-gradient(135deg, ${c}, #ffffff)`;}ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;cell.appendChild(ev);});const h=document.createElement('div');h.className='day-header';const fd=date.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});let badgeHTML = '';
-    if(events.length){ badgeHTML = `<span class="badge">${events.length}</span>`; }
-    h.innerHTML = `<span>${fd}</span>` + badgeHTML;h.onclick = ()=>{
-  currentDate = date;
-  currentMode = 'week';
-  syncWeekIndexByDate(date);
-  render();
-};cell.prepend(h);if(!events.length)cell.classList.add('inactive');calendarGrid.appendChild(cell);} }
-function renderWeek(data){if(!activeWeeks.length){navTitle.textContent='';return;}const start=activeWeeks[activeWeekIndex],end=new Date(start);end.setDate(start.getDate()+5);navTitle.textContent=`${start.toLocaleDateString('he-IL')} – ${end.toLocaleDateString('he-IL')}`;dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));for(let i=0;i<6;i++){const date=new Date(start);date.setDate(start.getDate()+i);date.setHours(0,0,0,0);const cell=document.createElement('div');cell.className='day';const events=[];data.forEach(r=>r.Dates.forEach((dd,idx)=>dd&&sameDay(dd,date)&&events.push({r,idx})));events.forEach(({r,idx})=>{const ev=document.createElement('div');ev.className=r.Employee?'event':'event error';if(r.Employee){const c=colorForEmployee(r.Employee);if(c)ev.style.background=`linear-gradient(135deg, ${c}, #ffffff)`;}ev.innerHTML=`<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;cell.appendChild(ev);});const h=document.createElement('div');h.className='day-header';const fd=date.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});let badgeHTML = '';
-    if(events.length){ badgeHTML = `<span class="badge">${events.length}</span>`; }
-    h.innerHTML = `<span>${fd}</span>` + badgeHTML;cell.prepend(h);if(!events.length)cell.classList.add('inactive');calendarGrid.appendChild(cell);} }
-navToggle.onclick=()=>navControls.classList.toggle('open');viewMonthBtn.onclick = ()=>{
-  if(currentMode === 'week' && activeWeeks[activeWeekIndex]){
-    currentDate = new Date(activeWeeks[activeWeekIndex]);
-  }
-  currentMode = 'month';
-  render();
-};viewWeekBtn.onclick=()=>{
-  currentMode='week';
-  syncWeekIndexByDate(currentDate);
-  render();
-};prevNav.onclick=()=>{
-  if(currentMode==='month'){
-    currentDate.setMonth(currentDate.getMonth()-1);
-  } else {
-    if(activeWeekIndex>0){
-      activeWeekIndex--;
-      if(activeWeeks[activeWeekIndex]){
-        currentDate = new Date(activeWeeks[activeWeekIndex]);
-      }
-    }
-  }
-  render();
-};nextNav.onclick=()=>{
-  if(currentMode==='month'){
-    currentDate.setMonth(currentDate.getMonth()+1);
-  } else {
-    if(activeWeekIndex<activeWeeks.length-1){
-      activeWeekIndex++;
-      if(activeWeeks[activeWeekIndex]){
-        currentDate = new Date(activeWeeks[activeWeekIndex]);
-      }
-    }
-  }
-  render();
-};clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter.value='';render();};
+
+prevNav.onclick=()=>{currentDate.setMonth(currentDate.getMonth()-1);render();};
+nextNav.onclick=()=>{currentDate.setMonth(currentDate.getMonth()+1);render();};
+viewMonthBtn.onclick=()=>{currentMode='month';render();};
+viewWeekBtn.onclick=()=>{currentMode='week';render();};
 loadExcel();
 </script>
 </body>
