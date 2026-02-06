@@ -413,6 +413,15 @@ function filteredData(){
   });
 }
 
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0 = Sunday
+  const diff = d.getDate() - day;
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 // ================= RENDER =================
 function render(){
   calendarGrid.innerHTML = '';
@@ -503,6 +512,31 @@ function render(){
       </div>`;
     });
   }
+}
+
+function getDurationHours(startTime, endTime) {
+  if (!startTime || !endTime) return 0;
+
+  const toMinutes = (t) => {
+    if (typeof t === 'string') {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    }
+    if (t instanceof Date) {
+      return t.getHours() * 60 + t.getMinutes();
+    }
+    if (typeof t === 'number') {
+      return t;
+    }
+    return null;
+  };
+
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+
+  if (start === null || end === null || end <= start) return 0;
+
+  return (end - start) / 60;
 }
 
 function buildWeeklySessions(data){
