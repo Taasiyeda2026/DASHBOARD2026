@@ -71,6 +71,76 @@ select,button{
   flex-wrap:wrap;
 }
 
+.mobile-week-list{
+  max-width:1200px;
+  margin:auto;
+  padding:10px;
+  display:none;
+}
+
+.mobile-week-card{
+  background:var(--card-bg);
+  border-radius:14px;
+  padding:12px;
+  margin-bottom:12px;
+  box-shadow:0 6px 16px rgba(0,0,0,.1);
+  border:1px solid var(--border);
+}
+
+.mobile-week-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+
+.mobile-week-summary{
+  font-size:13px;
+  color:var(--text-muted);
+  margin-top:6px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.mobile-week-details{
+  display:none;
+  margin-top:10px;
+  border-top:1px solid var(--border);
+  padding-top:10px;
+}
+
+.mobile-week-card.open .mobile-week-details{
+  display:block;
+}
+
+.mobile-day{
+  margin-bottom:10px;
+}
+
+.mobile-day-title{
+  font-weight:700;
+  margin-bottom:6px;
+}
+
+.mobile-session{
+  background:linear-gradient(135deg,var(--accent-soft),#fff);
+  border-radius:10px;
+  padding:8px;
+  margin-bottom:6px;
+  font-size:12px;
+}
+
+.mobile-toggle{
+  border:none;
+  background:var(--accent);
+  color:#fff;
+  border-radius:8px;
+  padding:4px 8px;
+  font-size:12px;
+  cursor:pointer;
+}
+
 .day{
   background:var(--card-bg);
   border-radius:14px;
@@ -90,6 +160,43 @@ select,button{
 .meta{
   font-size:12px;
   color:var(--text-muted);
+}
+
+@media (max-width:768px){
+  .desktop-view{
+    display:none;
+  }
+
+  .view-switch{
+    display:none;
+  }
+
+  .nav-controls{
+    display:none;
+  }
+
+  .calendar-grid{
+    padding:0;
+  }
+
+  .mobile-week-card{
+    padding:12px;
+    margin-bottom:10px;
+    border-radius:10px;
+  }
+
+  .mobile-week-details{
+    display:none;
+  }
+
+  .mobile-week-card.open .mobile-week-details{
+    display:block;
+  }
+
+  .mobile-week-list{
+    display:block;
+    padding:10px;
+  }
 }
 </style>
 </head>
@@ -124,7 +231,8 @@ select,button{
   <button id="nextNav" class="nav-btn">▶</button>
 </div>
 
-<div id="calendarGrid" class="calendar-grid"></div>
+<div id="calendarGrid" class="calendar-grid desktop-view"></div>
+<div id="mobileWeekList" class="mobile-week-list"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -136,6 +244,7 @@ let rawData = [];
 let currentView = 'week';
 let currentDate = new Date();
 currentDate.setHours(0,0,0,0);
+let isMobile = window.innerWidth <= 768;
 
 const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי'];
 
@@ -307,12 +416,18 @@ function filteredData(){
 // ================= RENDER =================
 function render(){
   calendarGrid.innerHTML = '';
+  mobileWeekList.innerHTML = '';
   const data = filteredData();
+
+  if(isMobile){
+    currentView = 'week';
+    renderMobileWeeks(data);
+    return;
+  }
 
   // -------- WEEK VIEW --------
   if(currentView==='week'){
-    const start = new Date(currentDate);
-    start.setDate(start.getDate()-start.getDay());
+    const start = startOfWeek(currentDate);
     navTitle.textContent = 'שבוע החל מ־' + start.toLocaleDateString('he-IL');
 
     for(let i=0;i<6;i++){
@@ -390,6 +505,108 @@ function render(){
   }
 }
 
+function buildWeeklySessions(data){
+  const weeks = new Map();
+
+  data.forEach(r=>{
+    const startTime = r.StartTime;
+    const endTime = r.EndTime;
+    const durationHours = getDurationHours(startTime,endTime);
+    for(let j=1;j<=16;j++){
+      const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
+      if(!d) continue;
+      const weekStart = startOfWeek(d);
+      const weekKey = weekStart.toISOString();
+      if(!weeks.has(weekKey)){
+        weeks.set(weekKey,{start:weekStart, sessions:[]});
+      }
+      weeks.get(weekKey).sessions.push({
+        date:d,
+        program:r.Program,
+        school:r.School,
+        authority:r.Authority || r.Municipality,
+        startTime,
+        endTime,
+        durationHours
+      });
+    }
+  });
+
+  return Array.from(weeks.values()).sort((a,b)=>a.start-b.start);
+}
+
+function renderMobileWeeks(data){
+  navTitle.textContent = 'תצוגת שבוע';
+  const weeks = buildWeeklySessions(data);
+
+  if(!weeks.length){
+    mobileWeekList.innerHTML = '<div class="meta">—</div>';
+    return;
+  }
+
+  weeks.forEach((week, index)=>{
+    const weekStart = week.start;
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate()+6);
+
+    const sessionsByDay = {};
+    let totalHours = 0;
+    week.sessions.forEach((session)=>{
+      const key = session.date.toISOString().slice(0,10);
+      if(!sessionsByDay[key]){
+        sessionsByDay[key] = {date:session.date, sessions:[]};
+      }
+      sessionsByDay[key].sessions.push(session);
+      totalHours += session.durationHours;
+    });
+
+    const daysWithMultiple = Object.values(sessionsByDay).some(day=>day.sessions.length > 1);
+    const totalMeetings = week.sessions.length;
+
+    const detailsHtml = Object.values(sessionsByDay)
+      .sort((a,b)=>a.date-b.date)
+      .map((day)=>{
+        const dayTotal = day.sessions.reduce((sum,s)=>sum+s.durationHours,0);
+        const sessionsHtml = day.sessions.map((session)=>{
+          const timeRange = [formatTime(session.startTime), formatTime(session.endTime)].filter(Boolean).join('–');
+          return `<div class="mobile-session">
+            <div><strong>${session.program || '-'}</strong></div>
+            <div class="meta">${session.school || '-'} · ${session.authority || '-'}</div>
+            <div class="meta">${timeRange || '-'}</div>
+          </div>`;
+        }).join('');
+        return `<div class="mobile-day">
+          <div class="mobile-day-title">${day.date.toLocaleDateString('he-IL')}</div>
+          ${sessionsHtml}
+          <div class="meta">סה״כ שעות ליום: ${dayTotal.toFixed(1)}</div>
+        </div>`;
+      }).join('');
+
+    mobileWeekList.innerHTML += `<div class="mobile-week-card" data-week="${index}">
+      <div class="mobile-week-header">
+        <strong>${formatDateRange(weekStart,weekEnd)}</strong>
+        <button class="mobile-toggle" type="button">פרטים</button>
+      </div>
+      <div class="mobile-week-summary">
+        <span>מספר מפגשים: ${totalMeetings}</span>
+        <span>סה״כ שעות שבועיות: ${totalHours.toFixed(1)}</span>
+        <span>${daysWithMultiple ? 'יש יותר ממפגש אחד ביום' : 'מפגש אחד ביום לכל היותר'}</span>
+      </div>
+      <div class="mobile-week-details">
+        ${detailsHtml}
+      </div>
+    </div>`;
+  });
+
+  document.querySelectorAll('.mobile-week-card').forEach(card=>{
+    card.onclick = (event)=>{
+      if(event.target.classList.contains('mobile-toggle') || event.target.closest('.mobile-week-header')){
+        card.classList.toggle('open');
+      }
+    };
+  });
+}
+
 // ================= EVENTS =================
 viewWeek.onclick = ()=>{currentView='week';render();};
 viewMonth.onclick = ()=>{currentView='month';render();};
@@ -397,6 +614,13 @@ viewWorker.onclick = ()=>{currentView='worker';render();};
 prevNav.onclick = ()=>{currentDate.setDate(currentDate.getDate()-7);render();};
 nextNav.onclick = ()=>{currentDate.setDate(currentDate.getDate()+7);render();};
 clearFilters.onclick = ()=>{managerFilter.value=workerFilter.value=programFilter.value='';render();};
+window.onresize = ()=>{
+  const nextIsMobile = window.innerWidth <= 768;
+  if(nextIsMobile !== isMobile){
+    isMobile = nextIsMobile;
+    render();
+  }
+};
 
 loadExcel();
 </script>
