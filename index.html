@@ -35,7 +35,8 @@ button.active{background:var(--accent);color:#fff;}
 .day.inactive{opacity:.25} 
 .day-header{font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;} 
 .badge{background:var(--accent);color:#fff;border-radius:999px;padding:0 6px;font-size:11px;}
-.event{background:linear-gradient(135deg,var(--accent-soft),#fff);border-radius:10px;padding:8px;margin-top:6px;font-size:13px;} 
+.event{background:linear-gradient(135deg,var(--accent-soft),#fff);border-radius:10px;padding:8px;margin-top:6px;font-size:13px;}
+.event.error{background:linear-gradient(135deg,#fee2e2,#fff);border:1px solid #dc2626;} 
 .meta{font-size:12px;color:var(--text-muted);} 
 /* Day headers (א–ו) */
 .calendar-grid > .meta{
@@ -91,6 +92,28 @@ let activeWeeks = [];
 let activeWeekIndex = 0;
 let page = 'main';
 const dayNames = ['א','ב','ג','ד','ה','ו'];
+
+// ================= COLOR PALETTE (30) =================
+const PALETTE = [
+  '#e0f2fe','#ecfeff','#f0fdf4','#fefce8','#fff7ed','#fdf2f8','#f5f3ff','#eff6ff','#f0fdfa','#faf5ff',
+  '#f8fafc','#eef2ff','#ecfdf5','#fffbeb','#fef2f2','#fdf4ff','#f1f5f9','#e6fffa','#f0f9ff','#fafafa',
+  '#e8f0fe','#e7f5ff','#eafaf1','#fff9db','#ffe8cc','#fce7f3','#ede9fe','#e0f7fa','#f1f8e9','#f3e8ff'
+];
+
+function hashString(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+function colorForEmployee(name){
+  if(!name) return null;
+  const idx = hashString(name) % PALETTE.length;
+  return PALETTE[idx];
+}
 
 // ================= DATE HELPERS =================
 function sameDay(a,b){ return a && b && a.getTime() === b.getTime(); }
@@ -268,21 +291,38 @@ function renderMonth(data){
 
     const cell = document.createElement('div');
     cell.className = 'day';
-    let count = 0;
 
+    // איסוף אירועי היום
+    const events = [];
     data.forEach(r => r.Dates.forEach((dd,idx)=>{
       if(dd && sameDay(dd,date)){
-        count++; meetings++; daysActive.add(date.toDateString());
-        const ev = document.createElement('div');
-        ev.className = 'event';
-        ev.innerHTML = `<strong>${r.Employee}</strong><div class="meta">${r.Program} · מפגש ${idx+1}</div><div class="meta">${r.School} · ${r.Authority}</div><div class="meta">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;
-        cell.appendChild(ev);
+        events.push({ record:r, idx });
       }
     }));
 
+    // מיון לפי שעת התחלה (מוקדם → מאוחר)
+    events.sort((a,b)=>{
+      const ta = typeof a.record.StartTime === 'number' ? a.record.StartTime : a.record.StartTime;
+      const tb = typeof b.record.StartTime === 'number' ? b.record.StartTime : b.record.StartTime;
+      return (ta > tb ? 1 : -1);
+    });
+
+    events.forEach(({record:r,idx})=>{
+      meetings++; daysActive.add(date.toDateString());
+      const ev = document.createElement('div');
+      ev.className = r.Employee ? 'event' : 'event error';
+      if(r.Employee){
+        const c = colorForEmployee(r.Employee);
+        if(c){ ev.style.background = `linear-gradient(135deg, ${c}, #ffffff)`; }
+      }
+      ev.innerHTML = `<strong>${r.Employee}</strong><div class=\"meta\">${r.Program} · מפגש ${idx+1}</div><div class=\"meta\">${r.School} · ${r.Authority}</div><div class=\"meta\">שעות: ${formatTime(r.StartTime)}–${formatTime(r.EndTime)}</div>`;
+      cell.appendChild(ev);
+    });
+
+    const count = events.length;
     const h = document.createElement('div');
     h.className = 'day-header';
-    h.innerHTML = `<span>${d}</span>${count ? `<span class="badge">${count}</span>` : ''}`;
+    h.innerHTML = `<span>${d}</span>${count ? `<span class=\"badge\">${count}</span>` : ''}`;
     h.onclick = ()=>{ currentDate = date; currentMode = 'week'; render(); };
     cell.prepend(h);
     if(!count) cell.classList.add('inactive');
