@@ -16,6 +16,7 @@ header{background:#fff;border-bottom:1px solid var(--border);}
 
 .controls,.nav-controls{display:flex;justify-content:center;gap:8px;margin:10px auto;flex-wrap:wrap;} 
 select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);} 
+#todayBtn{display:none;} 
 button.active{background:var(--accent);color:#fff;}
 .nav-btn{width:32px;height:32px;border-radius:999px;} 
 
@@ -230,9 +231,14 @@ function render(){
   }
 
   if(currentMode === 'week'){
-    snapWeekIndexToToday();
+    // הצמדה לשבוע הנוכחי רק בכניסה ראשונית לתצוגת שבוע
+    if(typeof render._weekSnapped === 'undefined' || !render._weekSnapped){
+      snapWeekIndexToToday();
+      render._weekSnapped = true;
+    }
     renderWeek(data);
   } else {
+    render._weekSnapped = false;
     renderMonth(data);
   }
 }
