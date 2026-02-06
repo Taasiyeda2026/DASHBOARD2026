@@ -109,13 +109,26 @@ function colorForEmployee(name){
 const sameDay=(a,b)=>a&&b&&a.getTime()===b.getTime();
 const startOfWeek=d=>{const x=new Date(d);x.setDate(x.getDate()-x.getDay());x.setHours(0,0,0,0);return x;};
 
-const parseDateSafe=v=>{
-  if(!v) return null;
-  const d=new Date(v);
-  if(!isNaN(d)){
-    d.setHours(0,0,0,0);
+const parseDateSafe = v => {
+  if (!v) return null;
+
+  // אם זה מספר – תאריך אקסל (Serial Date)
+  if (typeof v === 'number') {
+    const d = XLSX.SSF.parse_date_code(v);
+    if (d) {
+      const jsDate = new Date(d.y, d.m - 1, d.d);
+      jsDate.setHours(0, 0, 0, 0);
+      return jsDate;
+    }
+  }
+
+  // אם זה מחרוזת / Date רגיל
+  const d = new Date(v);
+  if (!isNaN(d)) {
+    d.setHours(0, 0, 0, 0);
     return d;
   }
+
   return null;
 };
 
