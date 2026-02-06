@@ -289,39 +289,6 @@ function parseDate(val){
 
 function sameDay(a,b){return a && b && a.getTime()===b.getTime();}
 
-function startOfWeek(date){
-  const start = new Date(date);
-  start.setHours(0,0,0,0);
-  start.setDate(start.getDate()-start.getDay());
-  return start;
-}
-
-function formatDateRange(start,end){
-  const startText = start.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-  const endText = end.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
-  return `${startText}–${endText}`;
-}
-
-function formatTime(value){
-  if(typeof value === 'number' && !isNaN(value)){
-    const totalMinutes = Math.round(value * 24 * 60);
-    const hours = String(Math.floor(totalMinutes / 60)).padStart(2,'0');
-    const minutes = String(totalMinutes % 60).padStart(2,'0');
-    return `${hours}:${minutes}`;
-  }
-  if(typeof value === 'string' && value.trim()){
-    return value.trim();
-  }
-  return '';
-}
-
-function getDurationHours(startValue,endValue){
-  if(typeof startValue === 'number' && typeof endValue === 'number'){
-    return Math.max(0,(endValue - startValue) * 24);
-  }
-  return 0;
-}
-
 function parseDateSafe(value, rowIndex, header){
   if(!value) return null;
   if(value instanceof Date){
