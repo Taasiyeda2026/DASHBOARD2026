@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>דשבורד פעילות ותוכניות</title>
+<link rel="icon" href="logo.png" type="image/png">
 
 <style>
 :root{
@@ -53,7 +54,8 @@ button.active{background:var(--accent);color:#fff;}
 <body>
 <header>
   <div class="header-inner">
-    <img src="logo.png" class="app-logo" alt="logo">
+    <img src="logo.png" class="app-logo" alt="לוגו" onerror="this.style.display='none';document.getElementById('logoFallback').style.display='inline-flex';">
+    <div id="logoFallback" style="display:none;width:42px;height:42px;border-radius:10px;background:#e5e7eb;color:#0f172a;align-items:center;justify-content:center;font-weight:800;">LOGO</div>
     <div><strong>דשבורד פעילות ותוכניות</strong><br><span class="meta">תצוגה חודשית / שבועית לפי תאריכים</span></div>
   </div>
 </header>
