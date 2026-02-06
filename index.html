@@ -110,18 +110,10 @@ select,button{
   padding-top:10px;
 }
 
-.mobile-week-card.open .mobile-week-details{
-  display:block;
-}
+.mobile-week-card.open .mobile-week-details{display:block;}
 
-.mobile-day{
-  margin-bottom:10px;
-}
-
-.mobile-day-title{
-  font-weight:700;
-  margin-bottom:6px;
-}
+.mobile-day{margin-bottom:10px;}
+.mobile-day-title{font-weight:700;margin-bottom:6px;}
 
 .mobile-session{
   background:linear-gradient(135deg,var(--accent-soft),#fff);
@@ -157,46 +149,12 @@ select,button{
   font-size:13px;
 }
 
-.meta{
-  font-size:12px;
-  color:var(--text-muted);
-}
+.meta{font-size:12px;color:var(--text-muted);}
 
 @media (max-width:768px){
-  .desktop-view{
-    display:none;
-  }
-
-  .view-switch{
-    display:none;
-  }
-
-  .nav-controls{
-    display:none;
-  }
-
-  .calendar-grid{
-    padding:0;
-  }
-
-  .mobile-week-card{
-    padding:12px;
-    margin-bottom:10px;
-    border-radius:10px;
-  }
-
-  .mobile-week-details{
-    display:none;
-  }
-
-  .mobile-week-card.open .mobile-week-details{
-    display:block;
-  }
-
-  .mobile-week-list{
-    display:block;
-    padding:10px;
-  }
+  .desktop-view,.view-switch,.nav-controls{display:none;}
+  .calendar-grid{padding:0;}
+  .mobile-week-list{display:block;padding:10px;}
 }
 </style>
 </head>
@@ -248,13 +206,30 @@ let isMobile = window.innerWidth <= 768;
 
 const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי'];
 
+// ================= HELPERS =================
+function formatTime(value){
+  if(!value && value!==0) return '';
+  if(typeof value === 'string' && value.includes(':')) return value.slice(0,5);
+  if(typeof value === 'number'){
+    const total = Math.round(value * 24 * 60);
+    const h = String(Math.floor(total/60)).padStart(2,'0');
+    const m = String(total%60).padStart(2,'0');
+    return `${h}:${m}`;
+  }
+  if(value instanceof Date){
+    return value.toTimeString().slice(0,5);
+  }
+  return '';
+}
+
+function formatDateRange(start,end){
+  return start.toLocaleDateString('he-IL') + ' – ' + end.toLocaleDateString('he-IL');
+}
+
 // ================= NORMALIZATION =================
 function normalizeText(value){
   if(typeof value !== 'string') return value;
-  return value
-    .replace(/\u00A0/g,' ')
-    .replace(/\s+/g,' ')
-    .trim();
+  return value.replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
 }
 
 function normalizeHeader(value){
@@ -287,33 +262,22 @@ function parseDate(val){
   return null;
 }
 
-function sameDay(a,b){return a && b && a.getTime()===b.getTime();}
-
-function parseDateSafe(value, rowIndex, header){
+function parseDateSafe(value){
   if(!value) return null;
   if(value instanceof Date){
-    const dt = new Date(value);
-    dt.setHours(0,0,0,0);
-    return dt;
+    const d = new Date(value); d.setHours(0,0,0,0); return d;
   }
-  const parsed = parseDate(value);
-  if(parsed) return parsed;
+  return parseDate(value);
+}
 
-  if(typeof value === 'string'){
-    const v = value.trim();
-    const match = v.match(/^(\d{2})\.(\d{2})\.(\d{2})$/);
-    if(match){
-      const [,d,m,y] = match;
-      const dt = new Date(`20${y}-${m}-${d}`);
-      if(!isNaN(dt)){
-        dt.setHours(0,0,0,0);
-        return dt;
-      }
-    }
-  }
+function sameDay(a,b){return a && b && a.getTime()===b.getTime();}
 
-  console.warn('Unparsed date value:', value, 'in row', rowIndex, 'header', header);
-  return null;
+function startOfWeek(date){
+  const d = new Date(date);
+  const day = d.getDay();
+  d.setDate(d.getDate()-day);
+  d.setHours(0,0,0,0);
+  return d;
 }
 
 // ================= LOAD EXCEL =================
@@ -330,44 +294,24 @@ async function loadExcel(){
 
 function buildRecords(rows){
   if(!rows.length) return [];
-  const headers = rows[0] || [];
-  const mappedHeaders = headers.map((header)=>{
-    const normalized = normalizeHeader(String(header || ''));
-    if(!normalized) return null;
-    if(normalized === 'employee') return 'Employee';
-    if(normalized === 'program') return 'Program';
-    if(normalized === 'municipality') return 'Municipality';
-    if(normalized === 'authority') return 'Authority';
-    if(normalized === 'manager') return 'Manager';
-    if(normalized === 'school') return 'School';
-    if(normalized === 'day') return 'Day';
-    if(normalized === 'starttime') return 'StartTime';
-    if(normalized === 'endtime') return 'EndTime';
-    if(/^date\d+$/.test(normalized)){
-      const index = Number(normalized.replace('date',''));
-      if(index >= 1 && index <= 16){
-        return `Date${index}`;
-      }
-      console.warn('Unrecognized Date column:', header);
-      return null;
-    }
-    return header || null;
-  });
+  const headers = rows[0];
+  const mapped = headers.map(h=>normalizeHeader(String(h||'')));
 
-  return rows.slice(1).map((row,rowIndex)=>{
-    const record = {__rowIndex: rowIndex + 2};
-    mappedHeaders.forEach((key,cellIndex)=>{
-      if(!key) return;
-      record[key] = row[cellIndex] ?? '';
+  return rows.slice(1).map(row=>{
+    const r={};
+    mapped.forEach((h,i)=>{
+      if(!h) return;
+      r[h] = row[i] ?? '';
     });
-
-    ['Employee','Manager','Program','Authority','School'].forEach((field)=>{
-      if(field in record){
-        record[field] = normalizeText(record[field]);
-      }
-    });
-
-    return record;
+    r.Employee = normalizeText(r.employee);
+    r.Program = normalizeText(r.program);
+    r.Manager = normalizeText(r.manager);
+    r.School = normalizeText(r.school);
+    r.Municipality = normalizeText(r.municipality || r.authority);
+    r.StartTime = r.starttime;
+    r.EndTime = r.endtime;
+    for(let i=1;i<=16;i++) r['Date'+i]=r['date'+i];
+    return r;
   });
 }
 
@@ -381,273 +325,69 @@ function initFilters(){
 function fillFilter(id,key){
   const sel = document.getElementById(id);
   const values = [...new Set(rawData.map(r=>r[key]).filter(Boolean))];
-  sel.innerHTML = `<option value="">בחר ${key}</option>` + values.map(v=>`<option>${v}</option>`).join('');
+  sel.innerHTML = `<option value="">בחר</option>` + values.map(v=>`<option>${v}</option>`).join('');
   sel.onchange = render;
 }
 
 function filteredData(){
   return rawData.filter(r=>{
-    const selectedManager = normalizeText(managerFilter.value);
-    const selectedWorker = normalizeText(workerFilter.value);
-    const selectedProgram = normalizeText(programFilter.value);
-    const manager = normalizeText(r.Manager);
-    const worker = normalizeText(r.Employee);
-    const program = normalizeText(r.Program);
-
-    if(selectedManager && !manager){
-      console.warn('Record filtered due to empty Manager value:', r, 'row', r.__rowIndex);
-      return false;
-    }
-    if(selectedWorker && !worker){
-      console.warn('Record filtered due to empty Employee value:', r, 'row', r.__rowIndex);
-      return false;
-    }
-    if(selectedProgram && !program){
-      console.warn('Record filtered due to empty Program value:', r, 'row', r.__rowIndex);
-      return false;
-    }
-
-    return (!selectedManager || manager===selectedManager)
-      && (!selectedWorker || worker===selectedWorker)
-      && (!selectedProgram || program===selectedProgram);
+    if(managerFilter.value && r.Manager!==managerFilter.value) return false;
+    if(workerFilter.value && r.Employee!==workerFilter.value) return false;
+    if(programFilter.value && r.Program!==programFilter.value) return false;
+    return true;
   });
-}
-
-function startOfWeek(date) {
-  const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday
-  const diff = d.getDate() - day;
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
 }
 
 // ================= RENDER =================
 function render(){
-  calendarGrid.innerHTML = '';
-  mobileWeekList.innerHTML = '';
+  calendarGrid.innerHTML='';
+  mobileWeekList.innerHTML='';
   const data = filteredData();
 
   if(isMobile){
-    currentView = 'week';
     renderMobileWeeks(data);
     return;
   }
 
-  // -------- WEEK VIEW --------
   if(currentView==='week'){
     const start = startOfWeek(currentDate);
-    navTitle.textContent = 'שבוע החל מ־' + start.toLocaleDateString('he-IL');
+    navTitle.textContent = 'שבוע החל מ־'+start.toLocaleDateString('he-IL');
 
     for(let i=0;i<6;i++){
       const dayDate = new Date(start);
       dayDate.setDate(start.getDate()+i);
-
       let html='';
       data.forEach(r=>{
         for(let j=1;j<=16;j++){
-          const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
+          const d = parseDateSafe(r['Date'+j]);
           if(d && sameDay(d,dayDate)){
-            html += `<div class="event">
-              <strong>${r.Employee}</strong>
-              <div class="meta">${r.School} · ${r.Municipality}</div>
-              <div class="meta">${r.Program} · מפגש ${j}</div>
-            </div>`;
+            html += `<div class="event"><strong>${r.Employee}</strong><div class="meta">${r.School}</div></div>`;
           }
         }
       });
-
-      calendarGrid.innerHTML += `<div class="day"><strong>${days[i]}</strong>${html || '<div class="meta">—</div>'}</div>`;
+      calendarGrid.innerHTML += `<div class="day"><strong>${days[i]}</strong>${html||'<div class="meta">—</div>'}</div>`;
     }
-  }
-
-  // -------- MONTH VIEW --------
-  if(currentView==='month'){
-    navTitle.textContent = 'חודש ' + (currentDate.getMonth()+1) + '/' + currentDate.getFullYear();
-
-    data.forEach(r=>{
-      for(let j=1;j<=16;j++){
-        const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
-        if(d && d.getMonth()===currentDate.getMonth() && d.getFullYear()===currentDate.getFullYear()){
-          calendarGrid.innerHTML += `<div class="day">
-            <strong>${d.toLocaleDateString('he-IL')}</strong>
-            <div class="event">
-              <strong>${r.Employee}</strong>
-              <div class="meta">${r.School} · ${r.Municipality}</div>
-              <div class="meta">${r.Program} · מפגש ${j}</div>
-            </div>
-          </div>`;
-        }
-      }
-    });
-  }
-
-  // -------- WORKER VIEW --------
-  if(currentView==='worker'){
-    navTitle.textContent = 'תצוגת עובד';
-    const byWorker = {};
-
-    data.forEach(r=>{
-      if(!byWorker[r.Employee]){
-        byWorker[r.Employee] = {info:r, dates:[]};
-      }
-      for(let j=1;j<=16;j++){
-        const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
-        if(d) byWorker[r.Employee].dates.push(d);
-      }
-    });
-
-    Object.keys(byWorker).forEach(name=>{
-      const entry = byWorker[name];
-      const dates = entry.dates.sort((a,b)=>a-b);
-      const info = entry.info;
-
-      calendarGrid.innerHTML += `<div class="day">
-        <strong>${name}</strong>
-        <div class="meta">${info.School} · ${info.Municipality}</div>
-        <div class="event">${info.Program}</div>
-        <div class="meta">מפגשים: ${dates.length}</div>
-        <div class="meta">ראשון: ${dates[0]?.toLocaleDateString('he-IL') || '-'}</div>
-        <div class="meta">אחרון: ${dates[dates.length-1]?.toLocaleDateString('he-IL') || '-'}</div>
-      </div>`;
-    });
   }
 }
 
-function getDurationHours(startTime, endTime) {
-  const toMinutes = (t) => {
-    if (t == null) return null;
-
-    if (typeof t === 'string' && /^\d{1,2}:\d{2}$/.test(t)) {
-      const h = Number(t.slice(0, 2));
-      const m = Number(t.slice(3, 5));
-      return h * 60 + m;
-    }
-
-    if (t instanceof Date) {
-      return t.getHours() * 60 + t.getMinutes();
-    }
-
-    if (typeof t === 'number') {
-      return t > 24 ? t : Math.round(t * 24 * 60);
-    }
-
-    if (typeof t === 'object') {
-      if (Number.isFinite(t.hours) && Number.isFinite(t.minutes))
-        return t.hours * 60 + t.minutes;
-      if (Number.isFinite(t.h) && Number.isFinite(t.m))
-        return t.h * 60 + t.m;
-    }
-
-    return null;
-  };
-
-  const start = toMinutes(startTime);
-  const end = toMinutes(endTime);
-
-  if (start == null || end == null || end <= start) return 0;
-  return (end - start) / 60;
-}
-
-function buildWeeklySessions(data){
+// ================= MOBILE =================
+function renderMobileWeeks(data){
+  navTitle.textContent = 'תצוגת שבוע';
   const weeks = new Map();
 
   data.forEach(r=>{
-    const startTime = r.StartTime;
-    const endTime = r.EndTime;
-    const durationHours = getDurationHours(startTime,endTime);
     for(let j=1;j<=16;j++){
-      const d = parseDateSafe(r['Date'+j], r.__rowIndex, `Date${j}`);
+      const d = parseDateSafe(r['Date'+j]);
       if(!d) continue;
-      const weekStart = startOfWeek(d);
-      const weekKey = weekStart.toISOString();
-      if(!weeks.has(weekKey)){
-        weeks.set(weekKey,{start:weekStart, sessions:[]});
-      }
-      weeks.get(weekKey).sessions.push({
-        date:d,
-        program:r.Program,
-        school:r.School,
-        authority:r.Authority || r.Municipality,
-        startTime,
-        endTime,
-        durationHours
-      });
+      const w = startOfWeek(d).toISOString();
+      if(!weeks.has(w)) weeks.set(w,{start:startOfWeek(d), sessions:[]});
+      weeks.get(w).sessions.push(r);
     }
   });
 
-  return Array.from(weeks.values()).sort((a,b)=>a.start-b.start);
-}
-
-function renderMobileWeeks(data){
-  navTitle.textContent = 'תצוגת שבוע';
-  const weeks = buildWeeklySessions(data);
-
-  if(!weeks.length){
-    mobileWeekList.innerHTML = '<div class="meta">—</div>';
-    return;
-  }
-
-  weeks.forEach((week, index)=>{
-    const weekStart = week.start;
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate()+6);
-
-    const sessionsByDay = {};
-    let totalHours = 0;
-    week.sessions.forEach((session)=>{
-      const key = session.date.toISOString().slice(0,10);
-      if(!sessionsByDay[key]){
-        sessionsByDay[key] = {date:session.date, sessions:[]};
-      }
-      sessionsByDay[key].sessions.push(session);
-      totalHours += session.durationHours;
-    });
-
-    const daysWithMultiple = Object.values(sessionsByDay).some(day=>day.sessions.length > 1);
-    const totalMeetings = week.sessions.length;
-
-    const detailsHtml = Object.values(sessionsByDay)
-      .sort((a,b)=>a.date-b.date)
-      .map((day)=>{
-        const dayTotal = day.sessions.reduce((sum,s)=>sum+s.durationHours,0);
-        const sessionsHtml = day.sessions.map((session)=>{
-          const timeRange = [formatTime(session.startTime), formatTime(session.endTime)].filter(Boolean).join('–');
-          return `<div class="mobile-session">
-            <div><strong>${session.program || '-'}</strong></div>
-            <div class="meta">${session.school || '-'} · ${session.authority || '-'}</div>
-            <div class="meta">${timeRange || '-'}</div>
-          </div>`;
-        }).join('');
-        return `<div class="mobile-day">
-          <div class="mobile-day-title">${day.date.toLocaleDateString('he-IL')}</div>
-          ${sessionsHtml}
-          <div class="meta">סה״כ שעות ליום: ${dayTotal.toFixed(1)}</div>
-        </div>`;
-      }).join('');
-
-    mobileWeekList.innerHTML += `<div class="mobile-week-card" data-week="${index}">
-      <div class="mobile-week-header">
-        <strong>${formatDateRange(weekStart,weekEnd)}</strong>
-        <button class="mobile-toggle" type="button">פרטים</button>
-      </div>
-      <div class="mobile-week-summary">
-        <span>מספר מפגשים: ${totalMeetings}</span>
-        <span>סה״כ שעות שבועיות: ${totalHours.toFixed(1)}</span>
-        <span>${daysWithMultiple ? 'יש יותר ממפגש אחד ביום' : 'מפגש אחד ביום לכל היותר'}</span>
-      </div>
-      <div class="mobile-week-details">
-        ${detailsHtml}
-      </div>
-    </div>`;
-  });
-
-  document.querySelectorAll('.mobile-week-card').forEach(card=>{
-    card.onclick = (event)=>{
-      if(event.target.classList.contains('mobile-toggle') || event.target.closest('.mobile-week-header')){
-        card.classList.toggle('open');
-      }
-    };
+  weeks.forEach(w=>{
+    const end = new Date(w.start); end.setDate(w.start.getDate()+6);
+    mobileWeekList.innerHTML += `<div class="mobile-week-card"><strong>${formatDateRange(w.start,end)}</strong></div>`;
   });
 }
 
@@ -659,15 +399,11 @@ prevNav.onclick = ()=>{currentDate.setDate(currentDate.getDate()-7);render();};
 nextNav.onclick = ()=>{currentDate.setDate(currentDate.getDate()+7);render();};
 clearFilters.onclick = ()=>{managerFilter.value=workerFilter.value=programFilter.value='';render();};
 window.onresize = ()=>{
-  const nextIsMobile = window.innerWidth <= 768;
-  if(nextIsMobile !== isMobile){
-    isMobile = nextIsMobile;
-    render();
-  }
+  const m = window.innerWidth<=768;
+  if(m!==isMobile){isMobile=m;render();}
 };
 
 loadExcel();
-window.getDurationHours = getDurationHours;
 </script>
 </body>
 </html>
