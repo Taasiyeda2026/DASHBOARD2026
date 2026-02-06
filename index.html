@@ -75,9 +75,10 @@ button.active{background:var(--accent);color:#fff;}
 
 <div id="calendarGrid" class="calendar-grid"></div>
 
-<!-- SheetJS build ללא eval (תואם CSP של GitHub Pages) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.core.min.js"></script>
-<script>
+<!-- SheetJS ESM build ללא eval (תואם CSP של GitHub Pages) -->
+<script type="module">
+import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.mjs';
+
 let rawData=[];
 let currentDate=new Date();currentDate.setHours(0,0,0,0);
 let currentMode='month';
@@ -232,6 +233,7 @@ viewWeekBtn.onclick=()=>{currentMode='week';render();};
 clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter.value='';render();};
 
 loadExcel();
+
 </script>
 </body>
 </html>
