@@ -46,8 +46,8 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 .calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;} 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);min-height:100px;} 
 .day.inactive{background:#f1f5f9;opacity:0.6;} 
-.day-header{font-weight:600;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-size:12px;} 
-.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:6px solid var(--accent);border:1px solid rgba(15,23,42,0.08);background:#ffffff;} 
+.day-header{font-weight:600;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-size:12px;text-align:center;} 
+.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:6px solid var(--accent);border:1px solid rgba(15,23,42,0.08);background:rgba(255,255,255,0.85);} 
 .meta{font-size:12px;color:var(--text-muted);} 
 .calendar-grid>.meta{font-size:16px;font-weight:800;text-align:center;padding:10px 0;} 
 .missing{color:#dc2626;font-weight:700;} 
@@ -132,9 +132,13 @@ function formatTime(v) {
 }
 
 function colorForEmployee(name){
-  if(!name) return '#94a3b8';
+  if(!name) return {border:'#94a3b8', bg:'rgba(148,163,184,0.2)'};
   let h=0; for(const c of name) h=c.charCodeAt(0)+((h<<5)-h);
-  return `hsl(${Math.abs(h)%360},70%,55%)`;
+  const hue=Math.abs(h)%360;
+  return {
+    border:`hsl(${hue},70%,55%)`,
+    bg:`hsla(${hue},70%,90%,0.6)`
+  };
 }
 
 function initFilters(){
@@ -153,16 +157,19 @@ function filteredData(){
 
 function buildRecords(rows){
   if(!rows.length) return [];
-  const h=rows[0].map(x=>String(x||'').toLowerCase().replace(/\s+/g,''));
+  const h = rows[0].map(x=>String(x||'').trim());
   return rows.slice(1).map(r=>{
     const o={}; h.forEach((k,i)=>o[k]=r[i]);
+    // מיפוי שמות עמודות בדיוק לפי האקסל (Case Sensitive)((k,i)=>o[k]=r[i]);
     return{
-      Manager:o.manager||'',
-      Employee:o.employee||'',
-      Program:o.program||'',
-      StartTime:formatTime(o.starttime),
-      EndTime:formatTime(o.endtime),
-      EventType:(o.eventtype||'COURSE').toUpperCase(),
+      Manager:o['Manager']||'',
+      Employee:o['Employee']||'',
+      Program:o['Program']||'',
+      School:o['School']||'',
+      Authority:o['Authority']||'',
+      StartTime:formatTime(o['StartTime']),
+      EndTime:formatTime(o['EndTime']),
+      EventType:(o['EventType']||'COURSE').toUpperCase(),
       Dates:Array.from({length:16},(_,i)=>parseDateSafe(o['date'+(i+1)]))
     };
   });
@@ -219,13 +226,37 @@ function renderMonth(data){
       const ev=document.createElement('div');
       const isHoliday=r.EventType==='HOLIDAY';
       ev.className='event'+(isHoliday?' holiday':'');
-      if(!isHoliday) ev.style.borderRightColor=colorForEmployee(r.Employee);
-      ev.innerHTML=isHoliday
+
+      // צבעים לפי עובד (רק לקורסים)
+      if(!isHoliday){
+        const colors=colorForEmployee(r.Employee);
+        ev.style.borderRightColor=colors.border;
+        ev.style.backgroundColor=colors.bg;
+      }
+
+      // בדיקת חוסרים – רק לקורסים
+      const missingFields = [];
+      if(!isHoliday){
+        if(!r.Employee) missingFields.push('עובד');
+        if(!r.School) missingFields.push('בית ספר');
+        if(!r.Authority) missingFields.push('רשות');
+        if(!r.StartTime || !r.EndTime) missingFields.push('שעות');
+      }
+
+      const warningHtml = missingFields.length
+        ? `<div class="meta missing">⚠ חסר מידע: ${missingFields.join(' · ')}</div>`
+        : '';
+
+      ev.innerHTML = isHoliday
         ? `<strong>חג</strong><div class=meta>${r.Program||''}</div>`
         : `<strong>${r.Employee||'<span class=missing>חסר עובד</span>'}</strong>`
           + `<div class=meta>${r.Program||''} · מפגש ${idx+1}</div>`
-          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`;
+          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`
+          + `<div class=meta>${r.School||'<span class=missing>חסר בית ספר</span>'} · ${r.Authority||'<span class=missing>חסר רשות</span>'}</div>`
+          + warningHtml;
+
       cell.appendChild(ev);
+    });
     });
 
     const h=document.createElement('div'); h.className='day-header'; h.textContent = `${d}/${m+1}/${y}`;
