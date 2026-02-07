@@ -45,13 +45,54 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .group-item{background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;}
 
-/* summary */
+/* --- שינויים בעמוד הסיכום --- */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
 .summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
-.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;margin:0 auto}
-.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:420px;margin:0 auto}
 
-@media(max-width:800px){.grid{grid-template-columns:1fr}.summary-split{grid-template-columns:1fr}}
+.summary-split {
+  display: flex;            /* שימוש ב-Flex למרכוז טוב יותר */
+  justify-content: center;  /* ממרכז את התיבות במסך */
+  gap: 25px;                /* רווח בין המנהלים */
+  flex-wrap: wrap;          /* ירידת שורה בניידים */
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.summary-col {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  
+  /* קיבוע גודל התיבה */
+  width: 380px;             
+  min-width: 380px;
+  max-width: 380px;
+  
+  margin: 0;                /* ביטול המרכוז העצמי של Grid */
+  display: flex;
+  flex-direction: column;
+}
+
+/* טיפול בטקסט ארוך בתוך התיבות בסיכום */
+.summary-col .event {
+  width: 100%;
+  white-space: normal;      /* מאפשר לטקסט לרדת שורה */
+  word-wrap: break-word;    /* שובר מילים ארוכות אם צריך */
+  height: auto;
+  min-height: unset;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+@media(max-width:800px){
+  .grid{grid-template-columns:1fr}
+  .summary-col {
+    width: 95%;             /* התאמה למסך קטן */
+    min-width: 95%;
+  }
+}
 </style>
 </head>
 <body>
@@ -87,6 +128,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
+// ... כאן כל פונקציות ה-JS שלך ...
 const view=document.getElementById('view');
 const titleEl=document.getElementById('title');
 const filtersEl=document.getElementById('filters');
