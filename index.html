@@ -303,8 +303,9 @@ function renderSummary(){
 
   const wrap=document.createElement('div'); wrap.className='summary-wrap';
 
-  const totalCourses = rawData.length;
+  const totalCourses = rawData.filter(r=>r.EventType==='COURSE' && endDate(r)).length;
   const endedUntilMonth = rawData
+    .filter(r=>r.EventType==='COURSE')
     .map(r=>endDate(r))
     .filter(d=>d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m)))
     .length;
@@ -336,7 +337,7 @@ function renderSummary(){
         <div style="font-size:26px;font-weight:800">${mgrActive}</div>
       </div>
       <div class="manager-header"><h3>${mgr}</h3><div class="manager-line"></div></div>
-      <div class="event" style="text-align:center;font-weight:700;cursor:pointer" onclick="this.nextElementSibling.classList.toggle('open')">
+      <div class="event" style="text-align:center;font-weight:400;cursor:pointer" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">
         קורסים שמסתיימים החודש: ${mgrEnded.length}
       </div>
       <div style="display:none">
