@@ -5,53 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>דשבורד פעילויות</title>
 <link rel="icon" href="logo.png" type="image/png">
-
 <style>
-:root{
-  --bg-main:#f8fafc;--bg-surface:#eef2f7;--card-bg:#ffffff;--accent:#2563eb;--text-main:#0f172a;--text-muted:#475569;--border:#e2e8f0;--danger:#dc2626;
-}
-body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));color:var(--text-main);} 
+:root{--bg-main:#f8fafc;--bg-surface:#eef2f7;--card-bg:#ffffff;--accent:#2563eb;--text-main:#0f172a;--text-muted:#475569;--border:#e2e8f0;--danger:#dc2626;}
+body{margin:0;font-family:system-ui;background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));color:var(--text-main);} 
 header{background:#fff;border-bottom:1px solid var(--border);} 
 .header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:16px;align-items:center;} 
 .app-logo{height:42px;} 
-
 .controls,.nav-controls{display:flex;justify-content:center;gap:8px;margin:10px auto;flex-wrap:wrap;} 
 select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;}
-#viewMonthBtn,#viewWeekBtn{background:#e0f2fe;border-color:#7dd3fc;}
-#viewMonthBtn.active,#viewWeekBtn.active{background:#bae6fd;border-color:#38bdf8;}
 .nav-btn{width:32px;height:32px;border-radius:999px;background:#fef9c3;border-color:#fde047;font-weight:700;}
 .nav-controls{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
-
-.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr .6fr;gap:12px;}
+.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;gap:12px;}
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.08);} 
-.day.inactive{opacity:.5;} 
-.day-header{font-size:12px;font-weight:600;text-align:center;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px;}
-
-.event{
-  border-radius:10px;
-  padding:8px;
-  margin-top:6px;
-  font-size:13px;
-  border-right:3px solid var(--accent);
-  background:#fff;
-  cursor:pointer;
-  box-shadow:0 1px 0 rgba(15,23,42,0.06);
-}
-.event + .event{margin-top:8px;}
-.event strong{display:block;padding-bottom:4px;margin-bottom:4px;border-bottom:1px dashed var(--border);} 
-.event span,.event small{color:var(--text-muted);font-size:12px;} 
-.event.holiday{background:#fef9c3;border-right-color:#facc15;cursor:default;} 
-.event.missing{border:2px solid var(--danger);border-right-color:var(--danger);background:#fff;}
-
-.side-panel{position:fixed;top:0;left:0;width:320px;max-width:90%;height:100%;background:#fff;box-shadow:-4px 0 18px rgba(0,0,0,.15);padding:16px;transform:translateX(-100%);transition:.25s ease;z-index:50;}
-.side-panel.open{transform:translateX(0);} 
-.side-panel .close{position:absolute;top:10px;left:10px;border:none;background:none;font-size:18px;cursor:pointer;} 
-.side-panel .row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px;} 
-.side-panel .danger{color:var(--danger);font-weight:700;} 
-.side-panel .course{font-size:16px;font-weight:700;margin-bottom:10px;} 
-.side-panel .end-date{margin-top:12px;font-size:13px;color:#334155;}
-
-@media(max-width:768px){.calendar-grid{grid-template-columns:1fr;}}
+.day-header{font-size:13px;font-weight:700;text-align:center;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px;}
+.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:3px solid var(--accent);background:#fff;} 
+.event.missing{border:2px solid var(--danger);} 
+.week-title{font-weight:700;margin:8px 0;text-align:center;}
 </style>
 </head>
 <body>
@@ -61,74 +30,30 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
     <div><strong>דשבורד פעילויות</strong></div>
   </div>
 </header>
-
 <div class="controls">
-  <select id="managerFilter"><option value="">סינון לפי מנהל</option></select>
-  <select id="employeeFilter"><option value="">סינון לפי מדריך</option></select>
-  <select id="monthFilter"><option value="">כל החודשים</option></select>
-  <button id="clearFilters">נקה סינונים</button>
+  <select id="monthFilter"><option value="">בחירת חודש</option></select>
+  <select id="managerFilter"><option value="">כל המנהלים</option></select>
+  <select id="employeeFilter"><option value="">כל העובדים</option></select>
 </div>
-
 <div class="nav-controls">
-  <button id="viewMonthBtn" class="active">חודש</button>
+  <button id="viewMonthBtn">חודש</button>
   <button id="viewWeekBtn">שבוע</button>
   <button id="viewSummaryBtn">סיכום</button>
   <button id="prevNav" class="nav-btn">▶</button>
   <span id="navTitle" style="min-width:180px;text-align:center;font-weight:bold"></span>
   <button id="nextNav" class="nav-btn">◀</button>
 </div>
-
 <div id="calendarGrid" class="calendar-grid"></div>
-
-<div id="sidePanel" class="side-panel">
-  <button class="close" id="closePanel">×</button>
-  <div id="panelContent"></div>
-</div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-let rawData=[],currentDate=new Date(),mode='month';
+let rawData=[],mode='month',currentDate=new Date();
+const monthFilter=document.getElementById('monthFilter');
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
-const monthFilter=document.getElementById('monthFilter');
-const clearFilters=document.getElementById('clearFilters');
 const grid=document.getElementById('calendarGrid');
-const panel=document.getElementById('sidePanel');
-const panelContent=document.getElementById('panelContent');
 const navTitle=document.getElementById('navTitle');
 
-const days=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-const sameDay=(a,b)=>a&&b&&a.toDateString()===b.toDateString();
-
-function parseDate(v){
-  if(!v) return null;
-  if(typeof v==='number'){
-    const d=XLSX.SSF.parse_date_code(v);
-    return new Date(d.y,d.m-1,d.d);
-  }
-  const d=new Date(v);
-  return isNaN(d)?null:d;
-}
-
-function formatTime(v){
-  if(v===null||v===undefined||v==='') return '';
-  if(typeof v==='number'){
-    const mins=Math.round(v*24*60);
-    const h=String(Math.floor(mins/60)).padStart(2,'0');
-    const m=String(mins%60).padStart(2,'0');
-    return h+':'+m;
-  }
-  const s=String(v).trim();
-  if(/^\d{1,2}:\d{2}$/.test(s)){
-    const [h,m]=s.split(':');
-    return String(h).padStart(2,'0')+':'+m;
-  }
-  if(/^\d{1,2}\.\d{2}$/.test(s)){
-    const [h,m]=s.split('.');
-    return String(h).padStart(2,'0')+':'+m;
-  }
-  return s;
-}
+function parseDate(v){if(!v)return null;if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);return new Date(d.y,d.m-1,d.d);}const d=new Date(v);return isNaN(d)?null:d;}
 
 async function load(){
   const res=await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
@@ -138,167 +63,115 @@ async function load(){
   rawData=rows.slice(1).map(r=>{
     const get=n=>r[h.findIndex(x=>String(x).toLowerCase()===n.toLowerCase())]||'';
     const dates=[...Array(16)].map((_,i)=>parseDate(get('date'+(i+1))));
-    return{
-      Program:get('Program'),Employee:get('Employee'),Manager:get('Manager'),
-      School:get('School'),Authority:get('Authority'),
-      Start:formatTime(get('StartTime')),End:formatTime(get('EndTime')),
-      Type:(get('EventType')||'COURSE').toUpperCase(),Dates:dates
-    };
+    return{Program:get('Program'),Employee:get('Employee'),Manager:get('Manager'),School:get('School'),Dates:dates};
   }).filter(r=>r.Dates.some(d=>d));
-  initFilters();
+  initMonths();
+  initPeople();
   render();
 }
 
-function initFilters(){
-  managerFilter.innerHTML='<option value="">סינון לפי מנהל</option>'+[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');
-  employeeFilter.innerHTML='<option value="">סינון לפי מדריך</option>'+[...new Set(rawData.map(r=>r.Employee).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');
+function initMonths(){
   const months=[...new Set(rawData.flatMap(r=>r.Dates.filter(Boolean).map(d=>d.getFullYear()+'-'+(d.getMonth()+1))))].sort();
-  monthFilter.innerHTML='<option value="">כל החודשים</option>'+months.map(k=>{
-    const [y,m]=k.split('-').map(Number);
-    return `<option value="${k}">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
-  }).join('');
+  monthFilter.innerHTML='<option value="">בחירת חודש</option>'+months.map(k=>{
+    const[y,m]=k.split('-');return`<option value="${k}">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`}).join('');
 }
 
-function applyFilters(){
+function initPeople(){
+  const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].sort();
+  managerFilter.innerHTML='<option value="">כל המנהלים</option>'+managers.map(m=>`<option>${m}</option>`).join('');
+  const employees=[...new Set(rawData.map(r=>r.Employee).filter(Boolean))].sort();
+  employeeFilter.innerHTML='<option value="">כל העובדים</option>'+employees.map(e=>`<option>${e}</option>`).join('');
+}
+
+function getMonthData(){
+  const y=currentDate.getFullYear();
+  const m=currentDate.getMonth();
   return rawData.filter(r=>{
     if(managerFilter.value && r.Manager!==managerFilter.value) return false;
     if(employeeFilter.value && r.Employee!==employeeFilter.value) return false;
-    if(monthFilter.value){
-      const dates=r.Dates.filter(Boolean);
-      if(!dates.length) return false;
-      const end=new Date(Math.max(...dates.map(d=>d.getTime())));
-      const key=end.getFullYear()+'-'+(end.getMonth()+1);
-      if(key!==monthFilter.value) return false;
-    }
-    return true;
+    return r.Dates.some(d=>d&&d.getFullYear()===y&&d.getMonth()===m);
   });
-}
-
-function setTitle(){
-  if(mode==='month') navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
-  else if(mode==='week'){
-    const s=new Date(currentDate);s.setDate(s.getDate()-s.getDay());
-    const e=new Date(s);e.setDate(e.getDate()+6);
-    navTitle.textContent=`${s.getDate()}/${s.getMonth()+1}/${s.getFullYear()} – ${e.getDate()}/${e.getMonth()+1}/${e.getFullYear()}`;
-  }else navTitle.textContent='סיכום';
 }
 
 function render(){
   grid.innerHTML='';
-  setTitle();
-  const data=applyFilters();
-  if(mode==='month') renderMonth(data);
-  else if(mode==='week') renderWeek(data);
-  else renderSummary(data);
+
+  // שליטה בתצוגת סינונים לפי מצב
+  if(mode==='summary'){
+    managerFilter.style.display='none';
+    employeeFilter.style.display='none';
+  } else {
+    managerFilter.style.display='';
+    employeeFilter.style.display='';
+  }
+
+  const data=getMonthData();
+  navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+  if(mode==='summary')return renderSummary(getMonthData().map(r=>r));
+  if(mode==='week')return renderWeek(data);
+  renderMonth(data);
 }
 
 function renderMonth(data){
-  const y=currentDate.getFullYear(),m=currentDate.getMonth();
-  const first=new Date(y,m,1),last=new Date(y,m+1,0);
-  for(let i=0;i<first.getDay();i++) grid.appendChild(dayCell(null,true));
-  for(let d=1;d<=last.getDate();d++){
-    const cur=new Date(y,m,d);
-    const ev=data.flatMap(r=>r.Dates.map((dd,i)=>dd&&sameDay(dd,cur)?{r,i}:null)).filter(Boolean);
-    grid.appendChild(dayCell({date:cur,events:ev}));
-  }
-}
-
-function renderWeek(data){
-  const s=new Date(currentDate);s.setDate(s.getDate()-s.getDay());
-  for(let i=0;i<7;i++){
-    const cur=new Date(s);cur.setDate(s.getDate()+i);
-    const ev=data.flatMap(r=>r.Dates.map((dd,j)=>dd&&sameDay(dd,cur)?{r,j}:null)).filter(Boolean);
-    grid.appendChild(dayCell({date:cur,events:ev}));
-  }
-}
-
-function renderSummary(data){
-  const byMonth={};
-  data.forEach(r=>{
-    const dates=r.Dates.filter(Boolean);
-    if(!dates.length) return;
-    const end=new Date(Math.max(...dates.map(d=>d.getTime())));
-    const key=end.getFullYear()+'-'+(end.getMonth()+1);
-    byMonth[key]=byMonth[key]||[];
-    byMonth[key].push({r,end});
-  });
-  let active=data.length;
-  Object.keys(byMonth).sort().forEach(k=>{
-    const [y,m]=k.split('-').map(Number);
-    const ended=byMonth[k].length;
+  grid.style.gridTemplateColumns='repeat(auto-fit,minmax(260px,1fr))';
+  const days={};
+  data.forEach(r=>r.Dates.forEach(d=>{
+    if(d&&d.getMonth()===currentDate.getMonth()){
+      const k=d.toDateString();
+      (days[k]=days[k]||[]).push(r);
+    }
+  }));
+  Object.keys(days).sort((a,b)=>new Date(a)-new Date(b)).forEach(k=>{
+    const day=new Date(k);
     const card=document.createElement('div');
     card.className='day';
-    const list=byMonth[k].sort((a,b)=>a.end-b.end).map(({r,end})=>
-      `<div class="event"><strong>${r.Program}</strong><br><small>${r.Employee||'❗ חסר מדריך'} · ${end.toLocaleDateString('he-IL')}</small></div>`
-    ).join('');
-    card.innerHTML=`<div class="day-header">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</div>
-      <div class="event"><strong>קורסים שהסתיימו:</strong> ${ended}</div>
-      <div class="event"><strong>קורסים פעילים לאחר החודש:</strong> ${active-ended}</div>${list}`;
-    active-=ended;
+    card.innerHTML=`<div class="day-header">${day.toLocaleDateString('he-IL',{weekday:'long',day:'numeric'})}</div>`+
+      days[k].map(r=>`<div class="event"><strong>${r.Program}</strong><br><small>${r.Employee||'—'} · ${r.School||''}</small></div>`).join('');
     grid.appendChild(card);
   });
 }
 
-function colorForInstructor(name){
-  if(!name) return {bg:'rgba(220,38,38,0.08)',border:'#dc2626'};
-  let h=0;for(const c of name) h=c.charCodeAt(0)+((h<<5)-h);
-  const hue=Math.abs(h)%360;
-  return{bg:`hsla(${hue},70%,60%,0.12)`,border:`hsl(${hue},70%,45%)`};
-}
-
-function dayCell(data,inactive){
-  const c=document.createElement('div');
-  c.className='day'+(inactive?' inactive':'');
-  if(!data) return c;
-  const h=document.createElement('div');
-  h.className='day-header';
-  h.textContent=`${data.date.getDate()}/${data.date.getMonth()+1}/${data.date.getFullYear()} | ${days[data.date.getDay()]}`;
-  c.appendChild(h);
-  data.events.forEach(({r,i})=>{
-    const e=document.createElement('div');
-    const hasInstructor=!!r.Employee;
-    const colors=colorForInstructor(r.Employee);
-    e.className='event'+(r.Type==='HOLIDAY'?' holiday':'')+(!hasInstructor?' missing':'');
-    if(r.Type!=='HOLIDAY'){
-      if(hasInstructor){e.style.backgroundColor=colors.bg;e.style.borderRightColor=colors.border;}
-      else{e.style.backgroundColor='#fff';}
+function renderWeek(data){
+  grid.style.gridTemplateColumns='1fr';
+  const start=new Date(currentDate);start.setDate(start.getDate()-start.getDay());
+  const end=new Date(start);end.setDate(start.getDate()+6);
+  const card=document.createElement('div');
+  card.className='day';
+  card.innerHTML=`<div class="day-header">שבוע ${start.toLocaleDateString('he-IL')} – ${end.toLocaleDateString('he-IL')}</div>`;
+  data.forEach(r=>r.Dates.forEach(d=>{
+    if(d&&d>=start&&d<=end){
+      card.innerHTML+=`<div class="event"><strong>${r.Program}</strong><br><small>${r.Employee||'—'} · ${r.School||''} · ${d.toLocaleDateString('he-IL')}</small></div>`;
     }
-    e.innerHTML=r.Type==='HOLIDAY'
-      ? `<strong>חג</strong> ${r.Program}`
-      : `<strong>${hasInstructor ? r.Employee : '❗ חסר מדריך'}</strong> – ${r.Program}`;
-    if(r.Type!=='HOLIDAY') e.onclick=ev=>{ev.stopPropagation();openPanel(r,i);};
-    c.appendChild(e);
+  }));
+  grid.appendChild(card);
+}
+
+function renderSummary(data){
+  grid.style.gridTemplateColumns='1fr 1fr';
+  const byManager={};
+  data.forEach(r=>(byManager[r.Manager||'ללא מנהל']=byManager[r.Manager||'ללא מנהל']||[]).push(r));
+  Object.keys(byManager).forEach(m=>{
+    const card=document.createElement('div');
+    card.className='day';
+    card.innerHTML=`<div class="day-header">${m}</div>`+
+      `<div style="text-align:center;font-size:34px;font-weight:800">${byManager[m].length}</div>`+
+      byManager[m].map(r=>`<div class="event ${!r.Employee?'missing':''}"><strong>${r.Program}</strong><br><small>${r.Employee||'חסר מדריך'} · ${r.School||''}</small></div>`).join('');
+    grid.appendChild(card);
   });
-  return c;
 }
 
-function openPanel(r,i){
-  const endDate=new Date(Math.max(...r.Dates.map(d=>d&&d.getTime())));
-  panelContent.innerHTML=`<div class="course">${r.Program}</div>
-    <div class="row">🧩 מפגש ${i+1}</div>
-    <div class="row">👤 ${r.Employee||'<span class="danger">חסר מדריך</span>'}</div>
-    <div class="row">📅 ${r.Dates[i].toLocaleDateString('he-IL')}</div>
-    <div class="row">⏱ ${r.Start}–${r.End}</div>
-    <div class="row">🏫 ${r.School}</div>
-    <div class="row">🏛 ${r.Authority}</div>
-    <div class="end-date">תאריך סיום הקורס: ${endDate.toLocaleDateString('he-IL')}</div>`;
-  panel.classList.add('open');
-}
+monthFilter.onchange=()=>{
+  if(!monthFilter.value)return;
+  const[y,m]=monthFilter.value.split('-');
+  currentDate=new Date(y,m-1,1);
+  render();
+};
 
-function closePanel(){panel.classList.remove('open');}
-
-managerFilter.onchange=render;
-employeeFilter.onchange=render;
-monthFilter.onchange=()=>{mode='summary';render();};
-clearFilters.onclick=()=>{managerFilter.value='';employeeFilter.value='';monthFilter.value='';render();};
-document.getElementById('closePanel').onclick=closePanel;
-document.body.onclick=closePanel;
-panel.onclick=e=>e.stopPropagation();
-document.getElementById('prevNav').onclick=()=>{mode==='month'?currentDate.setMonth(currentDate.getMonth()-1):currentDate.setDate(currentDate.getDate()-7);render();};
-document.getElementById('nextNav').onclick=()=>{mode==='month'?currentDate.setMonth(currentDate.getMonth()+1):currentDate.setDate(currentDate.getDate()+7);render();};
 document.getElementById('viewMonthBtn').onclick=()=>{mode='month';render();};
 document.getElementById('viewWeekBtn').onclick=()=>{mode='week';render();};
 document.getElementById('viewSummaryBtn').onclick=()=>{mode='summary';render();};
+document.getElementById('prevNav').onclick=()=>{currentDate.setMonth(currentDate.getMonth()-1);render();};
+document.getElementById('nextNav').onclick=()=>{currentDate.setMonth(currentDate.getMonth()+1);render();};
 
 load();
 </script>
