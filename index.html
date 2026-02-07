@@ -305,84 +305,85 @@ side.onclick=e=>e.stopPropagation();
 let totalCourses = 0;
 function renderSummary(){
   if(!summaryMonth.value) return;
-  const [y,m]=summaryMonth.value.split('-').map(Number);
-  currentDate=new Date(y,m,1);
-  titleEl.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
-  // נקודת אמת: האקסל בלבד. כל שורה = קורס אחד. רק COURSE עם MonthEnd
-  // קורס = שורה באקסל שמוגדרת COURSE ויש לה MonthEnd (או monthend)
+  // ===== נקודת אמת: עמוד סיכום עובד רק לפי האקסל =====
+  // קורס = שורה עם EventType === 'COURSE' ויש End
   const courses = rawData.filter(r=>{
     const type = String(r.EventType||'').trim().toUpperCase();
-    return type==='COURSE' && r.MonthEnd;
+    return type === 'COURSE' && r.End;
   });
 
-  // סה"כ קורסים – כל שורה COURSE עם MonthEnd
-  totalCourses = courses.length;
+  const [y,m] = summaryMonth.value.split('-').map(Number);
+  const monthStart = new Date(y,m,1);
 
-  // קורסים שמסתיימים בחודש הנבחר
-  const endedThisMonth = courses.filter(r=>{
-    const d=parseDate(r.MonthEnd);
-    return d && d.getFullYear()===y && d.getMonth()===m;
-  }).sort((a,b)=>parseDate(a.MonthEnd)-parseDate(b.MonthEnd));
+  // סה"כ קורסים (נקודת פתיחה)
+  const totalCourses = courses.length;
 
-  // קורסים שנסתיימו עד סוף החודש הקודם (לא כולל החודש הנוכחי)
-  const endedUntilPrevMonth = courses.filter(r=>{
-    const d=parseDate(r.MonthEnd);
-    return d && (
-      d.getFullYear()<y ||
-      (d.getFullYear()===y && d.getMonth()<m)
-    );
+  // קורסים שהסתיימו עד סוף החודש הקודם
+  const endedBefore = courses.filter(r=>{
+    const d = parseDate(r.End);
+    return d && d < monthStart;
   }).length;
 
-  const activeTotal = totalCourses - endedUntilPrevMonth;
+  // קורסים פעילים בחודש הנבחר
+  const activeTotal = totalCourses - endedBefore;
 
-  const wrap=document.createElement('div'); wrap.className='summary-wrap';
+  titleEl.textContent = monthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
-  wrap.innerHTML=`
+  const wrap = document.createElement('div');
+  wrap.className = 'summary-wrap';
+
+  wrap.innerHTML = `
     <div class='summary-top'>
       <div style='font-size:14px;color:#64748b'>קורסים פעילים כלליים</div>
       <div style='font-size:40px;font-weight:800'>${activeTotal}</div>
     </div>`;
 
-  const managers=[...new Set(courses.map(r=>r.Manager).filter(Boolean))];
-  const split=document.createElement('div'); split.className='summary-split';
+  const managers = [...new Set(courses.map(r=>r.Manager).filter(Boolean))];
+  const split = document.createElement('div');
+  split.className = 'summary-split';
 
   managers.forEach(mgr=>{
-    const col=document.createElement('div'); col.className='summary-col';
+    const mgrCourses = courses.filter(r=>r.Manager === mgr);
 
-    const mgrCourses = courses.filter(r=>r.Manager===mgr);
-    const mgrEnded = mgrCourses.filter(r=>{
-      const d=parseDate(r.MonthEnd);
-      return d && d.getFullYear()===y && d.getMonth()===m;
-    }).sort((a,b)=>parseDate(a.MonthEnd)-parseDate(b.MonthEnd));
-
-    const mgrEndedUntilPrev = mgrCourses.filter(r=>{
-      const d=parseDate(r.MonthEnd);
-      return d && (
-        d.getFullYear()<y ||
-        (d.getFullYear()===y && d.getMonth()<m)
-      );
+    const mgrEndedBefore = mgrCourses.filter(r=>{
+      const d = parseDate(r.End);
+      return d && d < monthStart;
     }).length;
 
-    const mgrActive = mgrCourses.length - mgrEndedUntilPrev;
+    const mgrActive = mgrCourses.length - mgrEndedBefore;
 
-    col.innerHTML=`
+    const mgrEndedThisMonth = mgrCourses
+      .filter(r=>{
+        const d = parseDate(r.MonthEnd || r.End);
+        return d && d.getFullYear()===y && d.getMonth()===m;
+      })
+      .sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+
+    const col = document.createElement('div');
+    col.className = 'summary-col';
+
+    col.innerHTML = `
       <div style="text-align:center;margin-bottom:10px">
         <div style="font-size:13px;color:#64748b">קורסים פעילים</div>
         <div style="font-size:26px;font-weight:800">${mgrActive}</div>
       </div>
-      <div class="manager-header"><h3>${mgr}</h3><div class="manager-line"></div></div>
-      <div class="event" style="text-align:center;font-weight:400;cursor:pointer" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">
-        קורסים שמסתיימים החודש: ${mgrEnded.length}
+      <div class="manager-header">
+        <h3>${mgr}</h3>
+        <div class="manager-line"></div>
+      </div>
+      <div class="event" style="text-align:center;cursor:pointer;font-weight:400"
+           onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">
+        קורסים שמסתיימים החודש: ${mgrEndedThisMonth.length}
       </div>
       <div style="display:none">
-        ${mgrEnded.length ? mgrEnded.map(r=>`
+        ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map(r=>`
           <div class='event'>
             <strong>${r.Program}</strong>
             <div><small>מדריך:</small> ${r.Employee||'—'}</div>
             <div><small>בית ספר:</small> ${r.School||'—'}</div>
             <div><small>רשות:</small> ${r.Authority||'—'}</div>
-            <div><small>תאריך סיום:</small> ${parseDate(r.MonthEnd).toLocaleDateString('he-IL')}</div>
+            <div><small>תאריך סיום:</small> ${parseDate(r.End).toLocaleDateString('he-IL')}</div>
           </div>`).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
       </div>`;
 
