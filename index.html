@@ -26,30 +26,38 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:120px;border:1px solid var(--border)}
-.day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center}
+.day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .event{padding:6px;border-radius:8px;margin-top:6px;font-size:13px;cursor:pointer;border-right:5px solid rgba(0,0,0,0.1);background:rgba(255,255,255,.9); position: relative;}
 .event.missing{border:2px solid var(--danger);border-right:5px solid var(--danger);background:#fff !important}
 .badge-count{background:rgba(0,0,0,0.7); color:#fff; font-size:10px; padding:1px 5px; border-radius:10px; float:left; font-weight:bold;}
 
-/* Side Panel */
+/* side panel */
 .side{position:fixed;top:0;left:0;width:380px;max-width:92%;height:100%;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,.18);transform:translateX(-100%);transition:.28s ease;z-index:50;padding:18px; overflow-y:auto;}
 .side.open{transform:translateX(0)}
 .side .close{position:absolute;top:12px;left:12px;border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;font-size:20px;cursor:pointer}
-.side h2{margin:0 0 4px 0;font-size:20px}
-.side .subtitle{font-size:13px;color:var(--muted);margin-bottom:16px}
-
-.group-item{background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px; position:relative;}
-.side .row{display:flex;justify-content:space-between;gap:10px;margin:6px 0;font-size:13px}
-.side .label{color:var(--muted);font-size:11px}
+.side h2{margin:0 0 6px 0;font-size:20px}
+.side .subtitle{font-size:13px;color:var(--muted);margin-bottom:14px}
+.side .section{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.side .row{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px}
+.side .label{color:var(--muted);font-size:12px}
 .side .value{font-weight:600}
-.side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700; margin-bottom:8px;}
-.side .hour-tag{background:#334155; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;}
+.side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.group-item{background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;}
 
-@media(max-width:800px){.grid{grid-template-columns:1fr}}
+/* summary */
+.summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
+.summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
+.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;margin:0 auto}
+.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:420px;margin:0 auto}
+
+@media(max-width:800px){.grid{grid-template-columns:1fr}.summary-split{grid-template-columns:1fr}}
+
+.manager-header{display:flex;flex-direction:column;align-items:center;margin-bottom:12px}
+.manager-header h3{margin:6px 0;font-size:16px}
+.manager-line{height:2px;width:100%;max-width:180px;background:#f59e0b;border-radius:2px}
 </style>
 </head>
 <body>
-
 <header>
   <div class="header-inner">
     <img src="logo.png" class="app-logo" />
@@ -83,8 +91,31 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ======================
-// CONFIG & COLORS
+// DATA + STATE + COLORS
 // ======================
+const view=document.getElementById('view');
+const titleEl=document.getElementById('title');
+const filtersEl=document.getElementById('filters');
+const side=document.getElementById('side');
+const sideContent=document.getElementById('sideContent');
+
+const btnMonth=document.getElementById('btnMonth');
+const btnWeek=document.getElementById('btnWeek');
+const btnSummary=document.getElementById('btnSummary');
+const btnPrev=document.getElementById('prev');
+const btnNext=document.getElementById('next');
+
+const managerFilter=document.getElementById('managerFilter');
+const employeeFilter=document.getElementById('employeeFilter');
+const clearFilters=document.getElementById('clearFilters');
+const summaryMonth=document.getElementById('summaryMonth');
+
+let rawData=[];
+let mode='month';
+let currentDate=new Date(); currentDate.setHours(0,0,0,0);
+
+const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
 const employeeColors = {
   "הנאא אבו אמזה": "#f9d3d3",
   "יונתן יהונתן פתייה": "#fdf1d3",
@@ -106,28 +137,27 @@ const employeeColors = {
   "קרן גורביץ": "#d3eff9"
 };
 
-const getEmployeeColor = (name) => {
+function getEmployeeColor(name) {
   if (!name || name.trim() === "") return "#ffffff";
   return employeeColors[name.trim()] || "#f1f5f9";
-};
-
-const view=document.getElementById('view'), titleEl=document.getElementById('title'), side=document.getElementById('side'), sideContent=document.getElementById('sideContent');
-const btnMonth=document.getElementById('btnMonth'), btnWeek=document.getElementById('btnWeek'), btnSummary=document.getElementById('btnSummary');
-const managerFilter=document.getElementById('managerFilter'), employeeFilter=document.getElementById('employeeFilter'), summaryMonth=document.getElementById('summaryMonth');
-
-let rawData=[], mode='month', currentDate=new Date(); currentDate.setHours(0,0,0,0);
-const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+}
 
 const sameDay=(a,b)=>a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+
 function parseDate(v){
   if(!v) return null;
-  if(typeof v==='number'){ const d=XLSX.SSF.parse_date_code(v); return d?new Date(d.y,d.m-1,d.d):null; }
+  if(typeof v==='number'){
+    const d=XLSX.SSF.parse_date_code(v);
+    return d?new Date(d.y,d.m-1,d.d):null;
+  }
   const d=new Date(v); return isNaN(d)?null:d;
 }
 
-// ======================
-// LOAD DATA
-// ======================
+function endDate(r){
+  const d=r.Dates.filter(Boolean);
+  return d.length?new Date(Math.max(...d.map(x=>x.getTime()))):null;
+}
+
 async function load(){
   const res=await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
   const wb=XLSX.read(await res.arrayBuffer(),{type:'array'});
@@ -139,124 +169,216 @@ async function load(){
     const g=n=>{const i=col(n); return i>-1?r[i]:''};
     const dates=[]; for(let i=1;i<=16;i++) dates.push(parseDate(g('Date'+i)));
     return{
-      Manager: g('Manager'), Employee: g('Employee'), Program: g('Program'),
-      School: g('School'), Authority: g('Authority'), EventType: g('EventType'),
+      Manager: g('Manager'),
+      Employee: g('Employee'),
+      Program: g('Program'),
+      School: g('School'),
+      Authority: g('Authority'),
+      EventType: g('EventType'),
       Hour: g('Hour') || g('Time') || '',
-      End: parseDate(g('End')), MonthEnd: parseDate(g('MonthEnd')||g('monthend')),
+      End: parseDate(g('End')),
+      MonthEnd: parseDate(g('MonthEnd')||g('monthend')||g('MONTHEND')),
       Dates: dates
     };
-  }).filter(r=>r.Dates.some(Boolean));
+  }).filter(r=>r.Dates.some(Boolean) || r.MonthEnd);
 
+  initFilters();
+  initSummaryMonths();
+  render();
+}
+
+function initFilters(){
   const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))];
   const employees=[...new Set(rawData.map(r=>r.Employee).filter(Boolean))];
   managerFilter.innerHTML='<option value="">כל המנהלים</option>'+managers.map(v=>`<option>${v}</option>`).join('');
   employeeFilter.innerHTML='<option value="">כל המדריכים</option>'+employees.map(v=>`<option>${v}</option>`).join('');
-  
-  render();
 }
 
-// ======================
-// RENDER LOGIC
-// ======================
+function initSummaryMonths(){
+  const months=[...new Set(rawData.map(r=>endDate(r)).filter(Boolean).map(d=>`${d.getFullYear()}-${d.getMonth()}`))].sort();
+  summaryMonth.innerHTML=months.map(k=>{
+    const [y,m]=k.split('-').map(Number);
+    return `<option value="${k}">${new Date(y,m).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
+  }).join('');
+  const todayKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+  const idx = months.indexOf(todayKey);
+  if(idx >= 0) summaryMonth.selectedIndex = idx;
+}
+
 function render(){
-  view.innerHTML=''; side.classList.remove('open');
-  if(mode==='month') renderMonth(); else if(mode==='week') renderWeek();
+  view.innerHTML='';
+  side.classList.remove('open');
+  filtersEl.style.display=mode==='summary'?'none':'flex';
+  summaryMonth.style.display=mode==='summary'?'inline-block':'none';
+  btnMonth.classList.toggle('active',mode==='month');
+  btnWeek.classList.toggle('active',mode==='week');
+  btnSummary.classList.toggle('active',mode==='summary');
+  if(mode==='summary') renderSummary();
+  else if(mode==='week') renderWeek();
+  else renderMonth();
 }
 
-function buildDay(date, data){
-  const cell=document.createElement('div'); cell.className='day';
-  cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1} | ${dayNames[date.getDay()]}</div>`;
-  
-  const dailyEvents = [];
-  data.forEach(r => {
-    r.Dates.forEach((dd, idx) => {
-      if(sameDay(dd, date)) dailyEvents.push({ ...r, currentMeeting: idx + 1 });
-    });
-  });
-
-  // קיבוץ לפי מדריך ותוכנית באותו יום
-  const grouped = dailyEvents.reduce((acc, curr) => {
-    const key = `${curr.Employee}-${curr.Program}`;
-    if (!acc[key]) acc[key] = { ...curr, items: [] };
-    acc[key].items.push(curr);
-    return acc;
-  }, {});
-
-  Object.values(grouped).forEach(g => {
-    const ev=document.createElement('div');
-    ev.className='event' + (!g.Employee?' missing':'');
-    ev.style.background=getEmployeeColor(g.Employee);
-    
-    const badge = g.items.length > 1 ? `<span class="badge-count">x${g.items.length}</span>` : '';
-    ev.innerHTML = `${badge}<strong>${g.Employee||'חסר'}</strong><div>${g.Program}</div>`;
-    
-    ev.onclick=(e)=>{ 
-      e.stopPropagation(); 
-      openSidePanel(g.items);
-    };
-    cell.appendChild(ev);
-  });
-  return cell;
-}
-
-function openSidePanel(items){
-  const first = items[0];
-  sideContent.innerHTML = `
-    <h2>${first.Program}</h2>
-    <div class='subtitle'>מנהל: ${first.Manager||'—'}</div>
-    <div class='section-title'>פירוט מפגשי היום:</div>
-  `;
-  
-  items.forEach(item => {
-    sideContent.innerHTML += `
-      <div class="group-item">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-           <div class='badge'>מפגש ${item.currentMeeting}</div>
-           ${item.Hour ? `<div class="hour-tag">${item.Hour}</div>` : ''}
-        </div>
-        <div class='row'><span class='label'>בית ספר:</span><span class='value'>${item.School||'—'}</span></div>
-        <div class='row'><span class='label'>רשות:</span><span class='value'>${item.Authority||'—'}</span></div>
-      </div>`;
-  });
-  side.classList.add('open');
-}
-
-// (שאר פונקציות הרינדור Month/Week נשארות זהות למבנה הקודם)
 function renderMonth(){
   titleEl.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
   const data=applyFilters();
   const grid=document.createElement('div'); grid.className='grid';
-  const y=currentDate.getFullYear(), m=currentDate.getMonth();
-  const first=new Date(y,m,1);
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  const first=new Date(y,m,1),last=new Date(y,m+1,0);
   for(let i=0;i<first.getDay();i++) grid.appendChild(document.createElement('div'));
-  for(let d=1;d<=new Date(y,m+1,0).getDate();d++) grid.appendChild(buildDay(new Date(y,m,d),data));
+  for(let d=1;d<=last.getDate();d++){
+    grid.appendChild(buildDay(new Date(y,m,d),data));
+  }
   view.appendChild(grid);
 }
 
 function renderWeek(){
   const s=new Date(currentDate); s.setDate(s.getDate()-s.getDay());
-  titleEl.textContent=`שבוע ${s.toLocaleDateString('he-IL')}`;
+  const e=new Date(s); e.setDate(e.getDate()+6);
+  titleEl.textContent=`${s.toLocaleDateString('he-IL')} – ${e.toLocaleDateString('he-IL')}`;
   const data=applyFilters();
   const grid=document.createElement('div'); grid.className='grid';
-  for(let i=0;i<7;i++) grid.appendChild(buildDay(new Date(s.getTime()+i*86400000),data));
+  for(let i=0;i<7;i++){
+    const cur=new Date(s); cur.setDate(s.getDate()+i);
+    grid.appendChild(buildDay(cur,data));
+  }
   view.appendChild(grid);
+}
+
+function buildDay(date,data){
+  const cell=document.createElement('div'); cell.className='day';
+  cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()} | ${dayNames[date.getDay()]}</div>`;
+  
+  const dailyPool = [];
+  data.forEach(r => r.Dates.forEach((dd, i) => {
+    if(sameDay(dd, date)) dailyPool.push({ ...r, currentMeeting: i + 1, eventDate: dd });
+  }));
+
+  const grouped = dailyPool.reduce((acc, curr) => {
+    if(curr.EventType === 'HOLIDAY') {
+      acc.push({ type: 'holiday', data: curr });
+    } else {
+      const key = `${curr.Employee}-${curr.Program}`;
+      let group = acc.find(x => x.type === 'group' && x.key === key);
+      if(!group) {
+        group = { type: 'group', key: key, items: [] };
+        acc.push(group);
+      }
+      group.items.push(curr);
+    }
+    return acc;
+  }, []);
+
+  grouped.forEach(item => {
+    const ev=document.createElement('div');
+    if(item.type === 'holiday'){
+      ev.className='event'; ev.style.background='#fee2e2'; ev.innerHTML=`<strong>חג</strong> ${item.data.Program}`;
+    } else {
+      const main = item.items[0];
+      ev.className='event'+(!main.Employee?' missing':'');
+      ev.style.background=getEmployeeColor(main.Employee);
+      const badge = item.items.length > 1 ? `<span class="badge-count">x${item.items.length}</span>` : '';
+      ev.innerHTML=`${badge}<strong>${main.Employee||'חסר מדריך'}</strong><div>${main.Program}</div>`;
+      ev.onclick=(e)=>{ e.stopPropagation(); openSideGrouped(item.items); };
+    }
+    cell.appendChild(ev);
+  });
+
+  return cell;
+}
+
+function openSideGrouped(items){
+  const first = items[0];
+  sideContent.innerHTML=`
+    <h2>${first.Program}</h2>
+    <div class='subtitle'>מנהל: ${first.Manager||'—'}</div>
+    <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>`;
+  
+  items.forEach(item => {
+    const end = endDate(item);
+    sideContent.innerHTML += `
+      <div class="group-item">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+           <div class='badge'>מפגש ${item.currentMeeting}</div>
+           ${item.Hour ? `<div style="background:#334155; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${item.Hour}</div>` : ''}
+        </div>
+        <div class='row'><span class='label'>בית ספר:</span><span class='value'>${item.School||'—'}</span></div>
+        <div class='row'><span class='label'>רשות:</span><span class='value'>${item.Authority||'—'}</span></div>
+        <div class='row'><span class='label'>סיום קורס:</span><span class='value'>${end?end.toLocaleDateString('he-IL'):'—'}</span></div>
+      </div>`;
+  });
+  side.classList.add('open');
 }
 
 function applyFilters(){
   return rawData.filter(r=>(!managerFilter.value||r.Manager===managerFilter.value)&&(!employeeFilter.value||r.Employee===employeeFilter.value));
 }
 
-document.getElementById('prev').onclick=()=>{ 
-  if(mode==='week') currentDate.setDate(currentDate.getDate()-7); else currentDate.setMonth(currentDate.getMonth()-1); 
-  render(); 
+function renderSummary(){
+  if(!summaryMonth.value) return;
+  const courses = rawData.filter(r=>(String(r.EventType||'').trim().toUpperCase() === 'COURSE' && r.End));
+  const [y,m] = summaryMonth.value.split('-').map(Number);
+  const monthStart = new Date(y,m,1);
+  const activeTotal = courses.filter(r => parseDate(r.End) >= monthStart).length;
+  titleEl.textContent = monthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
+
+  const wrap = document.createElement('div'); wrap.className = 'summary-wrap';
+  wrap.innerHTML = `<div class='summary-top'><div style='font-size:14px;color:#64748b'>סה"כ קורסים פעילים</div><div style='font-size:40px;font-weight:800'>${activeTotal}</div></div>`;
+
+  const managers = [...new Set(courses.map(r=>r.Manager).filter(Boolean))];
+  const split = document.createElement('div'); split.className = 'summary-split';
+
+  managers.forEach(mgr=>{
+    const mgrCourses = courses.filter(r=>r.Manager === mgr);
+    const mgrActive = mgrCourses.filter(r => parseDate(r.End) >= monthStart).length;
+    const mgrEndedThisMonth = mgrCourses.filter(r=>{
+        const d = parseDate(r.MonthEnd || r.End);
+        return d && d.getFullYear()===y && d.getMonth()===m;
+    }).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+
+    const col = document.createElement('div'); col.className = 'summary-col';
+    col.innerHTML = `
+      <div style="text-align:center;margin-bottom:10px">
+        <div style="font-size:13px;color:#64748b">קורסים פעילים</div>
+        <div style="font-size:26px;font-weight:800">${mgrActive}</div>
+      </div>
+      <div class="manager-header"><h3>${mgr}</h3><div class="manager-line"></div></div>
+      <div class="event" style="text-align:center;cursor:pointer;font-weight:400"
+           onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">
+        קורסים שמסתיימים החודש: ${mgrEndedThisMonth.length}
+      </div>
+      <div style="display:none">
+        ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map(r=>`
+          <div class='event' style="background:${getEmployeeColor(r.Employee)}">
+            <strong>${r.Program}</strong>
+            <div><small>מדריך:</small> ${r.Employee||'—'}</div>
+            <div><small>בית ספר:</small> ${r.School||'—'}</div>
+            <div><small>רשות:</small> ${r.Authority||'—'}</div>
+            <div><small>תאריך סיום:</small> ${parseDate(r.End).toLocaleDateString('he-IL')}</div>
+          </div>`).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
+      </div>`;
+    split.appendChild(col);
+  });
+  wrap.appendChild(split); view.appendChild(wrap);
+}
+
+btnMonth.onclick=()=>{mode='month';render();};
+btnWeek.onclick=()=>{mode='week';render();};
+btnSummary.onclick=()=>{mode='summary';render();};
+btnPrev.onclick=()=>{
+  if(mode==='summary') summaryMonth.selectedIndex=Math.max(0,summaryMonth.selectedIndex-1);
+  else if(mode==='week') currentDate.setDate(currentDate.getDate()-7);
+  else currentDate.setMonth(currentDate.getMonth()-1);
+  render();
 };
-document.getElementById('next').onclick=()=>{ 
-  if(mode==='week') currentDate.setDate(currentDate.getDate()+7); else currentDate.setMonth(currentDate.getMonth()+1); 
-  render(); 
+btnNext.onclick=()=>{
+  if(mode==='summary') summaryMonth.selectedIndex=Math.min(summaryMonth.options.length-1,summaryMonth.selectedIndex+1);
+  else if(mode==='week') currentDate.setDate(currentDate.getDate()+7);
+  else currentDate.setMonth(currentDate.getMonth()+1);
+  render();
 };
-btnMonth.onclick=()=>{ mode='month'; btnMonth.classList.add('active'); btnWeek.classList.remove('active'); render(); };
-btnWeek.onclick=()=>{ mode='week'; btnWeek.classList.add('active'); btnMonth.classList.remove('active'); render(); };
 managerFilter.onchange=render; employeeFilter.onchange=render;
+clearFilters.onclick=()=>{managerFilter.value='';employeeFilter.value='';render();};
+summaryMonth.onchange=render;
 document.getElementById('closeSide').onclick=()=>side.classList.remove('open');
 load();
 </script>
