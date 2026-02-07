@@ -26,7 +26,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:120px;border:1px solid var(--border)}
-.day-header{font-size:12px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center}
+.day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .event{padding:6px;border-radius:8px;margin-top:6px;font-size:13px;cursor:pointer;border-right:5px solid #999;background:rgba(255,255,255,.9)}
 .event.missing{border:2px solid var(--danger);border-right:5px solid var(--danger);background:#fff}
 
@@ -235,7 +235,7 @@ function buildDay(date,data){
         ev.className='event'+(!r.Employee?' missing':'');
         ev.style.background=c.bg; ev.style.borderRightColor=c.border;
         ev.innerHTML=`<strong>${r.Employee||'חסר מדריך'}</strong><div>${r.Program}</div>`;
-        ev.onclick=()=>openSide(r,i,dd);
+        ev.onclick=(e)=>{ e.stopPropagation(); openSide(r,i,dd); };
         cell.appendChild(ev);
       }
     }
@@ -263,7 +263,8 @@ function openSide(r,i,date){
 }
 
 document.getElementById('closeSide').onclick=()=>side.classList.remove('open');
-document.body.onclick=()=>side.classList.remove('open');
+// סגירה בלחיצה על רקע בלבד – לא על תיבות
+view.onclick=()=>side.classList.remove('open');
 side.onclick=e=>e.stopPropagation();
 
 // ======================
@@ -281,22 +282,18 @@ function renderSummary(){
     .sort((a,b)=>a.end-b.end);
 
   const wrap=document.createElement('div'); wrap.className='summary-wrap';
-  // חישוב קורסים פעילים עד החודש הנבחר
+
   const totalCourses = rawData.length;
   const endedUntilMonth = rawData
     .map(r=>endDate(r))
     .filter(d=>d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m)))
     .length;
-  const activeCount = totalCourses - endedUntilMonth;
+  const activeTotal = totalCourses - endedUntilMonth;
 
   wrap.innerHTML=`
     <div class='summary-top'>
-      <div style='font-size:14px;color:#64748b'>קורסים פעילים בחודש זה</div>
-      <div style='font-size:40px;font-weight:800;margin-bottom:12px'>${activeCount}</div>
-      <div style='border-top:1px solid #e2e8f0;padding-top:10px'>
-        <div>קורסים שמסתיימים החודש</div>
-        <div style='font-size:28px;font-weight:700'>${ended.length}</div>
-      </div>
+      <div style='font-size:14px;color:#64748b'>קורסים פעילים כלליים</div>
+      <div style='font-size:40px;font-weight:800'>${activeTotal}</div>
     </div>`;
 
   const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))];
@@ -304,19 +301,36 @@ function renderSummary(){
 
   managers.forEach(mgr=>{
     const col=document.createElement('div'); col.className='summary-col';
-    const list=ended
-      .filter(x=>x.r.Manager===mgr)
-      .sort((a,b)=>a.end-b.end)
-      .map(x=>`
-        <div class='event'>
-          <strong>${x.r.Program}</strong>
-          <div><small>מדריך:</small> ${x.r.Employee||'—'}</div>
-          <div><small>בית ספר:</small> ${x.r.School||'—'}</div>
-          <div><small>רשות:</small> ${x.r.Authority||'—'}</div>
-          <div><small>תאריך סיום:</small> ${x.end.toLocaleDateString('he-IL')}</div>
-        </div>`)
-      .join('');
-    col.innerHTML=`<h3 style="margin:0 0 6px 0">${mgr}</h3><div style="height:2px;width:40px;background:#f59e0b;border-radius:2px;margin-bottom:12px"></div>${list||'<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}`;
+
+    const mgrCourses = rawData.filter(r=>r.Manager===mgr);
+    const mgrActive = mgrCourses.filter(r=>{
+      const e=endDate(r);
+      return !e || e>new Date(y,m+1,0);
+    }).length;
+
+    const mgrEnded = ended.filter(x=>x.r.Manager===mgr);
+
+    col.innerHTML=`
+      <div style="text-align:center;margin-bottom:10px">
+        <div style="font-size:13px;color:#64748b">קורסים פעילים</div>
+        <div style="font-size:26px;font-weight:800">${mgrActive}</div>
+      </div>
+      <h3 style="margin:6px 0">${mgr}</h3>
+      <div style="height:2px;width:50px;background:#f59e0b;border-radius:2px;margin:6px auto 12px"></div>
+      <div class="event" style="text-align:center;font-weight:700;cursor:pointer" onclick="this.nextElementSibling.classList.toggle('open')">
+        קורסים שמסתיימים החודש: ${mgrEnded.length}
+      </div>
+      <div style="display:none">
+        ${mgrEnded.sort((a,b)=>a.end-b.end).map(x=>`
+          <div class='event'>
+            <strong>${x.r.Program}</strong>
+            <div><small>מדריך:</small> ${x.r.Employee||'—'}</div>
+            <div><small>בית ספר:</small> ${x.r.School||'—'}</div>
+            <div><small>רשות:</small> ${x.r.Authority||'—'}</div>
+            <div><small>תאריך סיום:</small> ${x.end.toLocaleDateString('he-IL')}</div>
+          </div>`).join('') || '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
+      </div>`;
+
     split.appendChild(col);
   });
 
