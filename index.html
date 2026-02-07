@@ -65,6 +65,7 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 <div class="controls">
   <select id="managerFilter"><option value="">סינון לפי מנהל</option></select>
   <select id="employeeFilter"><option value="">סינון לפי מדריך</option></select>
+  <button id="clearFilters">נקה סינונים</button>
 </div>
 
 <div class="nav-controls">
@@ -87,6 +88,7 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 let rawData=[],currentDate=new Date(),mode='month';
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
+const clearFilters=document.getElementById('clearFilters');
 const grid=document.getElementById('calendarGrid');
 const panel=document.getElementById('sidePanel');
 const panelContent=document.getElementById('panelContent');
@@ -204,15 +206,24 @@ function dayCell(data,inactive){
   c.appendChild(h);
   data.events.forEach(({r,i})=>{
     const e=document.createElement('div');
+    const hasInstructor=!!r.Employee;
     const colors=colorForInstructor(r.Employee);
-    e.className='event'+(r.Type==='HOLIDAY'?' holiday':'')+(!r.Employee?' missing':'');
+    e.className='event'+(r.Type==='HOLIDAY'?' holiday':'')+(!hasInstructor?' missing':'');
+
     if(r.Type!=='HOLIDAY'){
-      e.style.backgroundColor=colors.bg;
-      e.style.borderRightColor=colors.border;
+      if(hasInstructor){
+        e.style.backgroundColor=colors.bg;
+        e.style.borderRightColor=colors.border;
+      }else{
+        e.style.backgroundColor='#ffffff';
+        e.style.border='2px solid var(--danger)';
+        e.style.borderRight='2px solid var(--danger)';
+      }
     }
+
     e.innerHTML=r.Type==='HOLIDAY'
       ? `<strong>חג</strong> ${r.Program}`
-      : `<strong>${r.Employee||'❗ חסר מדריך'}</strong> – ${r.Program}`;
+      : `<strong>${hasInstructor ? r.Employee : '❗ חסר מדריך'}</strong> – ${r.Program}`;
     if(r.Type!=='HOLIDAY') e.onclick=ev=>{ev.stopPropagation();openPanel(r,i);};
     c.appendChild(e);
   });
@@ -237,6 +248,7 @@ function closePanel(){panel.classList.remove('open');}
 
 managerFilter.onchange=render;
 employeeFilter.onchange=render;
+clearFilters.onclick=()=>{managerFilter.value='';employeeFilter.value='';render();};
 document.getElementById('closePanel').onclick=closePanel;
 document.body.onclick=closePanel;
 panel.onclick=e=>e.stopPropagation();
