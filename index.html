@@ -153,7 +153,6 @@ async function load(){
   const col=n=>h.findIndex(x=>x.toLowerCase()===n.toLowerCase());
 
   rawData=rows.slice(1).map(r=>{
-    // קריאה גמישה של עמודות – ללא הנחות
     const g=n=>{const i=col(n); return i>-1?r[i]:''};
     const dates=[]; for(let i=1;i<=16;i++) dates.push(parseDate(g('Date'+i)));
     return{
@@ -163,10 +162,8 @@ async function load(){
       School: g('School'),
       Authority: g('Authority'),
       EventType: g('EventType'),
-
       End: parseDate(g('End')),
       MonthEnd: parseDate(g('MonthEnd')||g('monthend')||g('MONTHEND')),
-
       Dates: dates
     };
   }).filter(r=>r.Dates.some(Boolean) || r.MonthEnd);
@@ -190,7 +187,6 @@ function initSummaryMonths(){
     return `<option value="${k}">${new Date(y,m).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
   }).join('');
 
-  // ברירת מחדל: חודש נוכחי (TODAY)
   const todayKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
   const idx = months.indexOf(todayKey);
   if(idx >= 0) summaryMonth.selectedIndex = idx;
@@ -276,15 +272,12 @@ function openSide(r,i,date){
   sideContent.innerHTML=`
     <h2>${r.Program}</h2>
     <div class='subtitle'>${r.Manager||''}</div>
-
     <div class='badge'>מפגש ${i+1}</div>
-
     <div class='section'>
       <div class='row'><span class='label'>מדריך</span><span class='value'>${r.Employee||'<span class="danger">חסר מדריך</span>'}</span></div>
       <div class='row'><span class='label'>תאריך מפגש</span><span class='value'>${date.toLocaleDateString('he-IL')}</span></div>
       <div class='row'><span class='label'>תאריך סיום קורס</span><span class='value'>${end?end.toLocaleDateString('he-IL'):''}</span></div>
     </div>
-
     <div class='section'>
       <div class='row'><span class='label'>בית ספר</span><span class='value'>${r.School||'—'}</span></div>
       <div class='row'><span class='label'>רשות</span><span class='value'>${r.Authority||'—'}</span></div>
@@ -293,21 +286,15 @@ function openSide(r,i,date){
 }
 
 document.getElementById('closeSide').onclick=()=>side.classList.remove('open');
-// סגירה בלחיצה על רקע בלבד – לא על תיבות
 view.onclick=()=>side.classList.remove('open');
 side.onclick=e=>e.stopPropagation();
 
 // ======================
 // SUMMARY
 // ======================
-// totalCourses = מספר קורסים כולל לפי האקסל (COURSE עם MonthEnd)
-// נקודת אמת יחידה – האקסל בלבד
-let totalCourses = 0;
 function renderSummary(){
   if(!summaryMonth.value) return;
 
-  // ===== נקודת אמת: עמוד סיכום עובד רק לפי האקסל =====
-  // קורס = שורה עם EventType === 'COURSE' ויש End
   const courses = rawData.filter(r=>{
     const type = String(r.EventType||'').trim().toUpperCase();
     return type === 'COURSE' && r.End;
@@ -315,24 +302,19 @@ function renderSummary(){
 
   const [y,m] = summaryMonth.value.split('-').map(Number);
   const monthStart = new Date(y,m,1);
+  const totalCoursesInSummary = courses.length;
 
-  // סה"כ קורסים (נקודת פתיחה)
-  const totalCourses = courses.length;
-
-  // קורסים שהסתיימו עד סוף החודש הקודם
   const endedBefore = courses.filter(r=>{
     const d = parseDate(r.End);
     return d && d < monthStart;
   }).length;
 
-  // קורסים פעילים בחודש הנבחר
-  const activeTotal = totalCourses - endedBefore;
+  const activeTotal = totalCoursesInSummary - endedBefore;
 
   titleEl.textContent = monthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
   const wrap = document.createElement('div');
   wrap.className = 'summary-wrap';
-
   wrap.innerHTML = `
     <div class='summary-top'>
       <div style='font-size:14px;color:#64748b'>סה"כ קורסים פעילים</div>
@@ -345,24 +327,19 @@ function renderSummary(){
 
   managers.forEach(mgr=>{
     const mgrCourses = courses.filter(r=>r.Manager === mgr);
-
     const mgrEndedBefore = mgrCourses.filter(r=>{
       const d = parseDate(r.End);
       return d && d < monthStart;
     }).length;
 
     const mgrActive = mgrCourses.length - mgrEndedBefore;
-
-    const mgrEndedThisMonth = mgrCourses
-      .filter(r=>{
+    const mgrEndedThisMonth = mgrCourses.filter(r=>{
         const d = parseDate(r.MonthEnd || r.End);
         return d && d.getFullYear()===y && d.getMonth()===m;
-      })
-      .sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+      }).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
 
     const col = document.createElement('div');
     col.className = 'summary-col';
-
     col.innerHTML = `
       <div style="text-align:center;margin-bottom:10px">
         <div style="font-size:13px;color:#64748b">קורסים פעילים</div>
@@ -373,16 +350,15 @@ function renderSummary(){
         <div class="manager-line"></div>
       </div>
       <div class="event" style="text-align:center;cursor:pointer;font-weight:400"
-           onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'block':'none'">
+           onclick="const el=this.nextElementSibling; el.style.display = el.style.display==='none'?'block':'none'">
         קורסים שמסתיימים החודש: ${mgrEndedThisMonth.length}
       </div>
       <div style="display:none">
         ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map((r,idx)=>{
             const pastelPalette = ['#FDE68A','#BBF7D0','#BFDBFE','#E9D5FF','#FED7AA','#DCFCE7','#E0E7FF','#FBCFE8'];
             const color = pastelPalette[idx % pastelPalette.length];
-            return `
-          <div class='event' style="border-right-color:${color};background:${color}">
-          }).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
+            return `<div class='event' style="border-right-color:${color};background:${color}">${r.Program}</div>`;
+        }).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
       </div>`;
 
     split.appendChild(col);
