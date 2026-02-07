@@ -378,17 +378,10 @@ function renderSummary(){
       </div>
       <div style="display:none">
         ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map((r,idx)=>{
-            const hue = (idx * 47) % 360;
-            const bg = `hsla(${hue},65%,85%,0.95)`;
-            const border = `hsl(${hue},65%,55%)`;
+            const pastelPalette = ['#FDE68A','#BBF7D0','#BFDBFE','#E9D5FF','#FED7AA','#DCFCE7','#E0E7FF','#FBCFE8'];
+            const color = pastelPalette[idx % pastelPalette.length];
             return `
-          <div class='event' style="border-right-color:${border};background:${bg}">">
-            <strong>${r.Program}</strong>
-            <div><small>מדריך:</small> ${r.Employee||'—'}</div>
-            <div><small>בית ספר:</small> ${r.School||'—'}</div>
-            <div><small>רשות:</small> ${r.Authority||'—'}</div>
-            <div><small>תאריך סיום:</small> ${parseDate(r.End).toLocaleDateString('he-IL')}</div>
-          </div>`;
+          <div class='event' style="border-right-color:${color};background:${color}">
           }).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
       </div>`;
 
