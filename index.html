@@ -43,11 +43,11 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .side .danger{color:var(--danger);font-weight:700}
 
-/* summary */
+/* summary - Updated with 20% width increase */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
 .summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
-.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;margin:0 auto}
-.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:420px;margin:0 auto}
+.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1080px;margin:0 auto} /* 900px * 1.2 = 1080px */
+.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:504px;width:100%;margin:0 auto} /* 420px * 1.2 = 504px */
 
 @media(max-width:800px){.grid{grid-template-columns:1fr}.summary-split{grid-template-columns:1fr}}
 
@@ -349,7 +349,7 @@ function renderSummary(){
         <h3>${mgr}</h3>
         <div class="manager-line"></div>
       </div>
-      <div class="event" style="text-align:center;cursor:pointer;font-weight:400"
+      <div class="event" style="text-align:center;cursor:pointer;font-weight:700;background:#f1f5f9;border-right:none"
            onclick="const el=this.nextElementSibling; el.style.display = el.style.display==='none'?'block':'none'">
         קורסים שמסתיימים החודש: ${mgrEndedThisMonth.length}
       </div>
@@ -357,8 +357,11 @@ function renderSummary(){
         ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map((r,idx)=>{
             const pastelPalette = ['#FDE68A','#BBF7D0','#BFDBFE','#E9D5FF','#FED7AA','#DCFCE7','#E0E7FF','#FBCFE8'];
             const color = pastelPalette[idx % pastelPalette.length];
-            return `<div class='event' style="border-right-color:${color};background:${color}">${r.Program}</div>`;
-        }).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
+            return `<div class='event' style="border-right:5px solid rgba(0,0,0,0.1);background:${color};margin-bottom:8px">
+                      <strong>${r.Program}</strong>
+                      <div style="font-size:11px;opacity:0.8">${r.School || '—'}</div>
+                    </div>`;
+        }).join('') : '<div style="text-align:center;color:#94a3b8;padding:10px">אין קורסים</div>'}
       </div>`;
 
     split.appendChild(col);
