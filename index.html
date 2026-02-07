@@ -27,7 +27,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:120px;border:1px solid var(--border)}
 .day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.event{padding:6px;border-radius:8px;margin-top:6px;font-size:13px;cursor:pointer;border-right:5px solid #999;background:rgba(255,255,255,.9)}
+.event{padding:6px;border-radius:8px;margin-top:6px;font-size:13px;cursor:pointer;border-right:5px solid rgba(0,0,0,0.1);background:rgba(255,255,255,.9)}
 .event.missing{border:2px solid var(--danger);border-right:5px solid var(--danger);background:#fff}
 
 /* SIDE PANEL */
@@ -46,8 +46,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 /* SUMMARY - הוגדל ב-20% */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
 .summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
-.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1080px;margin:0 auto} /* 900px + 20% */
-.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:504px;width:100%;margin:0 auto} /* 420px + 20% */
+.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1080px;margin:0 auto} 
+.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:504px;width:100%;margin:0 auto}
 
 @media(max-width:800px){.grid{grid-template-columns:1fr}.summary-split{grid-template-columns:1fr}}
 
@@ -115,6 +115,14 @@ let currentDate=new Date(); currentDate.setHours(0,0,0,0);
 
 const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
+// פלטת צבעים רצה
+const runColors = [
+  '#e2f9d3', '#f9d3d3', '#fdf1d3', '#d3f4f9', '#dcd3f9', 
+  '#d3f9de', '#f9d3f1', '#f9f9d3', '#f9f1d3', '#d3f9f9', 
+  '#d3f4f9', '#f9d3eb', '#f9efd3', '#d3f9d8', '#f1f9d3', 
+  '#d3f9f4', '#f6d3f9', '#f9f6d3', '#d3eff9', '#dcf9d3', '#e9d3f9'
+];
+
 // ======================
 // HELPERS
 // ======================
@@ -132,13 +140,6 @@ function parseDate(v){
 function endDate(r){
   const d=r.Dates.filter(Boolean);
   return d.length?new Date(Math.max(...d.map(x=>x.getTime()))):null;
-}
-
-function colorFor(name){
-  if(!name) return {bg:'#fff',border:'#dc2626'};
-  let h=0; for(const c of name) h=c.charCodeAt(0)+((h<<5)-h);
-  const hue=Math.abs(h)%360;
-  return {bg:`hsla(${hue},70%,90%,.8)`,border:`hsl(${hue},70%,45%)`};
 }
 
 // ======================
@@ -240,16 +241,24 @@ function renderWeek(){
 function buildDay(date,data){
   const cell=document.createElement('div'); cell.className='day';
   cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()} | ${dayNames[date.getDay()]}</div>`;
+  
+  // מונה לאינדקס הצבע הרץ בתוך היום
+  let dayColorIdx = 0;
+
   data.forEach(r=>r.Dates.forEach((dd,i)=>{
     if(sameDay(dd,date)){
+      const ev=document.createElement('div');
       if(r.EventType==='HOLIDAY'){
-        const ev=document.createElement('div'); ev.className='event'; ev.innerHTML=`<strong>חג</strong> ${r.Program}`;
+        ev.className='event'; 
+        ev.style.background = '#fee2e2'; // צבע אדום בהיר לחגים
+        ev.innerHTML=`<strong>חג</strong> ${r.Program}`;
         cell.appendChild(ev);
       }else{
-        const ev=document.createElement('div');
-        const c=colorFor(r.Employee);
         ev.className='event'+(!r.Employee?' missing':'');
-        ev.style.background=c.bg; ev.style.borderRightColor=c.border;
+        // שימוש בצבע הרץ
+        ev.style.background = runColors[dayColorIdx % runColors.length];
+        dayColorIdx++;
+        
         ev.innerHTML=`<strong>${r.Employee||'חסר מדריך'}</strong><div>${r.Program}</div>`;
         ev.onclick=(e)=>{ e.stopPropagation(); openSide(r,i,dd); };
         cell.appendChild(ev);
@@ -289,7 +298,7 @@ view.onclick=()=>side.classList.remove('open');
 side.onclick=e=>e.stopPropagation();
 
 // ======================
-// SUMMARY - חזרה ללוגיקה המקורית המלאה עם תיבות צבעוניות
+// SUMMARY
 // ======================
 function renderSummary(){
   if(!summaryMonth.value) return;
@@ -340,9 +349,6 @@ function renderSummary(){
     const col = document.createElement('div');
     col.className = 'summary-col';
     
-    // פלטת צבעים לתיבות השורות
-    const pastelPalette = ['#FDE68A','#BBF7D0','#BFDBFE','#E9D5FF','#FED7AA','#DCFCE7','#E0E7FF','#FBCFE8'];
-
     col.innerHTML = `
       <div style="text-align:center;margin-bottom:10px">
         <div style="font-size:13px;color:#64748b">קורסים פעילים</div>
@@ -358,8 +364,7 @@ function renderSummary(){
       </div>
       <div style="display:none">
         ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map((r,idx)=>{
-            const color = pastelPalette[idx % pastelPalette.length];
-            // החזרת כל הלוגיקה המקורית של השדות: מדריך, בית ספר, רשות, תאריך סיום
+            const color = runColors[idx % runColors.length];
             return `
             <div class='event' style="border-right:5px solid rgba(0,0,0,0.1);background:${color};margin-bottom:8px;cursor:default">
               <strong>${r.Program}</strong>
