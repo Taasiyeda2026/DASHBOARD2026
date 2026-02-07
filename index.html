@@ -379,8 +379,10 @@ function renderSummary(){
       <div style="display:none">
         ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map((r,idx)=>{
             const hue = (idx * 47) % 360;
+            const bg = `hsla(${hue},65%,85%,0.95)`;
+            const border = `hsl(${hue},65%,55%)`;
             return `
-          <div class='event' style="border-right-color:hsl(${hue},70%,45%);background:hsla(${hue},70%,92%,0.9)">
+          <div class='event' style="border-right-color:${border};background:${bg}">">
             <strong>${r.Program}</strong>
             <div><small>מדריך:</small> ${r.Employee||'—'}</div>
             <div><small>בית ספר:</small> ${r.School||'—'}</div>
