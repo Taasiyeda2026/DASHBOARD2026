@@ -153,6 +153,7 @@ async function load(){
   const col=n=>h.findIndex(x=>x.toLowerCase()===n.toLowerCase());
 
   rawData=rows.slice(1).map(r=>{
+    // קריאה גמישה של עמודות – ללא הנחות
     const g=n=>{const i=col(n); return i>-1?r[i]:''};
     const dates=[]; for(let i=1;i<=16;i++) dates.push(parseDate(g('Date'+i)));
     return{
@@ -164,11 +165,11 @@ async function load(){
       EventType: g('EventType'),
 
       End: parseDate(g('End')),
-      MonthEnd: parseDate(g('MonthEnd')),
+      MonthEnd: parseDate(g('MonthEnd')||g('monthend')||g('MONTHEND')),
 
       Dates: dates
     };
-  }).filter(r=>r.Dates.some(Boolean));
+  }).filter(r=>r.Dates.some(Boolean) || r.MonthEnd);
 
   initFilters();
   initSummaryMonths();
@@ -309,7 +310,11 @@ function renderSummary(){
   titleEl.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
   // נקודת אמת: האקסל בלבד. כל שורה = קורס אחד. רק COURSE עם MonthEnd
-  const courses = rawData.filter(r=>r.EventType==='COURSE' && r.MonthEnd);
+  // קורס = שורה באקסל שמוגדרת COURSE ויש לה MonthEnd (או monthend)
+  const courses = rawData.filter(r=>{
+    const type = String(r.EventType||'').trim().toUpperCase();
+    return type==='COURSE' && r.MonthEnd;
+  });
 
   // סה"כ קורסים – כל שורה COURSE עם MonthEnd
   totalCourses = courses.length;
