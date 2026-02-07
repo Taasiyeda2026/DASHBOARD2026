@@ -30,7 +30,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .event{padding:6px;border-radius:8px;margin-top:6px;font-size:13px;cursor:pointer;border-right:5px solid #999;background:rgba(255,255,255,.9)}
 .event.missing{border:2px solid var(--danger);border-right:5px solid var(--danger);background:#fff}
 
-/* side panel */
+/* SIDE PANEL */
 .side{position:fixed;top:0;left:0;width:360px;max-width:92%;height:100%;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,.18);transform:translateX(-100%);transition:.28s ease;z-index:50;padding:18px}
 .side.open{transform:translateX(0)}
 .side .close{position:absolute;top:12px;left:12px;border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;font-size:20px;cursor:pointer}
@@ -43,15 +43,14 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .side .danger{color:var(--danger);font-weight:700}
 
-/* summary - Updated with 20% width increase */
+/* SUMMARY - הוגדל ב-20% */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
 .summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
-.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1080px;margin:0 auto} /* 900px * 1.2 = 1080px */
-.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:504px;width:100%;margin:0 auto} /* 420px * 1.2 = 504px */
+.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1080px;margin:0 auto} /* 900px + 20% */
+.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:504px;width:100%;margin:0 auto} /* 420px + 20% */
 
 @media(max-width:800px){.grid{grid-template-columns:1fr}.summary-split{grid-template-columns:1fr}}
 
-/* manager header alignment */
 .manager-header{display:flex;flex-direction:column;align-items:center;margin-bottom:12px}
 .manager-header h3{margin:6px 0;font-size:16px}
 .manager-line{height:2px;width:100%;max-width:180px;background:#f59e0b;border-radius:2px}
@@ -290,7 +289,7 @@ view.onclick=()=>side.classList.remove('open');
 side.onclick=e=>e.stopPropagation();
 
 // ======================
-// SUMMARY
+// SUMMARY - חזרה ללוגיקה המקורית המלאה עם תיבות צבעוניות
 // ======================
 function renderSummary(){
   if(!summaryMonth.value) return;
@@ -340,6 +339,10 @@ function renderSummary(){
 
     const col = document.createElement('div');
     col.className = 'summary-col';
+    
+    // פלטת צבעים לתיבות השורות
+    const pastelPalette = ['#FDE68A','#BBF7D0','#BFDBFE','#E9D5FF','#FED7AA','#DCFCE7','#E0E7FF','#FBCFE8'];
+
     col.innerHTML = `
       <div style="text-align:center;margin-bottom:10px">
         <div style="font-size:13px;color:#64748b">קורסים פעילים</div>
@@ -355,12 +358,18 @@ function renderSummary(){
       </div>
       <div style="display:none">
         ${mgrEndedThisMonth.length ? mgrEndedThisMonth.map((r,idx)=>{
-            const pastelPalette = ['#FDE68A','#BBF7D0','#BFDBFE','#E9D5FF','#FED7AA','#DCFCE7','#E0E7FF','#FBCFE8'];
             const color = pastelPalette[idx % pastelPalette.length];
-            return `<div class='event' style="border-right:5px solid rgba(0,0,0,0.1);background:${color};margin-bottom:8px">
-                      <strong>${r.Program}</strong>
-                      <div style="font-size:11px;opacity:0.8">${r.School || '—'}</div>
-                    </div>`;
+            // החזרת כל הלוגיקה המקורית של השדות: מדריך, בית ספר, רשות, תאריך סיום
+            return `
+            <div class='event' style="border-right:5px solid rgba(0,0,0,0.1);background:${color};margin-bottom:8px;cursor:default">
+              <strong>${r.Program}</strong>
+              <div style="font-size:12px;margin-top:4px">
+                <div><strong>מדריך:</strong> ${r.Employee||'—'}</div>
+                <div><strong>בית ספר:</strong> ${r.School||'—'}</div>
+                <div><strong>רשות:</strong> ${r.Authority||'—'}</div>
+                <div><strong>תאריך סיום:</strong> ${parseDate(r.End).toLocaleDateString('he-IL')}</div>
+              </div>
+            </div>`;
         }).join('') : '<div style="text-align:center;color:#94a3b8;padding:10px">אין קורסים</div>'}
       </div>`;
 
