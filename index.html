@@ -1,122 +1,270 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>דשבורד פעילויות</title>
-<link rel="icon" href="logo.png" type="image/png">
+<link rel="icon" href="logo.png" type="image/png" />
+
 <style>
-:root{--bg-main:#f8fafc;--bg-surface:#eef2f7;--card-bg:#ffffff;--accent:#2563eb;--text-main:#0f172a;--text-muted:#475569;--border:#e2e8f0;--danger:#dc2626;}
-body{margin:0;font-family:system-ui;background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));color:var(--text-main);} 
-header{background:#fff;border-bottom:1px solid var(--border);} 
-.header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:16px;align-items:center;} 
-.app-logo{height:42px;} 
-.controls,.nav-controls{display:flex;justify-content:center;gap:8px;margin:10px auto;flex-wrap:wrap;} 
-select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;}
-.nav-btn{width:32px;height:32px;border-radius:999px;background:#fef9c3;border-color:#fde047;font-weight:700;}
-.nav-controls{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
-.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;gap:12px;}
-.day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.08);} 
-.day-header{font-size:13px;font-weight:700;text-align:center;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:8px;}
-.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:3px solid var(--accent);background:#fff;} 
-.event.missing{border:2px solid var(--danger);} 
+:root{
+  --bg:#f8fafc;--card:#ffffff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--accent:#2563eb;--danger:#dc2626;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text)}
+header{background:#fff;border-bottom:1px solid var(--border)}
+.header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:12px;align-items:center}
+.app-logo{height:40px}
+
+.controls,.nav{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px}
+select,button{height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 10px;cursor:pointer}
+button.active{background:#e0ecff;border-color:#93c5fd}
+
+.nav{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10}
+
+.grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
+.day{background:var(--card);border-radius:12px;padding:8px;min-height:120px;border:1px solid var(--border)}
+.day-header{font-size:12px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center}
+.event{border-right:4px solid var(--accent);padding:6px;border-radius:8px;margin-top:6px;background:#fff;font-size:13px}
+.event.missing{border:2px solid var(--danger);border-right:4px solid var(--danger)}
+.event strong{display:block}
+.event small{color:var(--muted)}
+
+/* summary */
+.summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
+.summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
+.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px}
+
+@media(max-width:800px){
+  .grid{grid-template-columns:1fr}
+  .summary-split{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 <header>
   <div class="header-inner">
-    <img src="logo.png" class="app-logo" alt="לוגו">
-    <div><strong>דשבורד פעילויות</strong></div>
+    <img src="logo.png" class="app-logo" />
+    <strong>דשבורד פעילויות</strong>
   </div>
 </header>
-<div class="controls">
-  <select id="managerFilter"><option value="">סינון לפי מנהל</option></select>
-  <select id="employeeFilter"><option value="">סינון לפי מדריך</option></select>
-  <select id="monthFilter"><option value="">כל החודשים</option></select>
-  <button id="clearFilters">נקה סינונים</button>
+
+<div class="controls" id="filters">
+  <select id="managerFilter"><option value="">כל המנהלים</option></select>
+  <select id="employeeFilter"><option value="">כל המדריכים</option></select>
+  <button id="clearFilters">נקה סינון</button>
 </div>
-<div class="nav-controls">
-  <button id="viewMonthBtn">חודש</button>
-  <button id="viewWeekBtn">שבוע</button>
-  <button id="viewSummaryBtn">סיכום</button>
-  <button id="prevNav" class="nav-btn">▶</button>
-  <span id="navTitle" style="min-width:180px;text-align:center;font-weight:bold"></span>
-  <button id="nextNav" class="nav-btn">◀</button>
+
+<div class="nav">
+  <select id="summaryMonthSelect" style="display:none"></select>
+  <button id="btnMonth" class="active">חודש</button>
+  <button id="btnWeek">שבוע</button>
+  <button id="btnSummary">סיכום</button>
+  <button id="prev">◀</button>
+  <span id="title" style="min-width:200px;text-align:center;font-weight:700"></span>
+  <button id="next">▶</button>
 </div>
-<div id="calendarGrid" class="calendar-grid"></div>
+
+<div id="view"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-let rawData=[],mode='month',currentDate=new Date();
-const managerFilter=document.getElementById('managerFilter');
-const employeeFilter=document.getElementById('employeeFilter');
-const monthFilter=document.getElementById('monthFilter');
-const grid=document.getElementById('calendarGrid');
-const navTitle=document.getElementById('navTitle');
-function parseDate(v){if(!v)return null;if(typeof v==='number'){const d=XLSX.SSF.parse_date_code(v);return new Date(d.y,d.m-1,d.d);}const d=new Date(v);return isNaN(d)?null:d;}
-async function load(){const res=await fetch('./DASHBOARD.xlsx',{cache:'no-store'});const wb=XLSX.read(await res.arrayBuffer(),{type:'array'});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});const h=rows[0];rawData=rows.slice(1).map(r=>{const get=n=>r[h.findIndex(x=>String(x).toLowerCase()===n.toLowerCase())]||'';const dates=[...Array(16)].map((_,i)=>parseDate(get('date'+(i+1))));return{Program:get('Program'),Employee:get('Employee'),Manager:get('Manager'),School:get('School'),Dates:dates};}).filter(r=>r.Dates.some(d=>d));initFilters();render();}
-function initFilters(){managerFilter.innerHTML='<option value="">סינון לפי מנהל</option>'+[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');employeeFilter.innerHTML='<option value="">סינון לפי מדריך</option>'+[...new Set(rawData.map(r=>r.Employee).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');const months=[...new Set(rawData.flatMap(r=>r.Dates.filter(Boolean).map(d=>d.getFullYear()+'-'+(d.getMonth()+1))))].sort();monthFilter.innerHTML='<option value="">כל החודשים</option>'+months.map(k=>{const[y,m]=k.split('-');return`<option value="${k}">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`}).join('');}
-function applyFilters(){return rawData.filter(r=>{if(managerFilter.value&&r.Manager!==managerFilter.value)return false;if(employeeFilter.value&&r.Employee!==employeeFilter.value)return false;return true;});}
-function render(){grid.innerHTML='';if(mode==='summary'){renderSummary(applyFilters());return;}navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});}
-function renderSummary(data){
-  navTitle.textContent='סיכום';
-  grid.style.gridTemplateColumns='1fr';
-  grid.innerHTML='';
+const view = document.getElementById('view');
+const titleEl = document.getElementById('title');
+const filtersEl = document.getElementById('filters');
 
-  // ===== סיכום כולל =====
-  const overall=document.createElement('div');
-  overall.className='day';
-  overall.innerHTML=`
-    <div class="day-header">סיכום כולל</div>
-    <div style="display:flex;justify-content:center;gap:80px;align-items:center">
-      <div style="text-align:center">
-        <div style="font-size:46px;font-weight:800">${data.length}</div>
-        <div style="color:#475569">סה"כ קורסים</div>
-      </div>
-    </div>`;
-  grid.appendChild(overall);
+const btnMonth = document.getElementById('btnMonth');
+const btnWeek = document.getElementById('btnWeek');
+const btnSummary = document.getElementById('btnSummary');
+const btnPrev = document.getElementById('prev');
+const btnNext = document.getElementById('next');
 
-  // ===== חלוקה לפי מנהלים (2 בלבד) =====
-  const byManager={};
-  data.forEach(r=>{
-    (byManager[r.Manager||'ללא מנהל']=byManager[r.Manager||'ללא מנהל']||[]).push(r);
-  });
+const managerFilter = document.getElementById('managerFilter');
+const employeeFilter = document.getElementById('employeeFilter');
+const clearFilters = document.getElementById('clearFilters');
+const summaryMonthSelect = document.getElementById('summaryMonthSelect');
 
-  const managers=Object.keys(byManager).slice(0,2);
-  const wrap=document.createElement('div');
-  wrap.style.display='grid';
-  wrap.style.gridTemplateColumns='1fr 1fr';
-  wrap.style.gap='16px';
-  grid.appendChild(wrap);
+let rawData = [];
+let mode = 'month';
+let currentDate = new Date(); currentDate.setHours(0,0,0,0);
 
-  managers.forEach(manager=>{
-    const list=byManager[manager];
-    const card=document.createElement('div');
-    card.className='day';
+const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const sameDay = (a,b)=>a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
 
-    card.innerHTML=`
-      <div class="day-header">${manager}</div>
-      <div style="text-align:center;margin-bottom:12px">
-        <div style="font-size:38px;font-weight:800">${list.length}</div>
-        <div style="color:#475569">קורסים</div>
-      </div>
-      <div style="display:grid;gap:6px">
-        ${list.map(r=>{
-          const dates=r.Dates.filter(Boolean);
-          const end=dates.length ? new Date(Math.max(...dates.map(d=>d.getTime()))).toLocaleDateString('he-IL') : '—';
-          return `<div class="event ${!r.Employee?'missing':''}">
-            <strong>${r.Program}</strong><br>
-            <small>${r.Employee||'חסר מדריך'} · ${r.School||''}</small><br>
-            <small>סיום: ${end}</small>
-          </div>`;
-        }).join('')}
-      </div>`;
-
-    wrap.appendChild(card);
-  });
+function parseDateSafe(v){
+  if(!v) return null;
+  if(typeof v==='number'){
+    const d = XLSX.SSF.parse_date_code(v);
+    return d ? new Date(d.y,d.m-1,d.d) : null;
+  }
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
 }
 
-managerFilter.onchange=render;employeeFilter.onchange=render;monthFilter.onchange=()=>{mode='summary';render();};document.getElementById('viewMonthBtn').onclick=()=>{mode='month';render();};document.getElementById('viewWeekBtn').onclick=()=>{mode='week';render();};document.getElementById('viewSummaryBtn').onclick=()=>{mode='summary';render();};document.getElementById('prevNav').onclick=()=>{currentDate.setMonth(currentDate.getMonth()-1);render();};document.getElementById('nextNav').onclick=()=>{currentDate.setMonth(currentDate.getMonth()+1);render();};document.getElementById('clearFilters').onclick=()=>{managerFilter.value='';employeeFilter.value='';monthFilter.value='';render();};
-load();
+function getEndDate(r){
+  const d = r.Dates.filter(Boolean);
+  return d.length ? new Date(Math.max(...d.map(x=>x.getTime()))) : null;
+}
+
+function buildRecords(rows){
+  const h = rows[0].map(x=>String(x||'').trim());
+  const col = n => { const i=h.findIndex(k=>k.toLowerCase()===n.toLowerCase()); return i>-1?i:null; };
+  return rows.slice(1).map(r=>{
+    const g=n=>{const i=col(n); return i!==null?r[i]:'';};
+    const dates=[]; for(let i=1;i<=16;i++) dates.push(parseDateSafe(g('date'+i)||g('Date'+i)));
+    return{ Manager:g('Manager'), Employee:g('Employee'), Program:g('Program'), School:g('School'), Authority:g('Authority'), Dates:dates };
+  }).filter(r=>r.Dates.some(Boolean));
+}
+
+async function loadExcel(){
+  const res = await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
+  const buf = await res.arrayBuffer();
+  const wb = XLSX.read(buf,{type:'array'});
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  rawData = buildRecords(rows);
+  initFilters();
+  render();
+}
+
+function initFilters(){
+  const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))];
+  const employees=[...new Set(rawData.map(r=>r.Employee).filter(Boolean))];
+  managerFilter.innerHTML='<option value="">כל המנהלים</option>'+managers.map(v=>`<option>${v}</option>`).join('');
+  employeeFilter.innerHTML='<option value="">כל המדריכים</option>'+employees.map(v=>`<option>${v}</option>`).join('');
+}
+
+function applyFilters(data){
+  const m=managerFilter.value, e=employeeFilter.value;
+  return data.filter(r=>(!m||r.Manager===m)&&(!e||r.Employee===e));
+}
+
+function setTitle(){
+  if(mode==='month'){
+    titleEl.textContent = currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+  } else if(mode==='week'){
+    const s=new Date(currentDate); s.setDate(s.getDate()-s.getDay());
+    const e=new Date(s); e.setDate(e.getDate()+6);
+    titleEl.textContent = `${s.getDate()}/${s.getMonth()+1}/${s.getFullYear()} – ${e.getDate()}/${e.getMonth()+1}/${e.getFullYear()}`;
+  } else {
+    titleEl.textContent = currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+  }
+}
+
+function render(){
+  view.innerHTML='';
+  setTitle();
+
+  btnMonth.classList.toggle('active',mode==='month');
+  btnWeek.classList.toggle('active',mode==='week');
+  btnSummary.classList.toggle('active',mode==='summary');
+
+  filtersEl.style.display = mode==='summary' ? 'none' : 'flex';
+  summaryMonthSelect.style.display = mode==='summary' ? 'inline-block' : 'none';
+
+  if(mode==='summary') renderSummary();
+  else if(mode==='week') renderWeek();
+  else renderMonth();
+}
+
+function renderMonth(){
+  const data = applyFilters(rawData);
+  const grid=document.createElement('div'); grid.className='grid';
+  const y=currentDate.getFullYear(), m=currentDate.getMonth();
+  const first=new Date(y,m,1), last=new Date(y,m+1,0);
+  for(let i=0;i<first.getDay();i++) grid.appendChild(document.createElement('div'));
+  for(let d=1; d<=last.getDate(); d++){
+    const cur=new Date(y,m,d);
+    const cell=document.createElement('div'); cell.className='day';
+    cell.innerHTML=`<div class='day-header'>${d}/${m+1}/${y} | ${dayNames[cur.getDay()]}</div>`;
+    data.forEach(r=>r.Dates.forEach(dd=>{
+      if(sameDay(dd,cur)){
+        const ev=document.createElement('div'); ev.className='event'+(!r.Employee?' missing':'');
+        ev.innerHTML=`<strong>${r.Program}</strong><small>${r.Employee||'חסר מדריך'}</small>`;
+        cell.appendChild(ev);
+      }
+    }));
+    grid.appendChild(cell);
+  }
+  view.appendChild(grid);
+}
+
+function renderWeek(){
+  const data = applyFilters(rawData);
+  const grid=document.createElement('div'); grid.className='grid';
+  const start=new Date(currentDate); start.setDate(start.getDate()-start.getDay());
+  for(let i=0;i<7;i++){
+    const cur=new Date(start); cur.setDate(start.getDate()+i);
+    const cell=document.createElement('div'); cell.className='day';
+    cell.innerHTML=`<div class='day-header'>${cur.getDate()}/${cur.getMonth()+1}/${cur.getFullYear()} | ${dayNames[cur.getDay()]}</div>`;
+    data.forEach(r=>r.Dates.forEach(dd=>{
+      if(sameDay(dd,cur)){
+        const ev=document.createElement('div'); ev.className='event'+(!r.Employee?' missing':'');
+        ev.innerHTML=`<strong>${r.Program}</strong><small>${r.Employee||'חסר מדריך'}</small>`;
+        cell.appendChild(ev);
+      }
+    }));
+    grid.appendChild(cell);
+  }
+  view.appendChild(grid);
+}
+
+function renderSummary(){
+  const wrap=document.createElement('div'); wrap.className='summary-wrap';
+  const m=currentDate.getMonth(), y=currentDate.getFullYear();
+  const ended=rawData.map(r=>({r,end:getEndDate(r)}))
+    .filter(x=>x.end && x.end.getMonth()===m && x.end.getFullYear()===y)
+    .sort((a,b)=>a.end-b.end);
+
+  const top=document.createElement('div'); top.className='summary-top';
+  top.innerHTML=`<div style='font-size:14px;color:#64748b'>קורסים שמסתיימים החודש</div><div style='font-size:36px;font-weight:800'>${ended.length}</div>`;
+  wrap.appendChild(top);
+
+  const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].slice(0,2);
+  const split=document.createElement('div'); split.className='summary-split';
+
+  managers.forEach(mgr=>{
+    const col=document.createElement('div'); col.className='summary-col';
+    const list=ended.filter(x=>x.r.Manager===mgr)
+      .map(x=>`<div class='event'><strong>${x.r.Program}</strong><small>${x.r.Authority} · ${x.r.School}</small><br><small>${x.r.Employee||'—'} · ${x.end.toLocaleDateString('he-IL')}</small></div>`)
+      .join('');
+    col.innerHTML=`<h3 style='margin-top:0'>${mgr}</h3>${list || '<div style="text-align:center;color:#94a3b8">אין קורסים החודש</div>'}`;
+    split.appendChild(col);
+  });
+
+  wrap.appendChild(split);
+  view.appendChild(wrap);
+}
+
+btnMonth.onclick=()=>{mode='month';render();};
+btnWeek.onclick=()=>{mode='week';render();};
+btnSummary.onclick=()=>{mode='summary';render();};
+
+btnPrev.onclick=()=>{ if(mode==='week') currentDate.setDate(currentDate.getDate()-7); else currentDate.setMonth(currentDate.getMonth()-1); render(); };
+btnNext.onclick=()=>{ if(mode==='week') currentDate.setDate(currentDate.getDate()+7); else currentDate.setMonth(currentDate.getMonth()+1); render(); };
+
+clearFilters.onclick=()=>{ managerFilter.value=''; employeeFilter.value=''; render(); };
+managerFilter.onchange=render;
+employeeFilter.onchange=render;
+
+summaryMonthSelect.onchange=()=>{
+  const [y,m]=summaryMonthSelect.value.split('-').map(Number);
+  currentDate = new Date(y,m-1,1);
+  render();
+};
+
+function populateSummaryMonths(){
+  const months=[...new Set(rawData.map(r=>getEndDate(r)).filter(Boolean)
+    .map(d=>`${d.getFullYear()}-${d.getMonth()+1}`))].sort();
+  summaryMonthSelect.innerHTML=months.map(k=>{
+    const [y,m]=k.split('-').map(Number);
+    return `<option value="${k}">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
+  }).join('');
+  const curKey=`${currentDate.getFullYear()}-${currentDate.getMonth()+1}`;
+  if(months.includes(curKey)) summaryMonthSelect.value=curKey;
+}
+
+loadExcel().then(populateSummaryMonths);
 </script>
 </body>
 </html>
