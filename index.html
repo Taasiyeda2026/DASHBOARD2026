@@ -299,6 +299,9 @@ side.onclick=e=>e.stopPropagation();
 // ======================
 // SUMMARY
 // ======================
+// totalCourses = מספר קורסים כולל לפי האקסל (COURSE עם MonthEnd)
+// נקודת אמת יחידה – האקסל בלבד
+let totalCourses = 0;
 function renderSummary(){
   if(!summaryMonth.value) return;
   const [y,m]=summaryMonth.value.split('-').map(Number);
@@ -307,6 +310,9 @@ function renderSummary(){
 
   // נקודת אמת: האקסל בלבד. כל שורה = קורס אחד. רק COURSE עם MonthEnd
   const courses = rawData.filter(r=>r.EventType==='COURSE' && r.MonthEnd);
+
+  // סה"כ קורסים – כל שורה COURSE עם MonthEnd
+  totalCourses = courses.length;
 
   // קורסים שמסתיימים בחודש הנבחר
   const endedThisMonth = courses.filter(r=>{
