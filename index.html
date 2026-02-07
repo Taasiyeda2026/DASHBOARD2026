@@ -291,25 +291,30 @@ side.onclick=e=>e.stopPropagation();
 // SUMMARY
 // ======================
 function renderSummary(){
-  // נקודת מוצא: TODAY אם לא נבחר חודש
   if(!summaryMonth.value) return;
   const [y,m]=summaryMonth.value.split('-').map(Number);
   currentDate=new Date(y,m,1);
   titleEl.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
-  const ended=rawData.map(r=>({r,end:endDate(r)}))
-    .filter(x=>x.end&&x.end.getFullYear()===y&&x.end.getMonth()===m)
-    .sort((a,b)=>a.end-b.end);
+  // נקודת אמת: האקסל בלבד. כל שורה = קורס אחד. רק COURSE עם MonthEnd
+  const courses = rawData.filter(r=>r.EventType==='COURSE' && r.MonthEnd);
+
+  // קורסים שמסתיימים בחודש הנבחר
+  const endedThisMonth = courses.filter(r=>{
+    const d=parseDate(r.MonthEnd);
+    return d && d.getFullYear()===y && d.getMonth()===m;
+  }).sort((a,b)=>parseDate(a.MonthEnd)-parseDate(b.MonthEnd));
+
+  // קורסים שנסתיימו עד סוף החודש (כולל)
+  const endedUntilMonth = courses.filter(r=>{
+    const d=parseDate(r.MonthEnd);
+    return d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m));
+  }).length;
+
+  const totalCourses = courses.length;
+  const activeTotal = totalCourses - endedUntilMonth;
 
   const wrap=document.createElement('div'); wrap.className='summary-wrap';
-
-  const totalCourses = rawData.filter(r=>r.EventType==='COURSE' && endDate(r)).length;
-  const endedUntilMonth = rawData
-    .filter(r=>r.EventType==='COURSE')
-    .map(r=>endDate(r))
-    .filter(d=>d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m)))
-    .length;
-  const activeTotal = totalCourses - endedUntilMonth;
 
   wrap.innerHTML=`
     <div class='summary-top'>
@@ -317,19 +322,24 @@ function renderSummary(){
       <div style='font-size:40px;font-weight:800'>${activeTotal}</div>
     </div>`;
 
-  const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))];
+  const managers=[...new Set(courses.map(r=>r.Manager).filter(Boolean))];
   const split=document.createElement('div'); split.className='summary-split';
 
   managers.forEach(mgr=>{
     const col=document.createElement('div'); col.className='summary-col';
 
-    const mgrCourses = rawData.filter(r=>r.Manager===mgr);
-    const mgrActive = mgrCourses.filter(r=>{
-      const e=endDate(r);
-      return !e || e>new Date(y,m+1,0);
+    const mgrCourses = courses.filter(r=>r.Manager===mgr);
+    const mgrEnded = mgrCourses.filter(r=>{
+      const d=parseDate(r.MonthEnd);
+      return d && d.getFullYear()===y && d.getMonth()===m;
+    }).sort((a,b)=>parseDate(a.MonthEnd)-parseDate(b.MonthEnd));
+
+    const mgrEndedUntil = mgrCourses.filter(r=>{
+      const d=parseDate(r.MonthEnd);
+      return d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m));
     }).length;
 
-    const mgrEnded = ended.filter(x=>x.r.Manager===mgr);
+    const mgrActive = mgrCourses.length - mgrEndedUntil;
 
     col.innerHTML=`
       <div style="text-align:center;margin-bottom:10px">
@@ -341,14 +351,14 @@ function renderSummary(){
         קורסים שמסתיימים החודש: ${mgrEnded.length}
       </div>
       <div style="display:none">
-        ${mgrEnded.sort((a,b)=>a.end-b.end).map(x=>`
+        ${mgrEnded.length ? mgrEnded.map(r=>`
           <div class='event'>
-            <strong>${x.r.Program}</strong>
-            <div><small>מדריך:</small> ${x.r.Employee||'—'}</div>
-            <div><small>בית ספר:</small> ${x.r.School||'—'}</div>
-            <div><small>רשות:</small> ${x.r.Authority||'—'}</div>
-            <div><small>תאריך סיום:</small> ${x.end.toLocaleDateString('he-IL')}</div>
-          </div>`).join('') || '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
+            <strong>${r.Program}</strong>
+            <div><small>מדריך:</small> ${r.Employee||'—'}</div>
+            <div><small>בית ספר:</small> ${r.School||'—'}</div>
+            <div><small>רשות:</small> ${r.Authority||'—'}</div>
+            <div><small>תאריך סיום:</small> ${parseDate(r.MonthEnd).toLocaleDateString('he-IL')}</div>
+          </div>`).join('') : '<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}
       </div>`;
 
     split.appendChild(col);
