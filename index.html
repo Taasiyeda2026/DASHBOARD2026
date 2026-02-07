@@ -233,7 +233,6 @@ function buildDay(date,data){
     if(sameDay(dd, date)) dailyPool.push({ ...r, meetingIdx: i + 1 });
   }));
 
-  // קיבוץ לפי מדריך ותוכנית
   const groupsMap = {};
   dailyPool.forEach(ev => {
     if(ev.EventType === 'HOLIDAY') {
@@ -246,7 +245,6 @@ function buildDay(date,data){
     }
   });
 
-  // הפיכה למערך ומיון לפי שעה
   const sortedGroups = Object.values(groupsMap).sort((a, b) => a.time.localeCompare(b.time));
 
   sortedGroups.forEach(g => {
@@ -263,7 +261,10 @@ function buildDay(date,data){
       const count = g.items.length > 1 ? `<span class="badge-count">x${g.items.length}</span>` : '';
       const hourStr = first.StartTime ? `<div class="event-hour">${first.StartTime}</div>` : '';
       
-      evDiv.innerHTML = `${count}${hourStr}<strong>${first.Employee || 'חסר'}</strong><div>${first.Program}</div>`;
+      // שינוי כאן: מ"חסר" ל"חסר מדריך"
+      const empName = first.Employee ? `<strong>${first.Employee}</strong>` : `<strong style="color:var(--danger)">חסר מדריך</strong>`;
+      
+      evDiv.innerHTML = `${count}${hourStr}${empName}<div>${first.Program}</div>`;
       evDiv.onclick = (e) => { e.stopPropagation(); openSideGrouped(g.items); };
     }
     cell.appendChild(evDiv);
@@ -282,12 +283,16 @@ function openSideGrouped(items) {
   items.forEach(item => {
     const end = endDate(item);
     const timeRange = (item.StartTime || item.EndTime) ? `${item.StartTime} – ${item.EndTime}` : '—';
+    // שינוי כאן: הוספת שם מדריך וטיפול בכיתוב "חסר מדריך"
+    const empDisplay = item.Employee ? item.Employee : `<span style="color:var(--danger); font-weight:bold;">חסר מדריך</span>`;
+    
     sideContent.innerHTML += `
       <div class="group-item">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div class='badge'>מפגש ${item.meetingIdx}</div>
           <div style="background:#334155; color:#fff; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:bold;">${timeRange}</div>
         </div>
+        <div class='row'><span class='label'>מדריך</span><span class='value'>${empDisplay}</span></div>
         <div class='row'><span class='label'>בית ספר</span><span class='value'>${item.School || '—'}</span></div>
         <div class='row'><span class='label'>רשות</span><span class='value'>${item.Authority || '—'}</span></div>
         <div class='row'><span class='label'>סיום קורס</span><span class='value'>${end ? end.toLocaleDateString('he-IL') : '—'}</span></div>
