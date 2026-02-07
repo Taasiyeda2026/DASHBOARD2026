@@ -8,7 +8,7 @@
 
 <style>
 :root{
-  --bg-main:#f8fafc;--bg-surface:#eef2f7;--card-bg:#ffffff;--accent:#2563eb;--accent-soft:#e0ecff;--text-main:#0f172a;--text-muted:#475569;--border:#e2e8f0;
+  --bg-main:#f8fafc;--bg-surface:#eef2f7;--card-bg:#ffffff;--accent:#2563eb;--text-main:#0f172a;--text-muted:#475569;--border:#e2e8f0;--danger:#dc2626;
 }
 body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,var(--bg-main),var(--bg-surface));color:var(--text-main);} 
 header{background:#fff;border-bottom:1px solid var(--border);} 
@@ -16,49 +16,55 @@ header{background:#fff;border-bottom:1px solid var(--border);}
 .app-logo{height:42px;} 
 
 .controls,.nav-controls{display:flex;justify-content:center;gap:8px;margin:10px auto;flex-wrap:wrap;} 
-select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.08);cursor:pointer;}
-#viewMonthBtn, #viewWeekBtn{background:#e0f2fe;border-color:#7dd3fc;color:#0f172a;}
-#viewMonthBtn.active, #viewWeekBtn.active{background:#bae6fd;border-color:#38bdf8;}
-.nav-btn{width:32px;height:32px;border-radius:999px;background:#fef9c3;border-color:#fde047;color:#2563eb;font-weight:700;}
-.nav-btn:hover{background:#fde047;} 
-.nav-controls{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
-.calendar-grid{
-  max-width:1200px;
-  margin:auto;
-  padding:10px;
-  display:grid;
-  /* שבת צרה יותר, שאר הימים רחבים ושווים */
-  grid-template-columns: 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 0.6fr;
-  gap:12px;
-  /* אחידות גובה בין תצוגה חודשית ושבועית */
-  grid-auto-rows: 1fr;
-  align-items:stretch;
-} 
-.day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);min-height:100px;} 
-.day.inactive{background:#f1f5f9;opacity:0.6;} 
-.day-header{font-weight:600;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-size:12px;text-align:center;} 
-.event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:6px solid var(--accent);border:1px solid rgba(15,23,42,0.08);background:rgba(255,255,255,0.85);}
-.event.missing-instructor{
-  background:#ffffff; /* רקע לבן כדי להבליט את האדום */
-  border:2px solid #dc2626;
-  border-right:6px solid #dc2626;
-}} 
-.meta{font-size:12px;color:var(--text-muted);} 
-/* בית ספר + רשות – קטן ושקט יותר */
-.event .meta:last-child{
-  font-size:10.5px;
-  color:#64748b;
-} 
-.calendar-grid>.meta{font-size:16px;font-weight:800;text-align:center;padding:10px 0;} 
-.missing{color:#dc2626;font-weight:700;} 
-.event.holiday{background:#fef9c3;border-color:#fde047;border-right-color:#facc15;}
+select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;}
+#viewMonthBtn,#viewWeekBtn{background:#e0f2fe;border-color:#7dd3fc;}
+#viewMonthBtn.active,#viewWeekBtn.active{background:#bae6fd;border-color:#38bdf8;}
+.nav-btn{width:32px;height:32px;border-radius:999px;background:#fef9c3;border-color:#fde047;font-weight:700;}
+.nav-controls{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
+
+.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr .6fr;gap:12px;}
+.day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.08);} 
+.day.inactive{opacity:.5;} 
+.day-header{font-size:12px;font-weight:600;text-align:center;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:6px;}
+
+.event{
+  border-radius:10px;
+  padding:8px;
+  margin-top:6px;
+  font-size:13px;
+  border-right:6px solid var(--accent);
+  background:#fff;
+  cursor:pointer;
+  box-shadow:0 1px 0 rgba(15,23,42,0.06);
+}
+.event + .event{
+  margin-top:8px;
+}
+.event strong{
+  display:block;
+  padding-bottom:4px;
+  margin-bottom:4px;
+  border-bottom:1px dashed var(--border);
+}
+.event span,
+.event small{
+  color:var(--text-muted);
+  font-size:12px;
+}
+.event.holiday{background:#fef9c3;border-right-color:#facc15;cursor:default;}
+.event.missing{border-right-color:var(--danger);border:2px solid var(--danger);}
+
+/* חלון צד */
+.side-panel{position:fixed;top:0;left:0;width:320px;max-width:90%;height:100%;background:#fff;box-shadow:-4px 0 18px rgba(0,0,0,.15);padding:16px;transform:translateX(-100%);transition:.25s ease;z-index:50;}
+.side-panel.open{transform:translateX(0);} 
+.side-panel .close{position:absolute;top:10px;left:10px;border:none;background:none;font-size:18px;cursor:pointer;}
+.side-panel .row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px;}
+.side-panel .danger{color:var(--danger);font-weight:700;}
+.side-panel .course{font-size:16px;font-weight:700;margin-bottom:10px;}
+.side-panel .end-date{margin-top:12px;font-size:13px;color:#334155;}
+
 @media(max-width:768px){
-  header .header-inner{flex-direction:column;align-items:flex-start;gap:8px;}
-  .controls{gap:6px;margin:6px;padding:0 10px;}
-  select,button{width:100%;}
-  .nav-controls button{width:auto;flex:1;}
   .calendar-grid{grid-template-columns:1fr;}
-  .calendar-grid>.meta{display:none;}
 }
 </style>
 </head>
@@ -66,253 +72,168 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 <header>
   <div class="header-inner">
     <img src="logo.png" class="app-logo" alt="לוגו">
-    <div><strong>דשבורד פעילות ותוכניות</strong><br><span class="meta">תצוגה חודשית / שבועית לפי תאריכים</span></div>
+    <div><strong>דשבורד פעילות ותוכניות</strong><br><span style="font-size:12px;color:#64748b">תצוגה חודשית / שבועית</span></div>
   </div>
 </header>
 
 <div class="controls">
   <select id="managerFilter"><option value="">סינון לפי מנהל</option></select>
-  <select id="programFilter"><option value="">סינון לפי תוכנית</option></select>
-  <select id="employeeFilter"><option value="">בחר עובד</option></select>
-  <button id="clearFilters">נקה סינון</button>
+  <select id="employeeFilter"><option value="">סינון לפי מדריך</option></select>
 </div>
 
 <div class="nav-controls">
   <button id="viewMonthBtn" class="active">חודש</button>
   <button id="viewWeekBtn">שבוע</button>
   <button id="prevNav" class="nav-btn">▶</button>
-  <span id="navTitle" style="min-width:180px;text-align:center;font-weight:bold;"></span>
+  <span id="navTitle" style="min-width:180px;text-align:center;font-weight:bold"></span>
   <button id="nextNav" class="nav-btn">◀</button>
 </div>
 
 <div id="calendarGrid" class="calendar-grid"></div>
 
+<div id="sidePanel" class="side-panel">
+  <button class="close" id="closePanel">×</button>
+  <div id="panelContent"></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-window.addEventListener('DOMContentLoaded', () => {
+let rawData=[],currentDate=new Date(),mode='month';
+const managerFilter=document.getElementById('managerFilter');
+const employeeFilter=document.getElementById('employeeFilter');
+const grid=document.getElementById('calendarGrid');
+const panel=document.getElementById('sidePanel');
+const panelContent=document.getElementById('panelContent');
+const navTitle=document.getElementById('navTitle');
 
-const calendarGrid = document.getElementById('calendarGrid');
-const navTitle = document.getElementById('navTitle');
-const managerFilter = document.getElementById('managerFilter');
-const programFilter = document.getElementById('programFilter');
-const employeeFilter = document.getElementById('employeeFilter');
-const clearFilters = document.getElementById('clearFilters');
-const viewMonthBtn = document.getElementById('viewMonthBtn');
-const viewWeekBtn = document.getElementById('viewWeekBtn');
-const prevNav = document.getElementById('prevNav');
-const nextNav = document.getElementById('nextNav');
+const days=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const sameDay=(a,b)=>a&&b&&a.toDateString()===b.toDateString();
 
-let rawData = [];
-let currentDate = new Date(); currentDate.setHours(0,0,0,0);
-let currentMode = 'month';
-
-const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-const sameDay = (a,b)=>a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
-
-function parseDateSafe(v){
-  if(v==null||v==='') return null;
+function parseDate(v){
+  if(!v) return null;
   if(typeof v==='number'){
-    const d = XLSX.SSF.parse_date_code(v);
-    if(d) return new Date(d.y,d.m-1,d.d);
+    const d=XLSX.SSF.parse_date_code(v);
+    return new Date(d.y,d.m-1,d.d);
   }
   const d=new Date(v);
   return isNaN(d)?null:d;
 }
 
-function formatTime(v){
-  if(v==null||v==='') return '';
-  if(typeof v==='number'){
-    const totalMinutes = Math.round(v * 24 * 60);
-    const h = String(Math.floor(totalMinutes/60)).padStart(2,'0');
-    const m = String(totalMinutes%60).padStart(2,'0');
-    return `${h}:${m}`;
-  }
-  return String(v);
-}
-
-function colorForEmployee(name){
-  if(!name) return {border:'#94a3b8', bg:'rgba(148,163,184,0.2)'};
-  let h=0; for(const c of name) h=c.charCodeAt(0)+((h<<5)-h);
-  const hue=Math.abs(h)%360;
-  return {border:`hsl(${hue},70%,55%)`, bg:`hsla(${hue},70%,90%,0.6)`};
-}
-
-function initFilters(){
-  // סינונים מבוססי קורסים בלבד (EventType === 'COURSE')
-  const coursesOnly = rawData.filter(r => r.EventType === 'COURSE');
-
-  const fill=(el,arr,ph)=>{
-    el.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');
-  };
-
-  fill(managerFilter,[...new Set(coursesOnly.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');
-  fill(programFilter,[...new Set(coursesOnly.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');
-  fill(employeeFilter,[...new Set(coursesOnly.map(r=>r.Employee).filter(Boolean))],'בחר עובד');
-}
-
-function filteredData(){
-  const m=managerFilter.value,p=programFilter.value,e=employeeFilter.value;
-  return rawData.filter(r=>(!m||r.Manager===m)&&(!p||r.Program===p)&&(!e||r.Employee===e));
-}
-
-function buildRecords(rows){
-  if(!rows.length) return [];
-  const h = rows[0].map(x=>String(x||'').trim());
-
-  // helper: find column by case-insensitive name
-  const col = (name)=>{
-    const idx = h.findIndex(k=>k.toLowerCase()===name.toLowerCase());
-    return idx>-1 ? idx : null;
-  };
-
-  return rows.slice(1).map(r=>{
-    const get = (name)=>{
-      const i = col(name);
-      return i!==null ? r[i] : '';
-    };
-
-    const dates = [];
-    for(let i=1;i<=16;i++){
-      const v = get('date'+i) || get('Date'+i) || get('DATE'+i);
-      dates.push(parseDateSafe(v));
-    }
-
+async function load(){
+  const res=await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
+  const wb=XLSX.read(await res.arrayBuffer(),{type:'array'});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+  const h=rows[0];
+  rawData=rows.slice(1).map(r=>{
+    const get=n=>r[h.findIndex(x=>String(x).toLowerCase()===n.toLowerCase())]||'';
+    const dates=[...Array(16)].map((_,i)=>parseDate(get('date'+(i+1))));
     return{
-      Manager:get('Manager')||get('מנהל')||'',
-      Employee:get('Employee')||get('עובד')||'',
-      Program:get('Program')||get('תוכנית')||'',
-      School:get('School')||get('בית ספר')||'',
-      Authority:get('Authority')||get('רשות')||'',
-      StartTime:formatTime(get('StartTime')||get('שעת התחלה')),
-      EndTime:formatTime(get('EndTime')||get('שעת סיום')),
-      EventType:(get('EventType')||'COURSE').toUpperCase(),
-      Dates:dates
+      Program:get('Program'),Employee:get('Employee'),Manager:get('Manager'),
+      School:get('School'),Authority:get('Authority'),
+      Start:get('StartTime'),End:get('EndTime'),
+      Type:(get('EventType')||'COURSE').toUpperCase(),Dates:dates
     };
-  });
-}
-
-async function loadExcel(){
-  try{
-    const res = await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
-    if(!res.ok) throw new Error('Excel not found');
-    const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf,{type:'array'});
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
-    rawData = buildRecords(rows);
-    initFilters();
-  }catch(e){console.error(e); rawData=[];}
+  }).filter(r=>r.Dates.some(d=>d));
+  initFilters();
   render();
 }
 
-function setNavTitle(){
-  if(currentMode==='month'){
-    navTitle.textContent = currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
-  } else {
-    const start=new Date(currentDate); start.setDate(start.getDate()-start.getDay());
-    const end=new Date(start); end.setDate(start.getDate()+6);
-    navTitle.textContent = `${start.getDate()}/${start.getMonth()+1}/${start.getFullYear()} – ${end.getDate()}/${end.getMonth()+1}/${end.getFullYear()}`;
-  }
+function initFilters(){
+  managerFilter.innerHTML='<option value="">סינון לפי מנהל</option>'+
+    [...new Set(rawData.map(r=>r.Manager).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');
+  employeeFilter.innerHTML='<option value="">סינון לפי מדריך</option>'+
+    [...new Set(rawData.map(r=>r.Employee).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');
+}
+
+function applyFilters(){
+  return rawData.filter(r=>{
+    if(managerFilter.value && r.Manager!==managerFilter.value) return false;
+    if(employeeFilter.value && r.Employee!==employeeFilter.value) return false;
+    return true;
+  });
 }
 
 function render(){
-  calendarGrid.innerHTML='';
-  setNavTitle();
-  const data = filteredData();
-  currentMode==='month' ? renderMonth(data) : renderWeek(data);
+  grid.innerHTML='';
+  setTitle();
+  const data=applyFilters();
+  mode==='month'?renderMonth(data):renderWeek(data);
+}
+
+function setTitle(){
+  if(mode==='month') navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+  else{
+    const s=new Date(currentDate);s.setDate(s.getDate()-s.getDay());
+    const e=new Date(s);e.setDate(e.getDate()+6);
+    navTitle.textContent=`${s.getDate()}/${s.getMonth()+1}/${s.getFullYear()} – ${e.getDate()}/${e.getMonth()+1}/${e.getFullYear()}`;
+  }
 }
 
 function renderMonth(data){
-  // ללא שורת כותרות ימים – היום והתאריך מופיעים בכל עמודה
-
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   const first=new Date(y,m,1),last=new Date(y,m+1,0);
-  for(let i=0;i<first.getDay();i++) calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'day inactive'}));
+  for(let i=0;i<first.getDay();i++) grid.appendChild(dayCell(null,true));
   for(let d=1;d<=last.getDate();d++){
     const cur=new Date(y,m,d);
-    const cell=document.createElement('div'); cell.className='day';
-    const events=[];
-    data.forEach(r=>r.Dates.forEach((dd,idx)=>{if(sameDay(dd,cur)) events.push({r,idx});}));
-    events.sort((a,b)=>String(a.r.StartTime||"").localeCompare(String(b.r.StartTime||"")));
-    events.forEach(({r,idx})=>{
-      const ev=document.createElement('div');
-      const isHoliday=r.EventType==='HOLIDAY';
-      ev.className='event'+(isHoliday?' holiday':'');
-      if(!isHoliday){
-        if(!r.Employee){
-          ev.classList.add('missing-instructor');
-        } else {
-          const c=colorForEmployee(r.Employee);
-          ev.style.borderRightColor=c.border;
-          ev.style.backgroundColor=c.bg;
-        }
-      }
-      ev.innerHTML=isHoliday
-        ? `<strong>חג</strong><div class=meta>${r.Program||''}</div>`
-        : `<strong>${r.Employee||'<span class=missing>חסר מדריך</span>'}</strong>`
-          + `<div class=meta>${r.Program||''} · מפגש ${idx+1}</div>`
-          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`
-          + `<div class=meta>${r.School||'<span class=missing>חסר בית ספר</span>'} · ${r.Authority||'<span class=missing>חסר רשות</span>'}</div>`;
-      cell.appendChild(ev);
-    });
-    const h=document.createElement('div'); h.className='day-header'; h.textContent=`${d}/${m+1}/${y} | ${dayNames[cur.getDay()]}`;
-    cell.prepend(h);
-    if(!events.length) cell.classList.add('inactive');
-    calendarGrid.appendChild(cell);
+    const ev=data.flatMap(r=>r.Dates.map((dd,i)=>dd&&sameDay(dd,cur)?{r,i}:null)).filter(Boolean);
+    grid.appendChild(dayCell({date:cur,events:ev}));
   }
 }
 
 function renderWeek(data){
-  // ללא שורת כותרות ימים – היום והתאריך מופיעים בכל עמודה
-
-  const start=new Date(currentDate); start.setDate(start.getDate()-start.getDay());
+  const s=new Date(currentDate);s.setDate(s.getDate()-s.getDay());
   for(let i=0;i<7;i++){
-    const cur=new Date(start); cur.setDate(start.getDate()+i);
-    const cell=document.createElement('div'); cell.className='day';
-    const events=[];
-    data.forEach(r=>r.Dates.forEach((dd,idx)=>{if(sameDay(dd,cur)) events.push({r,idx});}));
-    events.sort((a,b)=>String(a.r.StartTime||"").localeCompare(String(b.r.StartTime||"")));
-    events.forEach(({r,idx})=>{
-      const ev=document.createElement('div');
-      const isHoliday=r.EventType==='HOLIDAY';
-      ev.className='event'+(isHoliday?' holiday':'');
-      if(!isHoliday){
-        if(!r.Employee){
-          ev.classList.add('missing-instructor');
-        } else {
-          const c=colorForEmployee(r.Employee);
-          ev.style.borderRightColor=c.border;
-          ev.style.backgroundColor=c.bg;
-        }
-      }
-      ev.innerHTML=isHoliday
-        ? `<strong>חג</strong><div class=meta>${r.Program||''}</div>`
-        : `<strong>${r.Employee||'<span class=missing>חסר מדריך</span>'}</strong>`
-          + `<div class=meta>${r.Program||''} · מפגש ${idx+1}</div>`
-          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`
-          + `<div class=meta>${r.School||'<span class=missing>חסר בית ספר</span>'} · ${r.Authority||'<span class=missing>חסר רשות</span>'}</div>`;
-      cell.appendChild(ev);
-    });
-    const h=document.createElement('div'); h.className='day-header'; h.textContent=`${cur.getDate()}/${cur.getMonth()+1}/${cur.getFullYear()} | ${dayNames[i]}`;
-    cell.prepend(h);
-    if(!events.length) cell.classList.add('inactive');
-    calendarGrid.appendChild(cell);
+    const cur=new Date(s);cur.setDate(s.getDate()+i);
+    const ev=data.flatMap(r=>r.Dates.map((dd,j)=>dd&&sameDay(dd,cur)?{r,j}:null)).filter(Boolean);
+    grid.appendChild(dayCell({date:cur,events:ev}));
   }
 }
 
-prevNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()-1):currentDate.setDate(currentDate.getDate()-7);render();};
-nextNav.onclick=()=>{currentMode==='month'?currentDate.setMonth(currentDate.getMonth()+1):currentDate.setDate(currentDate.getDate()+7);render();};
-viewMonthBtn.onclick=()=>{currentMode='month';viewMonthBtn.classList.add('active');viewWeekBtn.classList.remove('active');render();};
-viewWeekBtn.onclick=()=>{currentMode='week';viewWeekBtn.classList.add('active');viewMonthBtn.classList.remove('active');render();};
-clearFilters.onclick=()=>{managerFilter.value=programFilter.value=employeeFilter.value='';render();};
-[managerFilter,programFilter,employeeFilter].forEach(el=>el.onchange=render);
+function dayCell(data,inactive){
+  const c=document.createElement('div');c.className='day'+(inactive?' inactive':'');
+  if(!data) return c;
+  const h=document.createElement('div');h.className='day-header';
+  h.textContent=`${data.date.getDate()}/${data.date.getMonth()+1}/${data.date.getFullYear()} | ${days[data.date.getDay()]}`;
+  c.appendChild(h);
+  data.events.forEach(({r,i})=>{
+    const e=document.createElement('div');
+    e.className='event'+(r.Type==='HOLIDAY'?' holiday':'')+(!r.Employee?' missing':'');
+    e.innerHTML=r.Type==='HOLIDAY'
+      ? `<strong>חג</strong> ${r.Program}`
+      : `<strong>${r.Employee||'❗ חסר מדריך'}</strong> – ${r.Program}`;
+    if(r.Type!=='HOLIDAY') e.onclick=ev=>{ev.stopPropagation();openPanel(r,i);};
+    c.appendChild(e);
+  });
+  return c;
+}
 
-loadExcel();
+function openPanel(r,i){
+  const endDate=new Date(Math.max(...r.Dates.map(d=>d&&d.getTime())));
+  panelContent.innerHTML=`
+    <div class="course">${r.Program}</div>
+    <div class="row">🧩 מפגש ${i+1}</div>
+    <div class="row">👤 ${r.Employee||'<span class="danger">חסר מדריך</span>'}</div>
+    <div class="row">📅 ${r.Dates[i].toLocaleDateString('he-IL')}</div>
+    <div class="row">⏱ ${r.Start}–${r.End}</div>
+    <div class="row">🏫 ${r.School}</div>
+    <div class="row">🏛 ${r.Authority}</div>
+    <div class="end-date">תאריך סיום הקורס: ${endDate.toLocaleDateString('he-IL')}</div>`;
+  panel.classList.add('open');
+}
 
-// ברירת מחדל: פתיחה לפי TODAY בלבד
-// אין קפיצה אוטומטית לחודש עם נתונים
+function closePanel(){panel.classList.remove('open');}
 
-});
+managerFilter.onchange=render;
+employeeFilter.onchange=render;
+document.getElementById('closePanel').onclick=closePanel;
+document.body.onclick=closePanel;
+panel.onclick=e=>e.stopPropagation();
+document.getElementById('prevNav').onclick=()=>{mode==='month'?currentDate.setMonth(currentDate.getMonth()-1):currentDate.setDate(currentDate.getDate()-7);render();};
+document.getElementById('nextNav').onclick=()=>{mode==='month'?currentDate.setMonth(currentDate.getMonth()+1):currentDate.setDate(currentDate.getDate()+7);render();};
+document.getElementById('viewMonthBtn').onclick=()=>{mode='month';render();};
+document.getElementById('viewWeekBtn').onclick=()=>{mode='week';render();};
+
+load();
 </script>
 </body>
 </html>
