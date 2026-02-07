@@ -156,8 +156,17 @@ async function load(){
     const g=n=>{const i=col(n); return i>-1?r[i]:''};
     const dates=[]; for(let i=1;i<=16;i++) dates.push(parseDate(g('Date'+i)));
     return{
-      Manager:g('Manager'),Employee:g('Employee'),Program:g('Program'),
-      School:g('School'),Authority:g('Authority'),EventType:g('EventType'),Dates:dates
+      Manager: g('Manager'),
+      Employee: g('Employee'),
+      Program: g('Program'),
+      School: g('School'),
+      Authority: g('Authority'),
+      EventType: g('EventType'),
+
+      End: parseDate(g('End')),
+      MonthEnd: parseDate(g('MonthEnd')),
+
+      Dates: dates
     };
   }).filter(r=>r.Dates.some(Boolean));
 
@@ -305,14 +314,16 @@ function renderSummary(){
     return d && d.getFullYear()===y && d.getMonth()===m;
   }).sort((a,b)=>parseDate(a.MonthEnd)-parseDate(b.MonthEnd));
 
-  // קורסים שנסתיימו עד סוף החודש (כולל)
-  const endedUntilMonth = courses.filter(r=>{
+  // קורסים שנסתיימו עד סוף החודש הקודם (לא כולל החודש הנוכחי)
+  const endedUntilPrevMonth = courses.filter(r=>{
     const d=parseDate(r.MonthEnd);
-    return d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m));
+    return d && (
+      d.getFullYear()<y ||
+      (d.getFullYear()===y && d.getMonth()<m)
+    );
   }).length;
 
-  const totalCourses = courses.length;
-  const activeTotal = totalCourses - endedUntilMonth;
+  const activeTotal = totalCourses - endedUntilPrevMonth;
 
   const wrap=document.createElement('div'); wrap.className='summary-wrap';
 
@@ -334,12 +345,15 @@ function renderSummary(){
       return d && d.getFullYear()===y && d.getMonth()===m;
     }).sort((a,b)=>parseDate(a.MonthEnd)-parseDate(b.MonthEnd));
 
-    const mgrEndedUntil = mgrCourses.filter(r=>{
+    const mgrEndedUntilPrev = mgrCourses.filter(r=>{
       const d=parseDate(r.MonthEnd);
-      return d && (d.getFullYear()<y || (d.getFullYear()===y && d.getMonth()<=m));
+      return d && (
+        d.getFullYear()<y ||
+        (d.getFullYear()===y && d.getMonth()<m)
+      );
     }).length;
 
-    const mgrActive = mgrCourses.length - mgrEndedUntil;
+    const mgrActive = mgrCourses.length - mgrEndedUntilPrev;
 
     col.innerHTML=`
       <div style="text-align:center;margin-bottom:10px">
