@@ -40,8 +40,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 /* summary */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
 .summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
-.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px}
+.summary-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px;margin:0 auto}
+.summary-col{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:420px;margin:0 auto}
 
 @media(max-width:800px){.grid{grid-template-columns:1fr}.summary-split{grid-template-columns:1fr}}
 </style>
@@ -168,6 +168,11 @@ function initSummaryMonths(){
     const [y,m]=k.split('-').map(Number);
     return `<option value="${k}">${new Date(y,m).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
   }).join('');
+
+  // ברירת מחדל: חודש נוכחי (TODAY)
+  const todayKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+  const idx = months.indexOf(todayKey);
+  if(idx >= 0) summaryMonth.selectedIndex = idx;
 }
 
 // ======================
@@ -265,6 +270,8 @@ side.onclick=e=>e.stopPropagation();
 // SUMMARY
 // ======================
 function renderSummary(){
+  // נקודת מוצא: TODAY אם לא נבחר חודש
+  if(!summaryMonth.value) return;
   const [y,m]=summaryMonth.value.split('-').map(Number);
   currentDate=new Date(y,m,1);
   titleEl.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
@@ -309,7 +316,7 @@ function renderSummary(){
           <div><small>תאריך סיום:</small> ${x.end.toLocaleDateString('he-IL')}</div>
         </div>`)
       .join('');
-    col.innerHTML=`<h3>${mgr}</h3>${list||'<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}`;
+    col.innerHTML=`<h3 style="margin:0 0 6px 0">${mgr}</h3><div style="height:2px;width:40px;background:#f59e0b;border-radius:2px;margin-bottom:12px"></div>${list||'<div style="text-align:center;color:#94a3b8">אין קורסים</div>'}`;
     split.appendChild(col);
   });
 
