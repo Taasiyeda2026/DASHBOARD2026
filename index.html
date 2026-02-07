@@ -29,7 +29,11 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:6px;padding-bottom:4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .event{padding:6px;border-radius:8px;margin-top:6px;font-size:13px;cursor:pointer;border-right:5px solid rgba(0,0,0,0.1);background:rgba(255,255,255,.9); position: relative;}
 .event.missing{border:2px solid var(--danger);border-right:5px solid var(--danger);background:#fff !important}
+
+/* עיצוב תגית כמות לקיבוץ */
 .badge-count{background:rgba(0,0,0,0.7); color:#fff; font-size:10px; padding:1px 5px; border-radius:10px; float:left; font-weight:bold;}
+/* עיצוב הצגת שעה בלוח */
+.event-hour{font-size:11px; color:#1e293b; font-weight:bold; background:rgba(0,0,0,0.05); padding:0 4px; border-radius:3px; margin-left:4px;}
 
 /* side panel */
 .side{position:fixed;top:0;left:0;width:380px;max-width:92%;height:100%;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,.18);transform:translateX(-100%);transition:.28s ease;z-index:50;padding:18px; overflow-y:auto;}
@@ -42,7 +46,10 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .side .label{color:var(--muted);font-size:12px}
 .side .value{font-weight:600}
 .side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+
+/* פריט בתוך קיבוץ בחלון צד */
 .group-item{background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;}
+.side-hour-tag{background:#334155; color:#fff; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:bold;}
 
 /* summary */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
@@ -77,7 +84,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   <button id="btnWeek">שבוע</button>
   <button id="btnSummary">סיכום</button>
   <button id="prev">▶</button>
-  <span id="title" style="min-width:200px;text-align:center;font-weight:700"></span>
+  <span id="title" style="min-width:260px;text-align:center;font-weight:700"></span>
   <button id="next">◀</button>
 </div>
 
@@ -117,24 +124,12 @@ let currentDate=new Date(); currentDate.setHours(0,0,0,0);
 const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
 const employeeColors = {
-  "הנאא אבו אמזה": "#f9d3d3",
-  "יונתן יהונתן פתייה": "#fdf1d3",
-  "אביב בלנדר": "#d3f4f9",
-  "אסיל ג'בר": "#dcd3f9",
-  "ברקת קטעי": "#d3f9de",
-  "אלכס זפקה": "#FFDEBD",
-  "עליזה מולה": "#CCFFFF",
-  "ליאל בן חמו": "#FEFEB4",
-  "אפרת אוחיון": "#FFFFCC",
-  "אלדר מיכאל טייב": "#A3E0FF",
-  "הילה רוזן": "#f9d3eb",
-  "תמר שפיר": "#EAEAEA",
-  "אילנה טיטייבסקי": "#d3f9d8",
-  "כרמית סמנדרוב": "#E8D1FF",
-  "מיכל שכטמן": "#d3f9f4",
-  "ראנה סאלח": "#f6d3f9",
-  "סוהא סאלם": "#f9f6d3",
-  "קרן גורביץ": "#d3eff9"
+  "הנאא אבו אמזה": "#f9d3d3", "יונתן יהונתן פתייה": "#fdf1d3", "אביב בלנדר": "#d3f4f9",
+  "אסיל ג'בר": "#dcd3f9", "ברקת קטעי": "#d3f9de", "אלכס זפקה": "#FFDEBD",
+  "עליזה מולה": "#CCFFFF", "ליאל בן חמו": "#FEFEB4", "אפרת אוחיון": "#FFFFCC",
+  "אלדר מיכאל טייב": "#A3E0FF", "הילה רוזן": "#f9d3eb", "תמר שפיר": "#EAEAEA",
+  "אילנה טיטייבסקי": "#d3f9d8", "כרמית סמנדרוב": "#E8D1FF", "מיכל שכטמן": "#d3f9f4",
+  "ראנה סאלח": "#f6d3f9", "סוהא סאלם": "#f9f6d3", "קרן גורביץ": "#d3eff9"
 };
 
 function getEmployeeColor(name) {
@@ -158,6 +153,9 @@ function endDate(r){
   return d.length?new Date(Math.max(...d.map(x=>x.getTime()))):null;
 }
 
+// ======================
+// LOAD EXCEL
+// ======================
 async function load(){
   const res=await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
   const wb=XLSX.read(await res.arrayBuffer(),{type:'array'});
@@ -169,31 +167,25 @@ async function load(){
     const g=n=>{const i=col(n); return i>-1?r[i]:''};
     const dates=[]; for(let i=1;i<=16;i++) dates.push(parseDate(g('Date'+i)));
     return{
-      Manager: g('Manager'),
-      Employee: g('Employee'),
-      Program: g('Program'),
-      School: g('School'),
-      Authority: g('Authority'),
-      EventType: g('EventType'),
-      Hour: g('Hour') || g('Time') || '',
+      Manager: g('Manager'), Employee: g('Employee'), Program: g('Program'),
+      School: g('School'), Authority: g('Authority'), EventType: g('EventType'),
+      Hour: g('Hour') || g('Time') || '', // טעינת שעה
       End: parseDate(g('End')),
       MonthEnd: parseDate(g('MonthEnd')||g('monthend')||g('MONTHEND')),
       Dates: dates
     };
   }).filter(r=>r.Dates.some(Boolean) || r.MonthEnd);
 
-  initFilters();
-  initSummaryMonths();
-  render();
+  initFilters(); initSummaryMonths(); render();
 }
 
+// ... שאר פונקציות ה-INIT (זהות למקור שלך) ...
 function initFilters(){
   const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))];
   const employees=[...new Set(rawData.map(r=>r.Employee).filter(Boolean))];
   managerFilter.innerHTML='<option value="">כל המנהלים</option>'+managers.map(v=>`<option>${v}</option>`).join('');
   employeeFilter.innerHTML='<option value="">כל המדריכים</option>'+employees.map(v=>`<option>${v}</option>`).join('');
 }
-
 function initSummaryMonths(){
   const months=[...new Set(rawData.map(r=>endDate(r)).filter(Boolean).map(d=>`${d.getFullYear()}-${d.getMonth()}`))].sort();
   summaryMonth.innerHTML=months.map(k=>{
@@ -205,9 +197,11 @@ function initSummaryMonths(){
   if(idx >= 0) summaryMonth.selectedIndex = idx;
 }
 
+// ======================
+// RENDER LOGIC
+// ======================
 function render(){
-  view.innerHTML='';
-  side.classList.remove('open');
+  view.innerHTML=''; side.classList.remove('open');
   filtersEl.style.display=mode==='summary'?'none':'flex';
   summaryMonth.style.display=mode==='summary'?'inline-block':'none';
   btnMonth.classList.toggle('active',mode==='month');
@@ -225,9 +219,7 @@ function renderMonth(){
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   const first=new Date(y,m,1),last=new Date(y,m+1,0);
   for(let i=0;i<first.getDay();i++) grid.appendChild(document.createElement('div'));
-  for(let d=1;d<=last.getDate();d++){
-    grid.appendChild(buildDay(new Date(y,m,d),data));
-  }
+  for(let d=1;d<=last.getDate();d++){ grid.appendChild(buildDay(new Date(y,m,d),data)); }
   view.appendChild(grid);
 }
 
@@ -246,65 +238,71 @@ function renderWeek(){
 
 function buildDay(date,data){
   const cell=document.createElement('div'); cell.className='day';
-  cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()} | ${dayNames[date.getDay()]}</div>`;
+  cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1}/${date.getFullYear()}</div>`;
   
   const dailyPool = [];
   data.forEach(r => r.Dates.forEach((dd, i) => {
-    if(sameDay(dd, date)) dailyPool.push({ ...r, currentMeeting: i + 1, eventDate: dd });
+    if(sameDay(dd, date)) dailyPool.push({ ...r, meetingIdx: i + 1 });
   }));
 
-  const grouped = dailyPool.reduce((acc, curr) => {
-    if(curr.EventType === 'HOLIDAY') {
-      acc.push({ type: 'holiday', data: curr });
+  // קיבוץ לפי מדריך ותוכנית
+  const groups = [];
+  dailyPool.forEach(ev => {
+    if(ev.EventType === 'HOLIDAY') {
+      groups.push({ type: 'holiday', items: [ev] });
     } else {
-      const key = `${curr.Employee}-${curr.Program}`;
-      let group = acc.find(x => x.type === 'group' && x.key === key);
+      const key = `${ev.Employee}-${ev.Program}`;
+      let group = groups.find(g => g.type === 'course' && g.key === key);
       if(!group) {
-        group = { type: 'group', key: key, items: [] };
-        acc.push(group);
+        group = { type: 'course', key: key, items: [] };
+        groups.push(group);
       }
-      group.items.push(curr);
+      group.items.push(ev);
     }
-    return acc;
-  }, []);
-
-  grouped.forEach(item => {
-    const ev=document.createElement('div');
-    if(item.type === 'holiday'){
-      ev.className='event'; ev.style.background='#fee2e2'; ev.innerHTML=`<strong>חג</strong> ${item.data.Program}`;
-    } else {
-      const main = item.items[0];
-      ev.className='event'+(!main.Employee?' missing':'');
-      ev.style.background=getEmployeeColor(main.Employee);
-      const badge = item.items.length > 1 ? `<span class="badge-count">x${item.items.length}</span>` : '';
-      ev.innerHTML=`${badge}<strong>${main.Employee||'חסר מדריך'}</strong><div>${main.Program}</div>`;
-      ev.onclick=(e)=>{ e.stopPropagation(); openSideGrouped(item.items); };
-    }
-    cell.appendChild(ev);
   });
 
+  groups.forEach(g => {
+    const evDiv = document.createElement('div');
+    if(g.type === 'holiday') {
+      evDiv.className = 'event'; evDiv.style.background = '#fee2e2';
+      evDiv.innerHTML = `<strong>חג</strong> ${g.items[0].Program}`;
+    } else {
+      const first = g.items[0];
+      evDiv.className = 'event' + (!first.Employee ? ' missing' : '');
+      evDiv.style.background = getEmployeeColor(first.Employee);
+      
+      const count = g.items.length > 1 ? `<span class="badge-count">x${g.items.length}</span>` : '';
+      const hour = first.Hour ? `<span class="event-hour">${first.Hour}</span>` : '';
+      
+      evDiv.innerHTML = `${count}${hour}<strong>${first.Employee || 'חסר'}</strong><div>${first.Program}</div>`;
+      evDiv.onclick = (e) => { e.stopPropagation(); openSideGrouped(g.items); };
+    }
+    cell.appendChild(evDiv);
+  });
   return cell;
 }
 
-function openSideGrouped(items){
+function openSideGrouped(items) {
   const first = items[0];
-  sideContent.innerHTML=`
+  sideContent.innerHTML = `
     <h2>${first.Program}</h2>
-    <div class='subtitle'>מנהל: ${first.Manager||'—'}</div>
-    <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>`;
+    <div class='subtitle'>מנהל: ${first.Manager || '—'}</div>
+    <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+  `;
   
   items.forEach(item => {
     const end = endDate(item);
     sideContent.innerHTML += `
       <div class="group-item">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
-           <div class='badge'>מפגש ${item.currentMeeting}</div>
-           ${item.Hour ? `<div style="background:#334155; color:#fff; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${item.Hour}</div>` : ''}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div class='badge'>מפגש ${item.meetingIdx}</div>
+          ${item.Hour ? `<div class="side-hour-tag">${item.Hour}</div>` : ''}
         </div>
-        <div class='row'><span class='label'>בית ספר:</span><span class='value'>${item.School||'—'}</span></div>
-        <div class='row'><span class='label'>רשות:</span><span class='value'>${item.Authority||'—'}</span></div>
-        <div class='row'><span class='label'>סיום קורס:</span><span class='value'>${end?end.toLocaleDateString('he-IL'):'—'}</span></div>
-      </div>`;
+        <div class='row'><span class='label'>בית ספר</span><span class='value'>${item.School || '—'}</span></div>
+        <div class='row'><span class='label'>רשות</span><span class='value'>${item.Authority || '—'}</span></div>
+        <div class='row'><span class='label'>סיום קורס</span><span class='value'>${end ? end.toLocaleDateString('he-IL') : '—'}</span></div>
+      </div>
+    `;
   });
   side.classList.add('open');
 }
@@ -313,6 +311,7 @@ function applyFilters(){
   return rawData.filter(r=>(!managerFilter.value||r.Manager===managerFilter.value)&&(!employeeFilter.value||r.Employee===employeeFilter.value));
 }
 
+// ... פונקציית RENDER SUMMARY זהה למקור ...
 function renderSummary(){
   if(!summaryMonth.value) return;
   const courses = rawData.filter(r=>(String(r.EventType||'').trim().toUpperCase() === 'COURSE' && r.End));
@@ -373,7 +372,8 @@ btnPrev.onclick=()=>{
 btnNext.onclick=()=>{
   if(mode==='summary') summaryMonth.selectedIndex=Math.min(summaryMonth.options.length-1,summaryMonth.selectedIndex+1);
   else if(mode==='week') currentDate.setDate(currentDate.getDate()+7);
-  else currentDate.setMonth(currentDate.getMonth()+1);
+  else currentDate.setMonth(currentDate.forward(1)); // תיקון לוגיקת חודש
+  currentDate.setMonth(currentDate.getMonth()+1);
   render();
 };
 managerFilter.onchange=render; employeeFilter.onchange=render;
