@@ -22,7 +22,15 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 .nav-btn{width:32px;height:32px;border-radius:999px;background:#fef9c3;border-color:#fde047;color:#2563eb;font-weight:700;}
 .nav-btn:hover{background:#fde047;} 
 .nav-controls{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:6px 0;}
-.calendar-grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;} 
+.calendar-grid{
+  max-width:1200px;
+  margin:auto;
+  padding:10px;
+  display:grid;
+  /* שבת צרה יותר, שאר הימים רחבים ושווים */
+  grid-template-columns: 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 0.6fr;
+  gap:12px;
+} 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);min-height:100px;} 
 .day.inactive{background:#f1f5f9;opacity:0.6;} 
 .day-header{font-weight:600;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-size:12px;text-align:center;} 
@@ -117,10 +125,16 @@ function colorForEmployee(name){
 }
 
 function initFilters(){
-  const fill=(el,arr,ph)=>{el.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');};
-  fill(managerFilter,[...new Set(rawData.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');
-  fill(programFilter,[...new Set(rawData.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');
-  fill(employeeFilter,[...new Set(rawData.map(r=>r.Employee).filter(Boolean))],'בחר עובד');
+  // סינונים מבוססי קורסים בלבד (EventType === 'COURSE')
+  const coursesOnly = rawData.filter(r => r.EventType === 'COURSE');
+
+  const fill=(el,arr,ph)=>{
+    el.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${v}</option>`).join('');
+  };
+
+  fill(managerFilter,[...new Set(coursesOnly.map(r=>r.Manager).filter(Boolean))],'סינון לפי מנהל');
+  fill(programFilter,[...new Set(coursesOnly.map(r=>r.Program).filter(Boolean))],'סינון לפי תוכנית');
+  fill(employeeFilter,[...new Set(coursesOnly.map(r=>r.Employee).filter(Boolean))],'בחר עובד');
 }
 
 function filteredData(){
@@ -196,7 +210,8 @@ function render(){
 }
 
 function renderMonth(data){
-  dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
+  // ללא שורת כותרות ימים – היום והתאריך מופיעים בכל עמודה
+
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   const first=new Date(y,m,1),last=new Date(y,m+1,0);
   for(let i=0;i<first.getDay();i++) calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'day inactive'}));
@@ -227,7 +242,8 @@ function renderMonth(data){
 }
 
 function renderWeek(data){
-  dayNames.forEach(d=>calendarGrid.appendChild(Object.assign(document.createElement('div'),{className:'meta',textContent:d})));
+  // ללא שורת כותרות ימים – היום והתאריך מופיעים בכל עמודה
+
   const start=new Date(currentDate); start.setDate(start.getDate()-start.getDay());
   for(let i=0;i<7;i++){
     const cur=new Date(start); cur.setDate(start.getDate()+i);
