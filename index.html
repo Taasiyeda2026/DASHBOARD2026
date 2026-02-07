@@ -41,7 +41,7 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 .event strong{display:block;padding-bottom:4px;margin-bottom:4px;border-bottom:1px dashed var(--border);} 
 .event span,.event small{color:var(--text-muted);font-size:12px;} 
 .event.holiday{background:#fef9c3;border-right-color:#facc15;cursor:default;} 
-.event.missing{border-right-color:var(--danger);border:2px solid var(--danger);}
+.event.missing{border:2px solid var(--danger);border-right-color:var(--danger);background:#fff;}
 
 .side-panel{position:fixed;top:0;left:0;width:320px;max-width:90%;height:100%;background:#fff;box-shadow:-4px 0 18px rgba(0,0,0,.15);padding:16px;transform:translateX(-100%);transition:.25s ease;z-index:50;}
 .side-panel.open{transform:translateX(0);} 
@@ -65,12 +65,14 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 <div class="controls">
   <select id="managerFilter"><option value="">סינון לפי מנהל</option></select>
   <select id="employeeFilter"><option value="">סינון לפי מדריך</option></select>
+  <select id="monthFilter"><option value="">כל החודשים</option></select>
   <button id="clearFilters">נקה סינונים</button>
 </div>
 
 <div class="nav-controls">
   <button id="viewMonthBtn" class="active">חודש</button>
   <button id="viewWeekBtn">שבוע</button>
+  <button id="viewSummaryBtn">סיכום</button>
   <button id="prevNav" class="nav-btn">▶</button>
   <span id="navTitle" style="min-width:180px;text-align:center;font-weight:bold"></span>
   <button id="nextNav" class="nav-btn">◀</button>
@@ -88,6 +90,7 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
 let rawData=[],currentDate=new Date(),mode='month';
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
+const monthFilter=document.getElementById('monthFilter');
 const clearFilters=document.getElementById('clearFilters');
 const grid=document.getElementById('calendarGrid');
 const panel=document.getElementById('sidePanel');
@@ -142,31 +145,51 @@ async function load(){
       Type:(get('EventType')||'COURSE').toUpperCase(),Dates:dates
     };
   }).filter(r=>r.Dates.some(d=>d));
-  initFilters();render();
+  initFilters();
+  render();
 }
 
 function initFilters(){
   managerFilter.innerHTML='<option value="">סינון לפי מנהל</option>'+[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');
   employeeFilter.innerHTML='<option value="">סינון לפי מדריך</option>'+[...new Set(rawData.map(r=>r.Employee).filter(Boolean))].map(v=>`<option>${v}</option>`).join('');
+  const months=[...new Set(rawData.flatMap(r=>r.Dates.filter(Boolean).map(d=>d.getFullYear()+'-'+(d.getMonth()+1))))].sort();
+  monthFilter.innerHTML='<option value="">כל החודשים</option>'+months.map(k=>{
+    const [y,m]=k.split('-').map(Number);
+    return `<option value="${k}">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
+  }).join('');
 }
 
 function applyFilters(){
   return rawData.filter(r=>{
     if(managerFilter.value && r.Manager!==managerFilter.value) return false;
     if(employeeFilter.value && r.Employee!==employeeFilter.value) return false;
+    if(monthFilter.value){
+      const dates=r.Dates.filter(Boolean);
+      if(!dates.length) return false;
+      const end=new Date(Math.max(...dates.map(d=>d.getTime())));
+      const key=end.getFullYear()+'-'+(end.getMonth()+1);
+      if(key!==monthFilter.value) return false;
+    }
     return true;
   });
 }
 
-function render(){grid.innerHTML='';setTitle();const data=applyFilters();mode==='month'?renderMonth(data):renderWeek(data);}
-
 function setTitle(){
   if(mode==='month') navTitle.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
-  else{
+  else if(mode==='week'){
     const s=new Date(currentDate);s.setDate(s.getDate()-s.getDay());
     const e=new Date(s);e.setDate(e.getDate()+6);
     navTitle.textContent=`${s.getDate()}/${s.getMonth()+1}/${s.getFullYear()} – ${e.getDate()}/${e.getMonth()+1}/${e.getFullYear()}`;
-  }
+  }else navTitle.textContent='סיכום';
+}
+
+function render(){
+  grid.innerHTML='';
+  setTitle();
+  const data=applyFilters();
+  if(mode==='month') renderMonth(data);
+  else if(mode==='week') renderWeek(data);
+  else renderSummary(data);
 }
 
 function renderMonth(data){
@@ -189,6 +212,33 @@ function renderWeek(data){
   }
 }
 
+function renderSummary(data){
+  const byMonth={};
+  data.forEach(r=>{
+    const dates=r.Dates.filter(Boolean);
+    if(!dates.length) return;
+    const end=new Date(Math.max(...dates.map(d=>d.getTime())));
+    const key=end.getFullYear()+'-'+(end.getMonth()+1);
+    byMonth[key]=byMonth[key]||[];
+    byMonth[key].push({r,end});
+  });
+  let active=data.length;
+  Object.keys(byMonth).sort().forEach(k=>{
+    const [y,m]=k.split('-').map(Number);
+    const ended=byMonth[k].length;
+    const card=document.createElement('div');
+    card.className='day';
+    const list=byMonth[k].sort((a,b)=>a.end-b.end).map(({r,end})=>
+      `<div class="event"><strong>${r.Program}</strong><br><small>${r.Employee||'❗ חסר מדריך'} · ${end.toLocaleDateString('he-IL')}</small></div>`
+    ).join('');
+    card.innerHTML=`<div class="day-header">${new Date(y,m-1).toLocaleString('he-IL',{month:'long',year:'numeric'})}</div>
+      <div class="event"><strong>קורסים שהסתיימו:</strong> ${ended}</div>
+      <div class="event"><strong>קורסים פעילים לאחר החודש:</strong> ${active-ended}</div>${list}`;
+    active-=ended;
+    grid.appendChild(card);
+  });
+}
+
 function colorForInstructor(name){
   if(!name) return {bg:'rgba(220,38,38,0.08)',border:'#dc2626'};
   let h=0;for(const c of name) h=c.charCodeAt(0)+((h<<5)-h);
@@ -209,18 +259,10 @@ function dayCell(data,inactive){
     const hasInstructor=!!r.Employee;
     const colors=colorForInstructor(r.Employee);
     e.className='event'+(r.Type==='HOLIDAY'?' holiday':'')+(!hasInstructor?' missing':'');
-
     if(r.Type!=='HOLIDAY'){
-      if(hasInstructor){
-        e.style.backgroundColor=colors.bg;
-        e.style.borderRightColor=colors.border;
-      }else{
-        e.style.backgroundColor='#ffffff';
-        e.style.border='2px solid var(--danger)';
-        e.style.borderRight='2px solid var(--danger)';
-      }
+      if(hasInstructor){e.style.backgroundColor=colors.bg;e.style.borderRightColor=colors.border;}
+      else{e.style.backgroundColor='#fff';}
     }
-
     e.innerHTML=r.Type==='HOLIDAY'
       ? `<strong>חג</strong> ${r.Program}`
       : `<strong>${hasInstructor ? r.Employee : '❗ חסר מדריך'}</strong> – ${r.Program}`;
@@ -232,8 +274,7 @@ function dayCell(data,inactive){
 
 function openPanel(r,i){
   const endDate=new Date(Math.max(...r.Dates.map(d=>d&&d.getTime())));
-  panelContent.innerHTML=`
-    <div class="course">${r.Program}</div>
+  panelContent.innerHTML=`<div class="course">${r.Program}</div>
     <div class="row">🧩 מפגש ${i+1}</div>
     <div class="row">👤 ${r.Employee||'<span class="danger">חסר מדריך</span>'}</div>
     <div class="row">📅 ${r.Dates[i].toLocaleDateString('he-IL')}</div>
@@ -248,7 +289,8 @@ function closePanel(){panel.classList.remove('open');}
 
 managerFilter.onchange=render;
 employeeFilter.onchange=render;
-clearFilters.onclick=()=>{managerFilter.value='';employeeFilter.value='';render();};
+monthFilter.onchange=()=>{mode='summary';render();};
+clearFilters.onclick=()=>{managerFilter.value='';employeeFilter.value='';monthFilter.value='';render();};
 document.getElementById('closePanel').onclick=closePanel;
 document.body.onclick=closePanel;
 panel.onclick=e=>e.stopPropagation();
@@ -256,6 +298,7 @@ document.getElementById('prevNav').onclick=()=>{mode==='month'?currentDate.setMo
 document.getElementById('nextNav').onclick=()=>{mode==='month'?currentDate.setMonth(currentDate.getMonth()+1):currentDate.setDate(currentDate.getDate()+7);render();};
 document.getElementById('viewMonthBtn').onclick=()=>{mode='month';render();};
 document.getElementById('viewWeekBtn').onclick=()=>{mode='week';render();};
+document.getElementById('viewSummaryBtn').onclick=()=>{mode='summary';render();};
 
 load();
 </script>
