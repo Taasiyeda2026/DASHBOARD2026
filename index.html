@@ -30,13 +30,25 @@ select,button{height:32px;font-size:13px;padding:4px 10px;border-radius:8px;bord
   /* שבת צרה יותר, שאר הימים רחבים ושווים */
   grid-template-columns: 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 1.2fr 0.6fr;
   gap:12px;
+  /* אחידות גובה בין תצוגה חודשית ושבועית */
+  grid-auto-rows: 1fr;
+  align-items:stretch;
 } 
 .day{background:var(--card-bg);border-radius:14px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.1);min-height:100px;} 
 .day.inactive{background:#f1f5f9;opacity:0.6;} 
 .day-header{font-weight:600;margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;font-size:12px;text-align:center;} 
 .event{border-radius:10px;padding:8px;margin-top:6px;font-size:13px;border-right:6px solid var(--accent);border:1px solid rgba(15,23,42,0.08);background:rgba(255,255,255,0.85);}
-.event.missing-instructor{background:#fee2e2;border-color:#fecaca;border-right-color:#dc2626;}} 
+.event.missing-instructor{
+  background:#ffffff; /* רקע לבן כדי להבליט את האדום */
+  border:2px solid #dc2626;
+  border-right:6px solid #dc2626;
+}} 
 .meta{font-size:12px;color:var(--text-muted);} 
+/* בית ספר + רשות – קטן ושקט יותר */
+.event .meta:last-child{
+  font-size:10.5px;
+  color:#64748b;
+} 
 .calendar-grid>.meta{font-size:16px;font-weight:800;text-align:center;padding:10px 0;} 
 .missing{color:#dc2626;font-weight:700;} 
 .event.holiday{background:#fef9c3;border-color:#fde047;border-right-color:#facc15;}
@@ -277,7 +289,8 @@ function renderWeek(data){
         ? `<strong>חג</strong><div class=meta>${r.Program||''}</div>`
         : `<strong>${r.Employee||'<span class=missing>חסר מדריך</span>'}</strong>`
           + `<div class=meta>${r.Program||''} · מפגש ${idx+1}</div>`
-          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`;
+          + `<div class=meta>${r.StartTime||''}–${r.EndTime||''}</div>`
+          + `<div class=meta>${r.School||'<span class=missing>חסר בית ספר</span>'} · ${r.Authority||'<span class=missing>חסר רשות</span>'}</div>`;
       cell.appendChild(ev);
     });
     const h=document.createElement('div'); h.className='day-header'; h.textContent=`${cur.getDate()}/${cur.getMonth()+1}/${cur.getFullYear()} | ${dayNames[i]}`;
