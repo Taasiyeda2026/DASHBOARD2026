@@ -29,6 +29,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;grid-auto-rows: 1fr;}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:140px;border:1px solid var(--border); display: flex; flex-direction: column; gap: 4px;}
+.day.empty{min-height:auto;opacity:0.5;}
+.day.inactive{min-height:auto;opacity:0.3;}
 .day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:4px;padding-bottom:4px;text-align:center;}
 
 .event{padding:6px;border-radius:8px;font-size:12px;cursor:pointer;border-right:5px solid rgba(0,0,0,0.1);background:rgba(255,255,255,.9); position: relative; min-height: 55px; display: flex; flex-direction: column; justify-content: center; overflow: hidden;}
@@ -164,6 +166,9 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   .day {
     min-height: 100px;
     padding: 6px;
+  }
+  .day.empty, .day.inactive {
+    display: none;
   }
 
   /* אירועים - גודל נגיש למגע */
@@ -394,6 +399,8 @@ function buildDay(date,data){
   });
 
   const sortedGroups = Object.values(groupsMap).sort((a, b) => a.time.localeCompare(b.time));
+
+  if(sortedGroups.length === 0) cell.classList.add('empty');
 
   sortedGroups.forEach(g => {
     const evDiv = document.createElement('div');
