@@ -16,13 +16,16 @@ header{background:#fff;border-bottom:1px solid var(--border)}
 .header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:12px;align-items:center}
 .app-logo{height:40px}
 
-.controls,.nav{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px}
+.controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px}
 select,button{height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 10px;cursor:pointer}
 #btnMonth.active{background:#e0f2fe;border-color:#7dd3fc}
 #btnWeek.active{background:#ecfeff;border-color:#67e8f9}
 #btnSummary.active{background:#f0fdf4;border-color:#86efac}
 
-.nav{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10}
+.nav{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:0;padding:10px}
+.nav-modes{display:flex;gap:8px;align-items:center}
+.nav-arrows{display:flex;gap:8px;align-items:center}
+.nav-arrows #title{min-width:200px;text-align:center;font-weight:700}
 
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;grid-auto-rows: 1fr;}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:140px;border:1px solid var(--border); display: flex; flex-direction: column; gap: 4px;}
@@ -86,11 +89,108 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   margin-top: 8px;
 }
 
+/* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
-  .grid{grid-template-columns:1fr}
+  /* גריד עמודה אחת */
+  .grid{grid-template-columns:1fr; gap:8px; padding:6px;}
+
+  /* סיכום - התאמה למסך קטן */
   .summary-col {
-    width: 95%;             /* התאמה למסך קטן */
+    width: 95%;
     min-width: 95%;
+    max-width: 100%;
+    padding: 16px;
+  }
+
+  /* פילטרים - עמודה אנכית במובייל */
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 0 10px;
+  }
+  .controls select,
+  .controls button {
+    width: 100%;
+    height: 40px;           /* גודל נגיש למגע */
+    font-size: 14px;
+  }
+
+  /* ניווט - שתי שורות מסודרות */
+  .nav {
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  /* כפתורי מצב - שורה ראשונה, מתפרשים על כל הרוחב */
+  .nav-modes {
+    width: 100%;
+    justify-content: center;
+  }
+  .nav-modes button {
+    flex: 1 1 0;
+    height: 38px;
+    font-size: 14px;
+  }
+  .nav-modes select {
+    height: 38px;
+    font-size: 14px;
+  }
+
+  /* שורת ניווט (חיצים + כותרת) - שורה שנייה, מלא רוחב */
+  .nav-arrows {
+    width: 100%;
+    justify-content: center;
+  }
+  .nav-arrows #prev,
+  .nav-arrows #next {
+    height: 40px;
+    width: 44px;             /* גודל מינימלי נגיש למגע (44px) */
+    min-width: 44px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .nav-arrows #title {
+    font-size: 15px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* כרטיסי ימים */
+  .day {
+    min-height: 100px;
+    padding: 6px;
+  }
+
+  /* אירועים - גודל נגיש למגע */
+  .event {
+    font-size: 13px;
+    padding: 8px;
+    min-height: 48px;
+  }
+
+  /* פאנל צד - מסך מלא במובייל */
+  .side {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* כותרת */
+  .header-inner {
+    padding: 10px;
+    gap: 8px;
+  }
+  .app-logo {
+    height: 32px;
+  }
+
+  /* סיכום - פיצול */
+  .summary-split {
+    gap: 12px;
   }
 }
 </style>
@@ -110,13 +210,17 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 </div>
 
 <div class="nav">
-  <select id="summaryMonth" style="display:none"></select>
-  <button id="btnMonth" class="active">חודש</button>
-  <button id="btnWeek">שבוע</button>
-  <button id="btnSummary">סיכום</button>
-  <button id="prev">▶</button>
-  <span id="title" style="min-width:200px;text-align:center;font-weight:700"></span>
-  <button id="next">◀</button>
+  <div class="nav-modes">
+    <select id="summaryMonth" style="display:none"></select>
+    <button id="btnMonth" class="active">חודש</button>
+    <button id="btnWeek">שבוע</button>
+    <button id="btnSummary">סיכום</button>
+  </div>
+  <div class="nav-arrows">
+    <button id="prev" aria-label="הקודם">▶</button>
+    <span id="title"></span>
+    <button id="next" aria-label="הבא">◀</button>
+  </div>
 </div>
 
 <div id="view"></div>
