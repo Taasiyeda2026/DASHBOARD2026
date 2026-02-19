@@ -485,6 +485,44 @@ function isCourseEndingInMonth(r, year, month){
          d.getMonth() === month;
 }
 
+function getBusiestWeekWorkDays(courses, year, month){
+  const weeksMap = {};
+
+  courses.forEach(r=>{
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+
+    r.Dates.forEach(d=>{
+      if(
+        d &&
+        d.getFullYear() === year &&
+        d.getMonth() === month
+      ){
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        weekStart.setHours(0,0,0,0);
+
+        const key = weekStart.toISOString();
+
+        if(!weeksMap[key]){
+          weeksMap[key] = new Set();
+        }
+
+        weeksMap[key].add(d.toDateString());
+      }
+    });
+  });
+
+  let maxDays = 0;
+
+  Object.values(weeksMap).forEach(set=>{
+    if(set.size > maxDays){
+      maxDays = set.size;
+    }
+  });
+
+  return maxDays;
+}
+
 function clampDateToDataRange(date){
   const d = new Date(date);
   d.setHours(0,0,0,0);
@@ -1006,9 +1044,6 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
   const month = selectedMonth ?? currentDate.getMonth();
   const year  = selectedYear ?? currentDate.getFullYear();
 
-  let startOfWeek;
-  let endOfWeek;
-
   const today = new Date();
   today.setHours(0,0,0,0);
 
@@ -1016,77 +1051,46 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
     selectedYear === today.getFullYear() &&
     selectedMonth === today.getMonth();
 
+  let totalWorkDays = 0;
+
   if(isCurrentMonth){
 
-    startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    startOfWeek.setHours(0,0,0,0);
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setHours(0,0,0,0);
 
-    endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
 
-  }
-  else{
-
-    const weeks = {};
+    const uniqueDates = new Set();
 
     courses.forEach(r=>{
+      if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+
       r.Dates.forEach(d=>{
         if(
           d &&
-          d.getFullYear() === selectedYear &&
-          d.getMonth() === selectedMonth
+          d >= weekStart &&
+          d <= weekEnd &&
+          d.getMonth() === selectedMonth &&
+          d.getFullYear() === selectedYear
         ){
-
-          const weekStart = new Date(d);
-          weekStart.setDate(d.getDate() - d.getDay());
-          weekStart.setHours(0,0,0,0);
-
-          const key = weekStart.toISOString();
-
-          if(!weeks[key]){
-            weeks[key] = new Set();
-          }
-
-          weeks[key].add(d.toDateString());
+          uniqueDates.add(d.toDateString());
         }
       });
     });
 
-    let maxKey = null;
-    let maxCount = 0;
+    totalWorkDays = uniqueDates.size;
 
-    Object.keys(weeks).forEach(key=>{
-      const count = weeks[key].size;
-      if(count > maxCount){
-        maxCount = count;
-        maxKey = key;
-      }
-    });
+  } else {
 
-    if(maxKey){
-      startOfWeek = new Date(maxKey);
-      endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-    }
+    totalWorkDays = getBusiestWeekWorkDays(
+      courses,
+      selectedYear,
+      selectedMonth
+    );
+
   }
-
-  const uniqueDates = new Set();
-
-  courses.forEach(r=>{
-    r.Dates.forEach(d=>{
-      if(
-        d &&
-        startOfWeek &&
-        d >= startOfWeek &&
-        d <= endOfWeek
-      ){
-        uniqueDates.add(d.toDateString());
-      }
-    });
-  });
-
-  const totalWorkDays = uniqueDates.size;
   const employmentType = courses[0]?.EmploymentType || '—';
 
   sideContent.innerHTML = `
