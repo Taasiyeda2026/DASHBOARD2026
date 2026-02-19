@@ -336,7 +336,11 @@ async function load(){
       };
     }).filter(r=>r.Dates.some(Boolean) || r.MonthEnd);
 
-    initFilters(); initSummaryMonths(); render();
+    initFilters(); initSummaryMonths();
+    currentDate=new Date();
+    currentDate.setHours(0,0,0,0);
+    mode='month';
+    render();
   } catch(e) { console.error("Error loading Excel:", e); }
 }
 
@@ -400,6 +404,9 @@ function renderWeek(){
 function buildDay(date,data){
   const cell=document.createElement('div'); cell.className='day';
   cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1} | ${dayNames[date.getDay()]}</div>`;
+  if(sameDay(date, new Date())){
+    cell.style.border = "2px solid #3b82f6";
+  }
   
   const dailyPool = [];
   data.forEach(r => r.Dates.forEach((dd, i) => {
@@ -533,12 +540,29 @@ function renderInstructors(){
 
   titleEl.textContent = "מדריכים";
 
+  const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const selectedManager = renderInstructors.selectedManager || '';
+
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+  controls.style.margin = '20px auto 0';
+  controls.style.maxWidth = '1200px';
+  const managerSelect = document.createElement('select');
+  managerSelect.innerHTML = '<option value="">כל המנהלים</option>' + managers.map(v=>`<option value="${v}">${v}</option>`).join('');
+  managerSelect.value = selectedManager;
+  managerSelect.onchange = () => {
+    renderInstructors.selectedManager = managerSelect.value;
+    render();
+  };
+  controls.appendChild(managerSelect);
+
   const today = new Date();
   today.setHours(0,0,0,0);
 
   const instructorsMap = {};
 
   rawData.forEach(r => {
+    if(selectedManager && r.Manager !== selectedManager) return;
     if(!r.Employee || !r.Employee.trim()) return;
 
     const end = endDate(r);
@@ -553,8 +577,15 @@ function renderInstructors(){
   const names = Object.keys(instructorsMap)
     .sort((a,b)=> instructorsMap[b].length - instructorsMap[a].length || a.localeCompare(b,'he'));
 
+  view.appendChild(controls);
+
   if(names.length===0){
-    view.innerHTML = "<div style='text-align:center;padding:40px;color:#94a3b8'>לא נמצאו מדריכים פעילים</div>";
+    const empty = document.createElement('div');
+    empty.style.textAlign = 'center';
+    empty.style.padding = '40px';
+    empty.style.color = '#94a3b8';
+    empty.textContent = 'לא נמצאו מדריכים פעילים';
+    view.appendChild(empty);
     return;
   }
 
