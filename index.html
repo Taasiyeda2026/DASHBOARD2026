@@ -3,16 +3,25 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+<!-- ביטול Cache מלא -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
 <title>דשבורד פעילויות</title>
+
 <link rel="icon" href="icon-192.png" type="image/png" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <link rel="manifest" href="manifest.json" />
+
 <meta name="theme-color" content="#ffffff" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="דשבורד" />
 
 <style>
+
 :root{
   --bg:#f8fafc;--card:#ffffff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--danger:#dc2626;
 }
@@ -304,7 +313,7 @@ function endDate(r){
 
 async function load(){
   try {
-    const res=await fetch('./DASHBOARD.xlsx',{cache:'no-store'});
+    const res = await fetch('./DASHBOARD.xlsx?v=' + new Date().getTime());
     const wb=XLSX.read(await res.arrayBuffer(),{type:'array'});
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
