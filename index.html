@@ -76,6 +76,12 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .nav-arrows{display:flex;gap:8px;align-items:center}
 .nav-arrows #title{min-width:200px;text-align:center;font-weight:700}
 
+#view{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px 150px 20px;
+}
+
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;grid-auto-rows: 1fr;}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:140px;border:1px solid var(--border); display: flex; flex-direction: column; gap: 4px;}
 .day.empty{min-height:auto;opacity:0.5;}
@@ -213,6 +219,10 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 /* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
+  #view{
+    padding: 16px 12px 120px 12px;
+  }
+
   /* גריד עמודה אחת */
   .grid{grid-template-columns:1fr; gap:8px; padding:6px;}
 
