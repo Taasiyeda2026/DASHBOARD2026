@@ -892,23 +892,78 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
   const month = selectedMonth ?? currentDate.getMonth();
   const year  = selectedYear ?? currentDate.getFullYear();
 
-  // חישוב השבוע הנוכחי לפי TODAY
+  let startOfWeek;
+  let endOfWeek;
+
   const today = new Date();
   today.setHours(0,0,0,0);
 
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
+  const isCurrentMonth =
+    selectedYear === today.getFullYear() &&
+    selectedMonth === today.getMonth();
 
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  if(isCurrentMonth){
 
-  // איסוף תאריכים ייחודיים בטווח השבוע בלבד
+    startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    startOfWeek.setHours(0,0,0,0);
+
+    endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  }
+  else{
+
+    const weeks = {};
+
+    courses.forEach(r=>{
+      r.Dates.forEach(d=>{
+        if(
+          d &&
+          d.getFullYear() === selectedYear &&
+          d.getMonth() === selectedMonth
+        ){
+
+          const weekStart = new Date(d);
+          weekStart.setDate(d.getDate() - d.getDay());
+          weekStart.setHours(0,0,0,0);
+
+          const key = weekStart.toISOString();
+
+          if(!weeks[key]){
+            weeks[key] = new Set();
+          }
+
+          weeks[key].add(d.toDateString());
+        }
+      });
+    });
+
+    let maxKey = null;
+    let maxCount = 0;
+
+    Object.keys(weeks).forEach(key=>{
+      const count = weeks[key].size;
+      if(count > maxCount){
+        maxCount = count;
+        maxKey = key;
+      }
+    });
+
+    if(maxKey){
+      startOfWeek = new Date(maxKey);
+      endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+    }
+  }
+
   const uniqueDates = new Set();
 
   courses.forEach(r=>{
     r.Dates.forEach(d=>{
       if(
         d &&
+        startOfWeek &&
         d >= startOfWeek &&
         d <= endOfWeek
       ){
