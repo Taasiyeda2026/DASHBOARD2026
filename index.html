@@ -34,6 +34,36 @@ header{background:#fff;border-bottom:1px solid var(--border)}
 .controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px}
 .instructors-count-title{max-width:1200px;margin:18px auto 0;padding:0 10px;text-align:right;font-size:16px;font-weight:700;}
 select,button{height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 10px;cursor:pointer}
+.today-btn {
+  width: 40px;
+  height: 36px;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+}
+
+/* ריחוף */
+.today-btn:hover {
+  transform: translateY(-2px) scale(1.07);
+  box-shadow: 0 8px 18px rgba(245,158,11,0.35);
+  filter: brightness(1.05);
+}
+
+/* לחיצה */
+.today-btn:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  filter: brightness(0.95);
+}
 #btnMonth.active{background:#e0f2fe;border-color:#7dd3fc}
 #btnWeek.active{background:#ecfeff;border-color:#67e8f9}
 #btnSummary.active{background:#f0fdf4;border-color:#86efac}
@@ -360,7 +390,9 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   </div>
   <div class="nav-arrows">
     <button id="prev" aria-label="הקודם">▶</button>
-    <button id="goToday">היום</button>
+    <button id="goToday" class="today-btn" title="היום" aria-label="היום">
+      ★
+    </button>
     <span id="title"></span>
     <button id="next" aria-label="הבא">◀</button>
   </div>
@@ -678,28 +710,15 @@ function renderSummary(){
 }
 
 function getUniqueInstructorMonths(){
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
-
   const monthsMap = new Map();
   rawData.forEach(r=>{
     r.Dates.forEach(d=>{
       if(!d) return;
       const year = d.getFullYear();
       const month = d.getMonth();
-
-      // רק חודשים מ-TODAY והלאה
-      if(
-        year > currentYear ||
-        (year === currentYear && month >= currentMonth)
-      ){
-        const key = `${year}-${String(month+1).padStart(2,'0')}`;
-        if(!monthsMap.has(key)){
-          monthsMap.set(key,{year,month});
-        }
+      const key = `${year}-${String(month+1).padStart(2,'0')}`;
+      if(!monthsMap.has(key)){
+        monthsMap.set(key,{year,month});
       }
     });
   });
@@ -717,9 +736,6 @@ function getUniqueInstructorMonths(){
 }
 
 function renderInstructors(){
-
-  const today = new Date();
-  today.setHours(0,0,0,0);
 
   titleEl.textContent = "מדריכים";
 
@@ -751,7 +767,7 @@ function renderInstructors(){
     .join('');
 
   const todayValue =
-    `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
 
   // קבע חודש רק אם עדיין לא נבחר חודש
   if(!renderInstructors.selectedMonthValue){
@@ -799,10 +815,11 @@ function renderInstructors(){
       return;
     }
 
-    const end = endDate(r);
-    if(!end || end < today) return;
-
-    const hasMonthMatch = r.Dates.some(d=>d && d.getMonth()===selectedMonth && d.getFullYear()===selectedYear);
+    const hasMonthMatch = r.Dates.some(d =>
+      d &&
+      d.getMonth() === selectedMonth &&
+      d.getFullYear() === selectedYear
+    );
     if(!hasMonthMatch) return;
 
     if(!instructorsMap[r.Employee]){
@@ -813,6 +830,16 @@ function renderInstructors(){
 
   const names = Object.keys(instructorsMap)
     .sort((a,b)=> instructorsMap[b].length - instructorsMap[a].length || a.localeCompare(b,'he'));
+
+  const totalCourses = Object.values(instructorsMap)
+    .reduce((sum, arr) => sum + arr.length, 0);
+
+  const totalLine = document.createElement('div');
+  totalLine.style.textAlign = 'center';
+  totalLine.style.fontWeight = '600';
+  totalLine.style.marginTop = '6px';
+  totalLine.textContent = `כמות קורסים: ${totalCourses}`;
+  view.appendChild(totalLine);
 
   titleCount.textContent = `כמות מדריכים: ${names.length}`;
 
