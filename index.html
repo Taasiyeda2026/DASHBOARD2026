@@ -734,13 +734,16 @@ function renderInstructors(){
   const todayValue =
     `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
 
-  // אם TODAY קיים באופציות → בחר אותו
-  if(monthOptions.some(opt=>opt.value === todayValue)){
-    renderInstructors.selectedMonthValue = todayValue;
-  }
-  // אחרת → בחר את החודש הראשון הזמין (הקרוב הבא)
-  else if(monthOptions.length > 0){
-    renderInstructors.selectedMonthValue = monthOptions[0].value;
+  // קבע חודש רק אם עדיין לא נבחר חודש
+  if(!renderInstructors.selectedMonthValue){
+
+    if(monthOptions.some(opt=>opt.value === todayValue)){
+      renderInstructors.selectedMonthValue = todayValue;
+    }
+    else if(monthOptions.length > 0){
+      renderInstructors.selectedMonthValue = monthOptions[0].value;
+    }
+
   }
 
   monthSelect.value = renderInstructors.selectedMonthValue;
