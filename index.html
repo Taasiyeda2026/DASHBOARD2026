@@ -26,7 +26,7 @@
   --bg:#f8fafc;--card:#ffffff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;--danger:#dc2626;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text)}
+body{margin:0;font-family:system-ui,Arial;background:var(--bg);color:var(--text);overflow-x:hidden}
 header{background:#fff;border-bottom:1px solid var(--border)}
 .header-inner{max-width:1200px;margin:auto;padding:14px;display:flex;gap:12px;align-items:center}
 .app-logo{height:40px}
@@ -224,7 +224,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   }
 
   /* גריד עמודה אחת */
-  .grid{grid-template-columns:1fr; gap:8px; padding:6px;}
+  .grid{grid-template-columns:1fr !important; gap:10px !important; padding:6px;}
 
   /* ביטול גובה אחיד של ימים במובייל */
   .grid{
@@ -234,14 +234,24 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   .day{
     min-height: auto !important;
     height: auto !important;
+    padding: 10px !important;
   }
 
   /* סיכום - התאמה למסך קטן */
   .summary-col {
-    width: 95%;
-    min-width: 95%;
-    max-width: 100%;
-    padding: 16px;
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 18px !important;
+  }
+
+  .summary-wrap{
+    padding: 0 !important;
+  }
+
+  .summary-split{
+    flex-direction: column !important;
+    gap: 14px !important;
   }
 
   /* פילטרים - עמודה אנכית במובייל */
@@ -266,8 +276,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
   /* ניווט - שתי שורות מסודרות */
   .nav {
-    flex-direction: column;
-    gap: 6px;
+    flex-direction: column !important;
+    gap: 8px !important;
     padding: 8px 10px;
   }
 
@@ -279,7 +289,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   .nav-modes button {
     flex: 1 1 0;
     font-size: 12.5px;
-    height: 36px;
+    height: 40px;
     padding: 0 8px;
   }
   .nav-modes select {
@@ -310,24 +320,47 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
   /* כרטיסי ימים */
   .day {
-    min-height: 100px;
-    padding: 6px;
+    min-height: auto !important;
+    padding: 10px !important;
   }
   .day.empty, .day.inactive {
-    display: none;
+    display: none !important;
   }
 
   /* אירועים - גודל נגיש למגע */
   .event {
-    font-size: 13px;
-    padding: 8px;
-    min-height: 48px;
+    font-size: 14px !important;
+    padding: 10px !important;
+    min-height: 52px !important;
   }
 
   /* פאנל צד - מסך מלא במובייל */
   .side {
-    width: 100%;
-    max-width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .instructors-grid,
+  #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"]{
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .instructors-grid > div,
+  #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div{
+    min-height: 130px;
+    padding: 18px !important;
+    border-radius: 18px;
+  }
+
+  .instructors-grid > div div:first-child,
+  #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:first-child{
+    font-size: 18px !important;
+  }
+
+  .instructors-grid > div div:nth-child(2),
+  #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:nth-child(2){
+    font-size: 34px !important;
   }
 
   /* כותרת */
@@ -339,10 +372,6 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     height: 32px;
   }
 
-  /* סיכום - פיצול */
-  .summary-split {
-    gap: 12px;
-  }
 }
 
 @media(max-width:600px){
