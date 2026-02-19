@@ -34,35 +34,38 @@ header{background:#fff;border-bottom:1px solid var(--border)}
 .controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px}
 .instructors-count-title{max-width:1200px;margin:18px auto 0;padding:0 10px;text-align:right;font-size:16px;font-weight:700;}
 select,button{height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 10px;cursor:pointer}
-.today-btn {
-  width: 40px;
-  height: 36px;
-  font-size: 20px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  border: 1px solid #f59e0b;
+.today-star {
+  width: 38px;
+  height: 38px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #ffffff;
   cursor: pointer;
+  border: none;
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
   transition: all 0.18s ease;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
 }
 
-/* ריחוף */
-.today-btn:hover {
-  transform: translateY(-2px) scale(1.07);
-  box-shadow: 0 8px 18px rgba(245,158,11,0.35);
+.today-star:hover {
+  transform: scale(1.1) rotate(8deg);
+  box-shadow: 0 8px 20px rgba(245,158,11,0.4);
   filter: brightness(1.05);
 }
 
-/* לחיצה */
-.today-btn:active {
-  transform: translateY(1px) scale(0.96);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-  filter: brightness(0.95);
+.today-star:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  filter: brightness(0.9);
 }
 #btnMonth.active{background:#e0f2fe;border-color:#7dd3fc}
 #btnWeek.active{background:#ecfeff;border-color:#67e8f9}
@@ -390,9 +393,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   </div>
   <div class="nav-arrows">
     <button id="prev" aria-label="הקודם">▶</button>
-    <button id="goToday" class="today-btn" title="היום" aria-label="היום">
-      ★
-    </button>
+    <button id="goToday" class="today-star" title="היום" aria-label="היום"></button>
     <span id="title"></span>
     <button id="next" aria-label="הבא">◀</button>
   </div>
@@ -1134,8 +1135,25 @@ btnInstructors.onclick = ()=>{
   render();
 };
 document.getElementById('goToday').onclick = ()=>{
-  currentDate = new Date();
-  currentDate.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  currentDate = today;
+
+  if(mode === 'summary'){
+    const key = `${today.getFullYear()}-${today.getMonth()}`;
+    const options = [...summaryMonth.options].map(o=>o.value);
+    const index = options.indexOf(key);
+    if(index >= 0){
+      summaryMonth.selectedIndex = index;
+    }
+  }
+
+  if(mode === 'instructors'){
+    renderInstructors.selectedMonthValue =
+      `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  }
+
   render();
 };
 managerFilter.onchange=render; 
