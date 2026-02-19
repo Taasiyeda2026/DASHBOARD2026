@@ -727,20 +727,11 @@ function renderInstructors(){
 
 function openInstructorModal(name, courses){
 
-  // החודש המוצג בדשבורד
-  const month = currentDate.getMonth();
-  const year = currentDate.getFullYear();
-
-  // איסוף תאריכים ייחודיים של אותו חודש בלבד
   const uniqueDates = new Set();
 
   courses.forEach(r=>{
     r.Dates.forEach(d=>{
-      if(
-        d &&
-        d.getMonth() === month &&
-        d.getFullYear() === year
-      ){
+      if(d){
         uniqueDates.add(d.toDateString());
       }
     });
