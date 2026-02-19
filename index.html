@@ -768,6 +768,9 @@ function renderInstructors(){
   const missingInstructorCourses = [];
 
   rawData.forEach(r => {
+    // ספור רק קורסים
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+
     if(selectedManager && r.Manager !== selectedManager) return;
     if(!r.Employee || !r.Employee.trim()){
       const hasMonthMatch = r.Dates.some(d=>d && d.getMonth()===selectedMonth && d.getFullYear()===selectedYear);
