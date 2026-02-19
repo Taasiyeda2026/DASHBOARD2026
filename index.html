@@ -742,10 +742,6 @@ function renderInstructors(){
   const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   const selectedManager = renderInstructors.selectedManager || '';
 
-  const titleCount = document.createElement('div');
-  titleCount.className = 'instructors-count-title';
-  view.appendChild(titleCount);
-
   const controls = document.createElement('div');
   controls.className = 'controls';
   controls.style.margin = '10px auto 0';
@@ -834,14 +830,19 @@ function renderInstructors(){
   const totalCourses = Object.values(instructorsMap)
     .reduce((sum, arr) => sum + arr.length, 0);
 
-  const totalLine = document.createElement('div');
-  totalLine.style.textAlign = 'center';
-  totalLine.style.fontWeight = '600';
-  totalLine.style.marginTop = '6px';
-  totalLine.textContent = `כמות קורסים: ${totalCourses}`;
-  view.appendChild(totalLine);
+  const summaryHeader = document.createElement('div');
+  summaryHeader.style.textAlign = 'center';
+  summaryHeader.style.margin = '10px 0 20px 0';
+  summaryHeader.style.fontSize = '16px';
+  summaryHeader.style.fontWeight = '700';
+  summaryHeader.style.lineHeight = '1.8';
 
-  titleCount.textContent = `כמות מדריכים: ${names.length}`;
+  summaryHeader.innerHTML = `
+    כמות מדריכים: ${names.length}<br>
+    כמות קורסים: ${totalCourses}
+  `;
+
+  view.appendChild(summaryHeader);
 
   if(names.length===0 && missingInstructorCourses.length===0){
     const empty = document.createElement('div');
