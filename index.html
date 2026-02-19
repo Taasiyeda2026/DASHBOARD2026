@@ -235,6 +235,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     <button id="btnMonth" class="active">חודש</button>
     <button id="btnWeek">שבוע</button>
     <button id="btnSummary">סיכום</button>
+    <button id="btnInstructors">מדריכים</button>
   </div>
   <div class="nav-arrows">
     <button id="prev" aria-label="הקודם">▶</button>
@@ -261,6 +262,7 @@ const sideContent=document.getElementById('sideContent');
 const btnMonth=document.getElementById('btnMonth');
 const btnWeek=document.getElementById('btnWeek');
 const btnSummary=document.getElementById('btnSummary');
+const btnInstructors=document.getElementById('btnInstructors');
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
 const summaryMonth=document.getElementById('summaryMonth');
@@ -357,14 +359,17 @@ function initSummaryMonths(){
 }
 
 function render(){
-  view.innerHTML=''; side.classList.remove('open');
-  filtersEl.style.display=mode==='summary'?'none':'flex';
+  view.innerHTML='';
+  side.classList.remove('open');
+  filtersEl.style.display=(mode==='summary' || mode==='instructors')?'none':'flex';
   summaryMonth.style.display=mode==='summary'?'inline-block':'none';
   btnMonth.classList.toggle('active',mode==='month');
   btnWeek.classList.toggle('active',mode==='week');
   btnSummary.classList.toggle('active',mode==='summary');
+  btnInstructors.classList.toggle('active',mode==='instructors');
   if(mode==='summary') renderSummary();
   else if(mode==='week') renderWeek();
+  else if(mode==='instructors') renderInstructors();
   else renderMonth();
 }
 
@@ -524,6 +529,98 @@ function renderSummary(){
   wrap.appendChild(split); view.appendChild(wrap);
 }
 
+function renderInstructors(){
+
+  titleEl.textContent = "מדריכים";
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const instructorsMap = {};
+
+  rawData.forEach(r => {
+    if(!r.Employee || !r.Employee.trim()) return;
+
+    const end = endDate(r);
+    if(!end || end < today) return;
+
+    if(!instructorsMap[r.Employee]){
+      instructorsMap[r.Employee] = [];
+    }
+    instructorsMap[r.Employee].push(r);
+  });
+
+  const names = Object.keys(instructorsMap)
+    .sort((a,b)=> instructorsMap[b].length - instructorsMap[a].length || a.localeCompare(b,'he'));
+
+  if(names.length===0){
+    view.innerHTML = "<div style='text-align:center;padding:40px;color:#94a3b8'>לא נמצאו מדריכים פעילים</div>";
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(220px,1fr))';
+  grid.style.gap = '16px';
+  grid.style.maxWidth = '1200px';
+  grid.style.margin = '20px auto';
+  grid.style.padding = '10px';
+
+  names.forEach(name=>{
+    const box = document.createElement('div');
+    box.style.background = getEmployeeColor(name);
+    box.style.border = '1px solid var(--border)';
+    box.style.borderRadius = '16px';
+    box.style.padding = '20px';
+    box.style.cursor = 'pointer';
+    box.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)';
+    box.style.transition = '0.2s';
+
+    box.onmouseenter = ()=> box.style.transform='scale(1.03)';
+    box.onmouseleave = ()=> box.style.transform='scale(1)';
+
+    box.innerHTML = `
+      <div style="font-weight:800;font-size:18px;margin-bottom:8px">${name}</div>
+      <div style="font-size:32px;font-weight:900">${instructorsMap[name].length}</div>
+      <div style="font-size:13px;color:#475569">תוכניות פעילות</div>
+    `;
+
+    box.onclick = ()=> openInstructorModal(name, instructorsMap[name]);
+
+    grid.appendChild(box);
+  });
+
+  view.appendChild(grid);
+}
+
+function openInstructorModal(name, courses){
+
+  sideContent.innerHTML = `
+    <h2>${name}</h2>
+    <div class="subtitle">סה"כ ${courses.length} תוכניות פעילות</div>
+    <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+  `;
+
+  courses.forEach(r=>{
+    const end = endDate(r);
+    const startDates = r.Dates.filter(Boolean);
+    const firstDate = startDates.length ? startDates[0].toLocaleDateString('he-IL') : '—';
+
+    sideContent.innerHTML += `
+      <div class="group-item">
+        <div class='row'><span class='label'>תוכנית</span><span class='value'>${r.Program || '—'}</span></div>
+        <div class='row'><span class='label'>בית ספר</span><span class='value'>${r.School || '—'}</span></div>
+        <div class='row'><span class='label'>רשות</span><span class='value'>${r.Authority || '—'}</span></div>
+        <div class='row'><span class='label'>מנהל</span><span class='value'>${r.Manager || '—'}</span></div>
+        <div class='row'><span class='label'>תחילת קורס</span><span class='value'>${firstDate}</span></div>
+        <div class='row'><span class='label'>סיום קורס</span><span class='value'>${end ? end.toLocaleDateString('he-IL') : '—'}</span></div>
+      </div>
+    `;
+  });
+
+  side.classList.add('open');
+}
+
 document.getElementById('prev').onclick=()=>{
   if(mode==='summary') {
     summaryMonth.selectedIndex=Math.max(0,summaryMonth.selectedIndex-1);
@@ -547,6 +644,7 @@ document.getElementById('next').onclick=()=>{
 btnMonth.onclick=()=>{mode='month';render();};
 btnWeek.onclick=()=>{mode='week';render();};
 btnSummary.onclick=()=>{mode='summary';render();};
+btnInstructors.onclick=()=>{mode='instructors';render();};
 managerFilter.onchange=render; 
 employeeFilter.onchange=render;
 document.getElementById('clearFilters').onclick=()=>{managerFilter.value='';employeeFilter.value='';render();};
