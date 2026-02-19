@@ -1014,21 +1014,45 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
   `;
 
   courses.forEach(r=>{
+
     const end = endDate(r);
-    const startDate = r.Dates[0]
+
+    const startDate = r.Dates && r.Dates[0]
       ? r.Dates[0].toLocaleDateString('he-IL')
+      : '—';
+
+    const endDateFormatted = end
+      ? end.toLocaleDateString('he-IL')
       : '—';
 
     sideContent.innerHTML += `
       <div class="course-card">
-        <div class="course-title">${r.Program || '—'}</div>
-        <div class="course-meta">
-          <div><strong>בית ספר:</strong> ${r.School || '—'}</div>
-          <div><strong>רשות:</strong> ${r.Authority || '—'}</div>
-          <div><strong>מנהל:</strong> ${r.Manager || '—'}</div>
-          <div><strong>תאריך התחלה:</strong> ${startDate}</div>
-          <div><strong>סיום:</strong> ${end ? end.toLocaleDateString('he-IL') : '—'}</div>
+
+        <div style="
+          font-weight:800;
+          font-size:16px;
+          margin-bottom:10px;
+          padding:8px 12px;
+          border-radius:10px;
+          background:${getEmployeeColor(name)};
+        ">
+          ${r.Program || '—'}
         </div>
+
+        <div style="margin-bottom:8px;">
+          בית ספר: ${r.School || '—'}<br>
+          רשות: ${r.Authority || '—'}
+        </div>
+
+        <div style="margin-bottom:8px;">
+          תאריך התחלה: ${startDate}<br>
+          סיום: ${endDateFormatted}
+        </div>
+
+        <div style="color:#475569; font-weight:600;">
+          מנהל: ${r.Manager || '—'}
+        </div>
+
       </div>
     `;
   });
