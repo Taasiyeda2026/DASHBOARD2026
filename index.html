@@ -1079,16 +1079,22 @@ function renderInstructors(){
     box.style.padding = '16px';
     box.style.cursor = 'pointer';
     box.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.alignItems = 'center';
+    box.style.justifyContent = 'center';
+    box.style.textAlign = 'center';
+    box.style.minHeight = '140px';
 
     box.innerHTML = `
-      <div style="font-weight:800;font-size:16px;margin-bottom:6px;color:var(--danger)">
+      <div style="font-weight:800;font-size:18px;margin-bottom:10px;color:var(--danger)">
         חסר מדריך
       </div>
-      <div style="font-size:24px;font-weight:900;color:var(--danger)">
+      <div style="font-size:32px;font-weight:900;color:var(--danger)">
         ${missingInstructorCourses.length}
       </div>
-      <div style="font-size:12px;color:#64748b">
-        תוכניות ללא מדריך
+      <div style="font-size:13px;color:#64748b;margin-top:6px">
+        תוכניות פעילות
       </div>
     `;
 
@@ -1106,14 +1112,26 @@ function renderInstructors(){
     box.style.cursor = 'pointer';
     box.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)';
     box.style.transition = '0.2s';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.alignItems = 'center';
+    box.style.justifyContent = 'center';
+    box.style.textAlign = 'center';
+    box.style.minHeight = '140px';
 
     box.onmouseenter = ()=> box.style.transform='scale(1.03)';
     box.onmouseleave = ()=> box.style.transform='scale(1)';
 
     box.innerHTML = `
-      <div style="font-weight:800;font-size:16px;margin-bottom:8px">${name}</div>
-      <div style="font-size:26px;font-weight:900">${instructorsMap[name].length}</div>
-      <div style="font-size:13px;color:#475569">תוכניות פעילות</div>
+      <div style="font-weight:800;font-size:18px;margin-bottom:10px">
+        ${name}
+      </div>
+      <div style="font-size:32px;font-weight:900">
+        ${instructorsMap[name].length}
+      </div>
+      <div style="font-size:13px;color:#475569;margin-top:6px">
+        קורסים פעילים
+      </div>
     `;
 
     box.onclick = ()=> openInstructorModal(name, instructorsMap[name], selectedMonth, selectedYear);
