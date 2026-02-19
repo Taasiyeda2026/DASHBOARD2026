@@ -65,6 +65,77 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .side .badge{display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .group-item{background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:12px;}
 
+.instructor-header{
+  background:linear-gradient(135deg,#f8fafc,#e2e8f0);
+  padding:18px;
+  border-radius:16px;
+  margin-bottom:16px;
+}
+
+.instructor-name{
+  font-size:20px;
+  font-weight:800;
+  margin-bottom:10px;
+  color:#0f172a;
+}
+
+.instructor-badges{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.instructor-badges .badge{
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:600;
+}
+
+.badge.type{
+  background:#e0f2fe;
+  color:#0369a1;
+}
+
+.badge.days{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.badge.courses{
+  background:#fef3c7;
+  color:#92400e;
+}
+
+.course-card{
+  background:#ffffff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:14px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.05);
+  transition:0.2s;
+}
+
+.course-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(0,0,0,0.08);
+}
+
+.course-title{
+  font-weight:700;
+  font-size:15px;
+  margin-bottom:8px;
+}
+
+.course-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  font-size:13px;
+  color:#475569;
+}
+
 /* --- שינויים בעמוד הסיכום --- */
 .summary-wrap{max-width:1200px;margin:auto;padding:10px;display:grid;gap:16px}
 .summary-top{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center}
@@ -213,6 +284,35 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     gap: 12px;
   }
 }
+
+@media(max-width:600px){
+
+  .side{
+    width:100%;
+    max-width:100%;
+  }
+
+  .instructor-header{
+    padding:14px;
+  }
+
+  .instructor-name{
+    font-size:18px;
+  }
+
+  .instructor-badges{
+    flex-direction:column;
+    gap:6px;
+  }
+
+  .course-meta{
+    grid-template-columns:1fr;
+  }
+
+  .course-card{
+    padding:14px;
+  }
+}
 </style>
 </head>
 <body>
@@ -328,6 +428,7 @@ async function load(){
       return{
         Manager: g('Manager'), Employee: g('Employee'), Program: g('Program'),
         School: g('School'), Authority: g('Authority'), EventType: g('EventType'),
+        EmploymentType: g('EmploymentType'),
         StartTime: formatTime(g('StartTime') || g('שעת התחלה')),
         EndTime: formatTime(g('EndTime') || g('שעת סיום')),
         End: parseDate(g('End')),
@@ -626,25 +727,51 @@ function renderInstructors(){
 
 function openInstructorModal(name, courses){
 
+  // החודש המוצג בדשבורד
+  const month = currentDate.getMonth();
+  const year = currentDate.getFullYear();
+
+  // איסוף תאריכים ייחודיים של אותו חודש בלבד
+  const uniqueDates = new Set();
+
+  courses.forEach(r=>{
+    r.Dates.forEach(d=>{
+      if(
+        d &&
+        d.getMonth() === month &&
+        d.getFullYear() === year
+      ){
+        uniqueDates.add(d.toDateString());
+      }
+    });
+  });
+
+  const totalWorkDays = uniqueDates.size;
+  const employmentType = courses[0]?.EmploymentType || '—';
+
   sideContent.innerHTML = `
-    <h2>${name}</h2>
-    <div class="subtitle">סה"כ ${courses.length} תוכניות פעילות</div>
-    <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+    <div class="instructor-header">
+      <div class="instructor-name">${name}</div>
+      <div class="instructor-badges">
+        <span class="badge type">${employmentType}</span>
+        <span class="badge days">${totalWorkDays} ימי עבודה</span>
+        <span class="badge courses">${courses.length} קורסים</span>
+      </div>
+    </div>
   `;
 
   courses.forEach(r=>{
     const end = endDate(r);
-    const startDates = r.Dates.filter(Boolean);
-    const firstDate = startDates.length ? startDates[0].toLocaleDateString('he-IL') : '—';
 
     sideContent.innerHTML += `
-      <div class="group-item">
-        <div class='row'><span class='label'>תוכנית</span><span class='value'>${r.Program || '—'}</span></div>
-        <div class='row'><span class='label'>בית ספר</span><span class='value'>${r.School || '—'}</span></div>
-        <div class='row'><span class='label'>רשות</span><span class='value'>${r.Authority || '—'}</span></div>
-        <div class='row'><span class='label'>מנהל</span><span class='value'>${r.Manager || '—'}</span></div>
-        <div class='row'><span class='label'>תחילת קורס</span><span class='value'>${firstDate}</span></div>
-        <div class='row'><span class='label'>סיום קורס</span><span class='value'>${end ? end.toLocaleDateString('he-IL') : '—'}</span></div>
+      <div class="course-card">
+        <div class="course-title">${r.Program || '—'}</div>
+        <div class="course-meta">
+          <div><strong>בית ספר:</strong> ${r.School || '—'}</div>
+          <div><strong>רשות:</strong> ${r.Authority || '—'}</div>
+          <div><strong>מנהל:</strong> ${r.Manager || '—'}</div>
+          <div><strong>סיום:</strong> ${end ? end.toLocaleDateString('he-IL') : '—'}</div>
+        </div>
       </div>
     `;
   });
