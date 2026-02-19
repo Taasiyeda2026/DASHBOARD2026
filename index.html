@@ -682,11 +682,21 @@ function getUniqueInstructorMonths(){
 
 function renderInstructors(){
 
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const todayMonthValue = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+
   titleEl.textContent = "מדריכים";
 
   const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   const selectedManager = renderInstructors.selectedManager || '';
-  const selectedMonthValue = renderInstructors.selectedMonthValue || 'all';
+  let selectedMonthValue = renderInstructors.selectedMonthValue;
+
+  if(!selectedMonthValue){
+    selectedMonthValue = todayMonthValue;
+    renderInstructors.selectedMonthValue = todayMonthValue;
+  }
 
   const titleCount = document.createElement('div');
   titleCount.className = 'instructors-count-title';
@@ -717,9 +727,6 @@ function renderInstructors(){
   controls.appendChild(monthSelect);
 
   view.appendChild(controls);
-
-  const today = new Date();
-  today.setHours(0,0,0,0);
 
   let selectedMonth = currentDate.getMonth();
   let selectedYear = currentDate.getFullYear();
