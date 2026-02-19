@@ -183,6 +183,16 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   /* גריד עמודה אחת */
   .grid{grid-template-columns:1fr; gap:8px; padding:6px;}
 
+  /* ביטול גובה אחיד של ימים במובייל */
+  .grid{
+    grid-auto-rows: auto !important;
+  }
+
+  .day{
+    min-height: auto !important;
+    height: auto !important;
+  }
+
   /* סיכום - התאמה למסך קטן */
   .summary-col {
     width: 95%;
