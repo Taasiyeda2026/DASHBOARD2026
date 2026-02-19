@@ -762,10 +762,17 @@ function renderInstructors(){
   selectedMonth = m - 1;
 
   const instructorsMap = {};
+  const missingInstructorCourses = [];
 
   rawData.forEach(r => {
     if(selectedManager && r.Manager !== selectedManager) return;
-    if(!r.Employee || !r.Employee.trim()) return;
+    if(!r.Employee || !r.Employee.trim()){
+      const hasMonthMatch = r.Dates.some(d=>d && d.getMonth()===selectedMonth && d.getFullYear()===selectedYear);
+      if(hasMonthMatch){
+        missingInstructorCourses.push(r);
+      }
+      return;
+    }
 
     const end = endDate(r);
     if(!end || end < today) return;
@@ -784,7 +791,7 @@ function renderInstructors(){
 
   titleCount.textContent = `כמות מדריכים: ${names.length}`;
 
-  if(names.length===0){
+  if(names.length===0 && missingInstructorCourses.length===0){
     const empty = document.createElement('div');
     empty.style.textAlign = 'center';
     empty.style.padding = '40px';
@@ -796,18 +803,44 @@ function renderInstructors(){
 
   const grid = document.createElement('div');
   grid.style.display = 'grid';
-  grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(220px,1fr))';
+  grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(180px,1fr))';
   grid.style.gap = '16px';
   grid.style.maxWidth = '1200px';
   grid.style.margin = '20px auto';
   grid.style.padding = '10px';
+
+  if(missingInstructorCourses.length > 0){
+    const box = document.createElement('div');
+    box.style.background = '#ffffff';
+    box.style.border = '2px solid var(--danger)';
+    box.style.borderRadius = '14px';
+    box.style.padding = '16px';
+    box.style.cursor = 'pointer';
+    box.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)';
+
+    box.innerHTML = `
+      <div style="font-weight:800;font-size:16px;margin-bottom:6px;color:var(--danger)">
+        חסר מדריך
+      </div>
+      <div style="font-size:24px;font-weight:900;color:var(--danger)">
+        ${missingInstructorCourses.length}
+      </div>
+      <div style="font-size:12px;color:#64748b">
+        תוכניות ללא מדריך
+      </div>
+    `;
+
+    box.onclick = ()=> openInstructorModal("חסר מדריך", missingInstructorCourses, selectedMonth, selectedYear);
+
+    grid.appendChild(box);
+  }
 
   names.forEach(name=>{
     const box = document.createElement('div');
     box.style.background = getEmployeeColor(name);
     box.style.border = '1px solid var(--border)';
     box.style.borderRadius = '16px';
-    box.style.padding = '20px';
+    box.style.padding = '14px';
     box.style.cursor = 'pointer';
     box.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)';
     box.style.transition = '0.2s';
@@ -816,8 +849,8 @@ function renderInstructors(){
     box.onmouseleave = ()=> box.style.transform='scale(1)';
 
     box.innerHTML = `
-      <div style="font-weight:800;font-size:18px;margin-bottom:8px">${name}</div>
-      <div style="font-size:32px;font-weight:900">${instructorsMap[name].length}</div>
+      <div style="font-weight:800;font-size:16px;margin-bottom:8px">${name}</div>
+      <div style="font-size:26px;font-weight:900">${instructorsMap[name].length}</div>
       <div style="font-size:13px;color:#475569">תוכניות פעילות</div>
     `;
 
