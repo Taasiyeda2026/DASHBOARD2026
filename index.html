@@ -464,6 +464,96 @@ function parseDate(v){
   const d=new Date(v); return isNaN(d)?null:d;
 }
 
+function isCourse(r){
+  return String(r.EventType || '').trim().toUpperCase() === 'COURSE';
+}
+
+function isCourseActiveInMonth(r, year, month){
+  return isCourse(r) &&
+    r.Dates.some(d =>
+      d &&
+      d.getFullYear() === year &&
+      d.getMonth() === month
+    );
+}
+
+function isCourseEndingInMonth(r, year, month){
+  if(!isCourse(r) || !r.End) return false;
+  const d = parseDate(r.End);
+  return d &&
+         d.getFullYear() === year &&
+         d.getMonth() === month;
+}
+
+function clampDateToDataRange(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  if(!dataRange) return d;
+  if(d < dataRange.min) return new Date(dataRange.min);
+  if(d > dataRange.max) return new Date(dataRange.max);
+  return d;
+}
+
+function weekOverlapsDataRange(date){
+  if(!dataRange) return true;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - date.getDay());
+  weekStart.setHours(0,0,0,0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(0,0,0,0);
+
+  return weekEnd >= dataRange.min && weekStart <= dataRange.max;
+}
+
+function canGoPrev(){
+  if(mode === 'summary') return summaryMonth.selectedIndex > 0;
+  if(!dataRange) return false;
+
+  if(mode === 'month'){
+    const temp = new Date(currentDate);
+    temp.setMonth(temp.getMonth()-1);
+    return temp.getFullYear() > dataRange.min.getFullYear() ||
+      (temp.getFullYear() === dataRange.min.getFullYear() && temp.getMonth() >= dataRange.min.getMonth());
+  }
+
+  if(mode === 'week'){
+    const temp = new Date(currentDate);
+    temp.setDate(temp.getDate()-7);
+    return weekOverlapsDataRange(temp);
+  }
+
+  return false;
+}
+
+function canGoNext(){
+  if(mode === 'summary') return summaryMonth.selectedIndex < summaryMonth.options.length-1;
+  if(!dataRange) return false;
+
+  if(mode === 'month'){
+    const temp = new Date(currentDate);
+    temp.setMonth(temp.getMonth()+1);
+    return temp.getFullYear() < dataRange.max.getFullYear() ||
+      (temp.getFullYear() === dataRange.max.getFullYear() && temp.getMonth() <= dataRange.max.getMonth());
+  }
+
+  if(mode === 'week'){
+    const temp = new Date(currentDate);
+    temp.setDate(temp.getDate()+7);
+    return weekOverlapsDataRange(temp);
+  }
+
+  return false;
+}
+
+function updateNavButtons(){
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  prevBtn.disabled = !canGoPrev();
+  nextBtn.disabled = !canGoNext();
+}
+
 function endDate(r){
   const d=r.Dates.filter(Boolean);
   return d.length?new Date(Math.max(...d.map(x=>x.getTime()))):null;
@@ -502,17 +592,15 @@ async function load(){
         StartTime: formatTime(g('StartTime') || g('שעת התחלה')),
         EndTime: formatTime(g('EndTime') || g('שעת סיום')),
         End: parseDate(g('End')),
-        MonthEnd: parseDate(g('MonthEnd')||g('monthend')||g('MONTHEND')),
         Dates: dates
       };
-    }).filter(r=>r.Dates.some(Boolean) || r.MonthEnd);
+    }).filter(r=>r.Dates.some(Boolean));
 
     window.dataRange = getDataDateRange();
     dataRange = window.dataRange;
 
     initFilters(); initSummaryMonths();
-    currentDate=new Date();
-    currentDate.setHours(0,0,0,0);
+    currentDate = clampDateToDataRange(new Date());
     mode='month';
     render();
   } catch(e) { console.error("Error loading Excel:", e); }
@@ -526,7 +614,7 @@ function initFilters(){
 }
 
 function initSummaryMonths(){
-  const months=[...new Set(rawData.map(r=>endDate(r)).filter(Boolean).map(d=>`${d.getFullYear()}-${d.getMonth()}`))].sort();
+  const months=[...new Set(rawData.flatMap(r=>r.Dates.filter(Boolean)).map(d=>`${d.getFullYear()}-${d.getMonth()}`))].sort();
   summaryMonth.innerHTML=months.map(k=>{
     const [y,m]=k.split('-').map(Number);
     return `<option value="${k}">${new Date(y,m).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
@@ -549,6 +637,7 @@ function render(){
   else if(mode==='week') renderWeek();
   else if(mode==='instructors') renderInstructors();
   else renderMonth();
+  updateNavButtons();
 }
 
 function renderMonth(){
@@ -662,10 +751,12 @@ function applyFilters(){
 
 function renderSummary(){
   if(!summaryMonth.value) return;
-  const courses = rawData.filter(r=>(String(r.EventType||'').trim().toUpperCase() === 'COURSE' && r.End));
+  const courses = rawData.filter(isCourse);
   const [y,m] = summaryMonth.value.split('-').map(Number);
   const monthStart = new Date(y,m,1);
-  const activeTotal = courses.filter(r => parseDate(r.End) >= monthStart).length;
+  const activeTotal = rawData.filter(r =>
+    isCourseActiveInMonth(r, y, m)
+  ).length;
   titleEl.textContent = monthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
   const wrap = document.createElement('div'); wrap.className = 'summary-wrap';
@@ -676,11 +767,12 @@ function renderSummary(){
 
   managers.forEach(mgr=>{
     const mgrCourses = courses.filter(r=>r.Manager === mgr);
-    const mgrActive = mgrCourses.filter(r => parseDate(r.End) >= monthStart).length;
-    const mgrEndedThisMonth = mgrCourses.filter(r=>{
-        const d = parseDate(r.MonthEnd || r.End);
-        return d && d.getFullYear()===y && d.getMonth()===m;
-    }).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+    const mgrActive = mgrCourses.filter(r =>
+      isCourseActiveInMonth(r, y, m)
+    ).length;
+    const mgrEndedThisMonth = mgrCourses.filter(r =>
+      isCourseEndingInMonth(r, y, m)
+    ).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
 
     const col = document.createElement('div'); col.className = 'summary-col';
     col.innerHTML = `
@@ -798,26 +890,20 @@ function renderInstructors(){
 
   const instructorsMap = {};
   const missingInstructorCourses = [];
+  const allActiveCourses = [];
 
   rawData.forEach(r => {
-    // ספור רק קורסים
-    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+    if(!isCourse(r)) return;
+    if(!isCourseActiveInMonth(r, selectedYear, selectedMonth)) return;
 
     if(selectedManager && r.Manager !== selectedManager) return;
+
+    allActiveCourses.push(r);
+
     if(!r.Employee || !r.Employee.trim()){
-      const hasMonthMatch = r.Dates.some(d=>d && d.getMonth()===selectedMonth && d.getFullYear()===selectedYear);
-      if(hasMonthMatch){
-        missingInstructorCourses.push(r);
-      }
+      missingInstructorCourses.push(r);
       return;
     }
-
-    const hasMonthMatch = r.Dates.some(d =>
-      d &&
-      d.getMonth() === selectedMonth &&
-      d.getFullYear() === selectedYear
-    );
-    if(!hasMonthMatch) return;
 
     if(!instructorsMap[r.Employee]){
       instructorsMap[r.Employee] = [];
@@ -828,8 +914,7 @@ function renderInstructors(){
   const names = Object.keys(instructorsMap)
     .sort((a,b)=> instructorsMap[b].length - instructorsMap[a].length || a.localeCompare(b,'he'));
 
-  const totalCourses = Object.values(instructorsMap)
-    .reduce((sum, arr) => sum + arr.length, 0);
+  const totalCourses = allActiveCourses.length;
 
   const summaryHeader = document.createElement('div');
   summaryHeader.style.textAlign = 'center';
@@ -1063,6 +1148,8 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
 }
 
 document.getElementById('prev').onclick = ()=>{
+  if(!canGoPrev()) return;
+
   if(mode==='summary'){
     summaryMonth.selectedIndex = Math.max(0, summaryMonth.selectedIndex-1);
   }
@@ -1070,7 +1157,15 @@ document.getElementById('prev').onclick = ()=>{
     const temp = new Date(currentDate);
     temp.setDate(temp.getDate()-7);
 
-    if(dataRange && temp >= dataRange.min){
+    const weekStart = new Date(temp);
+    weekStart.setDate(temp.getDate() - temp.getDay());
+    weekStart.setHours(0,0,0,0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(0,0,0,0);
+
+    if(dataRange && weekEnd >= dataRange.min && weekStart <= dataRange.max){
       currentDate = temp;
     }
   }
@@ -1089,6 +1184,8 @@ document.getElementById('prev').onclick = ()=>{
   render();
 };
 document.getElementById('next').onclick = ()=>{
+  if(!canGoNext()) return;
+
   if(mode==='summary'){
     summaryMonth.selectedIndex = Math.min(summaryMonth.options.length-1, summaryMonth.selectedIndex+1);
   }
@@ -1096,7 +1193,15 @@ document.getElementById('next').onclick = ()=>{
     const temp = new Date(currentDate);
     temp.setDate(temp.getDate()+7);
 
-    if(dataRange && temp <= dataRange.max){
+    const weekStart = new Date(temp);
+    weekStart.setDate(temp.getDate() - temp.getDay());
+    weekStart.setHours(0,0,0,0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(0,0,0,0);
+
+    if(dataRange && weekEnd >= dataRange.min && weekStart <= dataRange.max){
       currentDate = temp;
     }
   }
@@ -1116,14 +1221,12 @@ document.getElementById('next').onclick = ()=>{
 };
 btnMonth.onclick = ()=>{
   mode='month';
-  currentDate = new Date();
-  currentDate.setHours(0,0,0,0);
+  currentDate = clampDateToDataRange(new Date());
   render();
 };
 btnWeek.onclick = ()=>{
   mode='week';
-  currentDate = new Date();
-  currentDate.setHours(0,0,0,0);
+  currentDate = clampDateToDataRange(new Date());
   render();
 };
 btnSummary.onclick = ()=>{
@@ -1138,7 +1241,7 @@ document.getElementById('goToday').onclick = ()=>{
   const today = new Date();
   today.setHours(0,0,0,0);
 
-  currentDate = today;
+  currentDate = clampDateToDataRange(today);
 
   if(mode === 'summary'){
     const key = `${today.getFullYear()}-${today.getMonth()}`;
