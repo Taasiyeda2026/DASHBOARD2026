@@ -32,6 +32,7 @@ header{background:#fff;border-bottom:1px solid var(--border)}
 .app-logo{height:40px}
 
 .controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:10px}
+.instructors-count-title{max-width:1200px;margin:18px auto 0;padding:0 10px;text-align:right;font-size:16px;font-weight:700;}
 select,button{height:32px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:0 10px;cursor:pointer}
 #btnMonth.active{background:#e0f2fe;border-color:#7dd3fc}
 #btnWeek.active{background:#ecfeff;border-color:#67e8f9}
@@ -204,6 +205,12 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     font-size: 14px;
   }
 
+  .instructors-count-title{
+    margin-top:12px;
+    font-size:15px;
+    padding:0 12px;
+  }
+
   /* ניווט - שתי שורות מסודרות */
   .nav {
     flex-direction: column;
@@ -286,6 +293,10 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 }
 
 @media(max-width:600px){
+
+  body, .controls, .instructor-header, .course-card, .course-meta, .instructor-badges{
+    overflow-wrap:anywhere;
+  }
 
   .side{
     width:100%;
@@ -637,17 +648,45 @@ function renderSummary(){
   wrap.appendChild(split); view.appendChild(wrap);
 }
 
+function getUniqueInstructorMonths(){
+  const monthsMap = new Map();
+  rawData.forEach(r=>{
+    r.Dates.forEach(d=>{
+      if(!d) return;
+      const year=d.getFullYear();
+      const month=d.getMonth();
+      const key=`${year}-${String(month+1).padStart(2,'0')}`;
+      if(!monthsMap.has(key)){
+        monthsMap.set(key,{year,month});
+      }
+    });
+  });
+
+  return [...monthsMap.entries()]
+    .sort((a,b)=> (b[1].year-a[1].year) || (b[1].month-a[1].month))
+    .map(([value,{year,month}])=>({
+      value,
+      label:new Date(year,month,1).toLocaleDateString('he-IL',{month:'long',year:'numeric'})
+    }));
+}
+
 function renderInstructors(){
 
   titleEl.textContent = "מדריכים";
 
   const managers=[...new Set(rawData.map(r=>r.Manager).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   const selectedManager = renderInstructors.selectedManager || '';
+  const selectedMonthValue = renderInstructors.selectedMonthValue || 'all';
+
+  const titleCount = document.createElement('div');
+  titleCount.className = 'instructors-count-title';
+  view.appendChild(titleCount);
 
   const controls = document.createElement('div');
   controls.className = 'controls';
-  controls.style.margin = '20px auto 0';
+  controls.style.margin = '10px auto 0';
   controls.style.maxWidth = '1200px';
+
   const managerSelect = document.createElement('select');
   managerSelect.innerHTML = '<option value="">כל המנהלים</option>' + managers.map(v=>`<option value="${v}">${v}</option>`).join('');
   managerSelect.value = selectedManager;
@@ -657,8 +696,29 @@ function renderInstructors(){
   };
   controls.appendChild(managerSelect);
 
+  const monthSelect = document.createElement('select');
+  const monthOptions = getUniqueInstructorMonths();
+  monthSelect.innerHTML = '<option value="all">כל החודשים</option>' + monthOptions.map(opt=>`<option value="${opt.value}">${opt.label}</option>`).join('');
+  monthSelect.value = selectedMonthValue;
+  monthSelect.onchange = () => {
+    renderInstructors.selectedMonthValue = monthSelect.value;
+    render();
+  };
+  controls.appendChild(monthSelect);
+
+  view.appendChild(controls);
+
   const today = new Date();
   today.setHours(0,0,0,0);
+
+  let selectedMonth = currentDate.getMonth();
+  let selectedYear = currentDate.getFullYear();
+
+  if(selectedMonthValue !== 'all'){
+    const [y,m] = selectedMonthValue.split('-').map(Number);
+    selectedYear = y;
+    selectedMonth = m - 1;
+  }
 
   const instructorsMap = {};
 
@@ -669,6 +729,11 @@ function renderInstructors(){
     const end = endDate(r);
     if(!end || end < today) return;
 
+    if(selectedMonthValue !== 'all'){
+      const hasMonthMatch = r.Dates.some(d=>d && d.getMonth()===selectedMonth && d.getFullYear()===selectedYear);
+      if(!hasMonthMatch) return;
+    }
+
     if(!instructorsMap[r.Employee]){
       instructorsMap[r.Employee] = [];
     }
@@ -678,7 +743,7 @@ function renderInstructors(){
   const names = Object.keys(instructorsMap)
     .sort((a,b)=> instructorsMap[b].length - instructorsMap[a].length || a.localeCompare(b,'he'));
 
-  view.appendChild(controls);
+  titleCount.textContent = `כמות מדריכים: ${names.length}`;
 
   if(names.length===0){
     const empty = document.createElement('div');
@@ -717,7 +782,7 @@ function renderInstructors(){
       <div style="font-size:13px;color:#475569">תוכניות פעילות</div>
     `;
 
-    box.onclick = ()=> openInstructorModal(name, instructorsMap[name]);
+    box.onclick = ()=> openInstructorModal(name, instructorsMap[name], selectedMonth, selectedYear);
 
     grid.appendChild(box);
   });
@@ -725,13 +790,20 @@ function renderInstructors(){
   view.appendChild(grid);
 }
 
-function openInstructorModal(name, courses){
+function openInstructorModal(name, courses, selectedMonth, selectedYear){
+
+  const month = selectedMonth ?? currentDate.getMonth();
+  const year  = selectedYear ?? currentDate.getFullYear();
 
   const uniqueDates = new Set();
 
   courses.forEach(r=>{
     r.Dates.forEach(d=>{
-      if(d){
+      if(
+        d &&
+        d.getMonth() === month &&
+        d.getFullYear() === year
+      ){
         uniqueDates.add(d.toDateString());
       }
     });
@@ -753,6 +825,9 @@ function openInstructorModal(name, courses){
 
   courses.forEach(r=>{
     const end = endDate(r);
+    const startDate = r.Dates[0]
+      ? r.Dates[0].toLocaleDateString('he-IL')
+      : '—';
 
     sideContent.innerHTML += `
       <div class="course-card">
@@ -761,6 +836,7 @@ function openInstructorModal(name, courses){
           <div><strong>בית ספר:</strong> ${r.School || '—'}</div>
           <div><strong>רשות:</strong> ${r.Authority || '—'}</div>
           <div><strong>מנהל:</strong> ${r.Manager || '—'}</div>
+          <div><strong>תאריך התחלה:</strong> ${startDate}</div>
           <div><strong>סיום:</strong> ${end ? end.toLocaleDateString('he-IL') : '—'}</div>
         </div>
       </div>
