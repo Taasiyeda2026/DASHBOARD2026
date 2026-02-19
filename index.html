@@ -787,18 +787,93 @@ function applyFilters(){
   return rawData.filter(r=>(!managerFilter.value||r.Manager===managerFilter.value)&&(!employeeFilter.value||r.Employee===employeeFilter.value));
 }
 
+function getCourseStartDate(r){
+  if(!r.Dates || !r.Dates.length) return null;
+
+  const validDates = r.Dates.filter(d => d);
+  if(validDates.length === 0) return null;
+
+  return new Date(Math.min(...validDates.map(d => d.getTime())));
+}
+
 function renderSummary(){
-  if(!summaryMonth.value) return;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+
+  const currentMonthStart = new Date(currentYear, currentMonth, 1);
+
+  let nextMonth = currentMonth + 1;
+  let nextYear = currentYear;
+
+  if(nextMonth > 11){
+    nextMonth = 0;
+    nextYear++;
+  }
+
   const courses = rawData.filter(isCourse);
-  const [y,m] = summaryMonth.value.split('-').map(Number);
-  const monthStart = new Date(y,m,1);
-  const activeTotal = rawData.filter(r =>
-    isCourseActiveInMonth(r, y, m)
-  ).length;
-  titleEl.textContent = monthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
+
+  const totalCourses = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    if(!r.End) return true;
+
+    const endDate = parseDate(r.End);
+    if(!endDate) return true;
+
+    return endDate >= currentMonthStart;
+  }).length;
+
+  const activeThisMonth = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    return r.Dates.some(d =>
+      d &&
+      d.getFullYear() === currentYear &&
+      d.getMonth() === currentMonth
+    );
+  }).length;
+
+  const startingNextMonth = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    const startDate = getCourseStartDate(r);
+    if(!startDate) return false;
+
+    return (
+      startDate.getFullYear() === nextYear &&
+      startDate.getMonth() === nextMonth
+    );
+  }).length;
+
+  titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
   const wrap = document.createElement('div'); wrap.className = 'summary-wrap';
-  wrap.innerHTML = `<div class='summary-top'><div style='font-size:14px;color:#64748b'>סה"כ קורסים פעילים</div><div style='font-size:40px;font-weight:800'>${activeTotal}</div></div>`;
+  wrap.innerHTML = `
+    <div class='summary-top'>
+
+      <div style='font-size:14px;color:#64748b'>סה"כ קורסים</div>
+      <div style='font-size:40px;font-weight:800;margin-bottom:18px'>
+        ${totalCourses}
+      </div>
+
+      <div style='font-size:14px;color:#64748b'>כמות פעילים (החודש)</div>
+      <div style='font-size:28px;font-weight:800;margin-bottom:18px'>
+        ${activeThisMonth}
+      </div>
+
+      <div style='font-size:14px;color:#64748b'>מתחילים בחודש הבא</div>
+      <div style='font-size:28px;font-weight:800'>
+        ${startingNextMonth}
+      </div>
+
+    </div>
+  `;
 
   const managers = [...new Set(courses.map(r=>r.Manager).filter(Boolean))];
   const split = document.createElement('div'); split.className = 'summary-split';
@@ -806,10 +881,10 @@ function renderSummary(){
   managers.forEach(mgr=>{
     const mgrCourses = courses.filter(r=>r.Manager === mgr);
     const mgrActive = mgrCourses.filter(r =>
-      isCourseActiveInMonth(r, y, m)
+      isCourseActiveInMonth(r, currentYear, currentMonth)
     ).length;
     const mgrEndedThisMonth = mgrCourses.filter(r =>
-      isCourseEndingInMonth(r, y, m)
+      isCourseEndingInMonth(r, currentYear, currentMonth)
     ).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
 
     const col = document.createElement('div'); col.className = 'summary-col';
