@@ -812,14 +812,25 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
   const month = selectedMonth ?? currentDate.getMonth();
   const year  = selectedYear ?? currentDate.getFullYear();
 
+  // חישוב השבוע הנוכחי לפי TODAY
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  // איסוף תאריכים ייחודיים בטווח השבוע בלבד
   const uniqueDates = new Set();
 
   courses.forEach(r=>{
     r.Dates.forEach(d=>{
       if(
         d &&
-        d.getMonth() === month &&
-        d.getFullYear() === year
+        d >= startOfWeek &&
+        d <= endOfWeek
       ){
         uniqueDates.add(d.toDateString());
       }
@@ -834,7 +845,7 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
       <div class="instructor-name">${name}</div>
       <div class="instructor-badges">
         <span class="badge type">${employmentType}</span>
-        <span class="badge days">${totalWorkDays} ימי עבודה</span>
+        <span class="badge days">${totalWorkDays} ימי עבודה בשבוע</span>
         <span class="badge courses">${courses.length} קורסים</span>
       </div>
     </div>
