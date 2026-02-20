@@ -114,6 +114,10 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 .grid{max-width:1200px;margin:auto;padding:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:12px;grid-auto-rows: 1fr;}
 .day{background:var(--card);border-radius:12px;padding:8px;min-height:140px;border:1px solid var(--border); display: flex; flex-direction: column; gap: 4px;}
+.day.today{
+  border:2px solid #3b82f6 !important;
+  box-shadow:0 0 0 3px rgba(59,130,246,0.15);
+}
 .day.empty{min-height:auto;opacity:0.5;}
 .day.inactive{min-height:auto;opacity:0.3;}
 .day-header{font-size:11px;font-weight:700;border-bottom:1px solid var(--border);margin-bottom:4px;padding-bottom:4px;text-align:center;}
@@ -212,7 +216,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 .summary-split{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
   gap:20px;
   align-items:start;
 }
@@ -342,9 +346,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
   /* סיכום - התאמה למסך קטן */
   .summary-split{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
+    grid-template-columns:1fr;
+    justify-items:center;
     gap:18px;
   }
 
@@ -861,6 +864,12 @@ function render(){
   view.innerHTML='';
   side.classList.remove('open');
 
+  if(mode === 'summary' || mode === 'instructors'){
+    filtersEl.style.display = 'none';
+  }else{
+    filtersEl.style.display = 'flex';
+  }
+
   const isMobile = window.innerWidth < 800;
 
   if(isMobile && (mode === 'month' || mode === 'week')){
@@ -999,7 +1008,7 @@ function buildDay(date,data){
   const cell=document.createElement('div'); cell.className='day';
   cell.innerHTML=`<div class='day-header'>${date.getDate()}/${date.getMonth()+1} | ${dayNames[date.getDay()]}</div>`;
   if(sameDay(date, new Date())){
-    cell.style.border = "2px solid #3b82f6";
+    cell.classList.add('today');
   }
   
   const dailyPool = [];
@@ -1179,7 +1188,6 @@ function renderSummary(){
 
   const managers = [...new Set(courses.map(r=>r.Manager).filter(Boolean))];
   const split = document.createElement('div'); split.className = 'summary-split';
-  let openDetails = null;
 
   managers.forEach(mgr=>{
     const mgrCourses = courses.filter(r=>r.Manager === mgr);
@@ -1202,11 +1210,6 @@ function renderSummary(){
       </div>`;
 
     col.onclick = () => {
-
-      if(openDetails){
-        openDetails.remove();
-        openDetails = null;
-      }
 
       const details = document.createElement('div');
       details.className = 'manager-details';
@@ -1233,8 +1236,35 @@ function renderSummary(){
         }
       `;
 
-      split.appendChild(details);
-      openDetails = details;
+      document.querySelectorAll('.manager-details-overlay')
+        .forEach(el=>el.remove());
+
+      details.classList.add('manager-details-overlay');
+      document.body.appendChild(details);
+
+      details.style.position = 'fixed';
+      details.style.top = '50%';
+      details.style.left = '50%';
+      details.style.transform = 'translate(-50%,-50%)';
+      details.style.zIndex = '100';
+      details.style.maxHeight = '80vh';
+      details.style.overflowY = 'auto';
+      details.style.width = '90%';
+      details.style.maxWidth = '800px';
+      details.style.background = '#fff';
+      details.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
+      details.style.borderRadius = '20px';
+      details.style.padding = '30px';
+
+      details.onclick = e => e.stopPropagation();
+
+      setTimeout(()=>{
+        document.addEventListener('click', function closeDetails(){
+          details.remove();
+          document.removeEventListener('click', closeDetails);
+        });
+      },0);
+
     };
 
     split.appendChild(col);
