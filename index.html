@@ -1176,53 +1176,57 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
   const month = selectedMonth ?? currentDate.getMonth();
   const year  = selectedYear ?? currentDate.getFullYear();
 
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const isCurrentMonth =
-    selectedYear === today.getFullYear() &&
-    selectedMonth === today.getMonth();
-
   let totalWorkDays = 0;
 
-  if(isCurrentMonth){
+  function normalize(d){
+    const n = new Date(d);
+    n.setHours(0,0,0,0);
+    return n;
+  }
 
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
-    weekStart.setHours(0,0,0,0);
+  const weeks = {};
 
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
+  courses.forEach(r=>{
 
-    const uniqueDates = new Set();
+    if(!isCourse(r)) return;
 
-    courses.forEach(r=>{
-      if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+    r.Dates.forEach(d=>{
 
-      r.Dates.forEach(d=>{
-        if(
-          d &&
-          d >= weekStart &&
-          d <= weekEnd &&
-          d.getMonth() === selectedMonth &&
-          d.getFullYear() === selectedYear
-        ){
-          uniqueDates.add(d.toDateString());
+      if(!d) return;
+
+      const date = normalize(d);
+
+      if(
+        date.getFullYear() === selectedYear &&
+        date.getMonth() === selectedMonth
+      ){
+
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        weekStart.setHours(0,0,0,0);
+
+        const key = weekStart.toISOString();
+
+        if(!weeks[key]){
+          weeks[key] = new Set();
         }
-      });
+
+        weeks[key].add(date.toDateString());
+      }
+
     });
 
-    totalWorkDays = uniqueDates.size;
+  });
 
-  } else {
+  let maxDays = 0;
 
-    totalWorkDays = getBusiestWeekWorkDays(
-      courses,
-      selectedYear,
-      selectedMonth
-    );
+  Object.values(weeks).forEach(set=>{
+    if(set.size > maxDays){
+      maxDays = set.size;
+    }
+  });
 
-  }
+  totalWorkDays = maxDays;
   const employmentType = courses[0]?.EmploymentType || '—';
 
   sideContent.innerHTML = `
