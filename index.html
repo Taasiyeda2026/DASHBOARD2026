@@ -130,7 +130,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 /* side panel */
 .side{position:fixed;top:0;left:0;width:380px;max-width:92%;height:100%;background:#fff;box-shadow:-6px 0 24px rgba(0,0,0,.18);transform:translateX(-100%);transition:.28s ease;z-index:50;padding:60px 18px 18px 18px; overflow-y:auto;}
 .side.open{transform:translateX(0)}
-.side .close{position:absolute;top:12px;left:12px;border:none;background:#f1f5f9;border-radius:8px;width:32px;height:32px;font-size:20px;cursor:pointer;z-index:5}
+.side .close,
+.side-close{position:absolute;top:16px;left:16px;z-index:1000;background:#fff;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none}
 .side h2{margin:0 0 6px 0;font-size:20px}
 .side .subtitle{font-size:13px;color:var(--muted);margin-bottom:14px}
 .side .row{display:flex;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px}
