@@ -1209,6 +1209,9 @@ function renderSummary(){
     }
   });
 
+    return startDate.getMonth() > currentMonth;
+  }).length;
+
   const totalEndedCourses = courses.filter(r => {
     const end = endDate(r);
     if(!end) return false;
