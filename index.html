@@ -702,18 +702,28 @@ function initSummaryMonths(){
 }
 
 function render(){
+
   view.innerHTML='';
   side.classList.remove('open');
-  filtersEl.style.display=(mode==='summary' || mode==='instructors')?'none':'flex';
-  summaryMonth.style.display=mode==='summary'?'inline-block':'none';
-  btnMonth.classList.toggle('active',mode==='month');
-  btnWeek.classList.toggle('active',mode==='week');
-  btnSummary.classList.toggle('active',mode==='summary');
-  btnInstructors.classList.toggle('active',mode==='instructors');
-  if(mode==='summary') renderSummary();
-  else if(mode==='week') renderWeek();
-  else if(mode==='instructors') renderInstructors();
-  else renderMonth();
+
+  const isMobile = window.innerWidth < 800;
+
+  if(isMobile && (mode === 'month' || mode === 'week')){
+    renderMobileMonth();
+  }
+  else if(mode==='summary'){
+    renderSummary();
+  }
+  else if(mode==='week'){
+    renderWeek();
+  }
+  else if(mode==='instructors'){
+    renderInstructors();
+  }
+  else{
+    renderMonth();
+  }
+
   updateNavButtons();
 }
 
@@ -739,6 +749,95 @@ function renderWeek(){
     grid.appendChild(buildDay(cur,data));
   }
   view.appendChild(grid);
+}
+
+
+function renderMobileMonth(){
+
+  const y = currentDate.getFullYear();
+  const m = currentDate.getMonth();
+
+  titleEl.textContent =
+    new Date(y,m,1).toLocaleString('he-IL',{month:'long',year:'numeric'});
+
+  const data = applyFilters();
+
+  const first = new Date(y,m,1);
+  const last  = new Date(y,m+1,0);
+
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+  start.setHours(0,0,0,0);
+
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.gap = '14px';
+  container.style.padding = '10px';
+
+  let cursor = new Date(start);
+
+  while(cursor <= last){
+
+    const weekStart = new Date(cursor);
+    const weekEnd   = new Date(cursor);
+    weekEnd.setDate(weekStart.getDate()+6);
+
+    const box = document.createElement('div');
+    box.style.background = '#fff';
+    box.style.borderRadius = '18px';
+    box.style.padding = '16px';
+    box.style.boxShadow = '0 6px 16px rgba(0,0,0,0.06)';
+    box.style.cursor = 'pointer';
+
+    box.innerHTML = `
+      <div style="font-weight:800;font-size:15px;text-align:center">
+        ${weekStart.toLocaleDateString('he-IL')} – ${weekEnd.toLocaleDateString('he-IL')}
+      </div>
+    `;
+
+    box.onclick = ()=>{
+      renderMobileWeekDetail(weekStart, data);
+    };
+
+    container.appendChild(box);
+
+    cursor.setDate(cursor.getDate()+7);
+  }
+
+  view.appendChild(container);
+}
+
+function renderMobileWeekDetail(weekStart, data){
+
+  view.innerHTML='';
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate()+6);
+
+  titleEl.textContent =
+    `${weekStart.toLocaleDateString('he-IL')} – ${weekEnd.toLocaleDateString('he-IL')}`;
+
+  const backBtn = document.createElement('button');
+  backBtn.textContent = 'חזרה לחודש';
+  backBtn.style.margin = '10px';
+  backBtn.onclick = ()=> renderMobileMonth();
+
+  view.appendChild(backBtn);
+
+  const container = document.createElement('div');
+  container.style.display='flex';
+  container.style.flexDirection='column';
+  container.style.gap='12px';
+  container.style.padding='10px';
+
+  for(let i=0;i<7;i++){
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate()+i);
+    container.appendChild(buildDay(date,data));
+  }
+
+  view.appendChild(container);
 }
 
 function buildDay(date,data){
