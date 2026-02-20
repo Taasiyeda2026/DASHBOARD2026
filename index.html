@@ -216,36 +216,26 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 .summary-split{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
-  gap:20px;
+  grid-template-columns:repeat(auto-fit,minmax(260px,300px));
+  gap:24px;
+  justify-content:center;
   align-items:start;
 }
 
 .summary-col{
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:16px;
-  box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);
-  cursor:pointer;
+  background:#ffffff;
+  border:1px solid #e5e7eb;
+  border-radius:20px;
+  padding:24px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.06);
   transition:0.2s ease;
-  padding:18px;
+  cursor:pointer;
   text-align:center;
 }
 
 .summary-col:hover{
-  transform:translateY(-3px);
-  box-shadow:0 10px 22px rgba(0,0,0,0.08);
-}
-
-.manager-details{
-  grid-column:1 / -1;
-  background:#ffffff;
-  border:1px solid #e5e7eb;
-  border-radius:18px;
-  padding:24px;
-  box-shadow:0 8px 20px rgba(0,0,0,0.08);
-  max-width:800px;
-  margin:0 auto;
+  transform:translateY(-4px);
+  box-shadow:0 16px 35px rgba(0,0,0,0.12);
 }
 
 /* טיפול בטקסט ארוך בתוך התיבות בסיכום */
@@ -299,20 +289,91 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 /* ===== MANAGER CARDS ===== */
 
-.summary-col{
-  background:#ffffff;
-  border:1px solid #e5e7eb;
-  border-radius:18px;
-  padding:22px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.05);
-}
-
 .summary-col h3{
   margin:0 0 12px 0;
   font-size:18px;
   font-weight:800;
   border-bottom:2px solid #f59e0b;
   padding-bottom:6px;
+}
+
+.summary-course-box{
+  margin-top:12px;
+  padding:14px 16px;
+  border-radius:14px;
+  background:linear-gradient(135deg,#f8fafc,#eef2f7);
+  font-size:14px;
+  font-weight:600;
+  color:#0f172a;
+  box-shadow:inset 0 0 0 1px #e2e8f0;
+}
+
+.manager-overlay-bg{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,0.55);
+  backdrop-filter:blur(4px);
+  z-index:99;
+  animation:fadeIn .2s ease;
+}
+
+@keyframes fadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+.manager-details-overlay{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  z-index:100;
+  width:100%;
+  max-width:600px;
+  background:linear-gradient(135deg,#ffffff,#f8fafc);
+  border-radius:22px;
+  box-shadow:0 25px 70px rgba(0,0,0,0.35);
+  padding:28px 30px;
+  animation:popIn .2s ease;
+  max-height:80vh;
+  overflow:auto;
+}
+
+@keyframes popIn{
+  from{
+    opacity:0;
+    transform:translate(-50%,-48%) scale(.96);
+  }
+  to{
+    opacity:1;
+    transform:translate(-50%,-50%) scale(1);
+  }
+}
+
+.manager-course-card{
+  background:#ffffff;
+  border-radius:16px;
+  padding:18px 20px;
+  margin-bottom:18px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.08);
+  transition:.2s;
+}
+
+.manager-course-card:last-child{
+  margin-bottom:0;
+}
+
+.manager-course-title{
+  font-weight:800;
+  font-size:16px;
+  margin-bottom:8px;
+  color:#0f172a;
+}
+
+.manager-course-meta{
+  font-size:14px;
+  color:#475569;
+  line-height:1.8;
 }
 
 /* --- התאמה מלאה לנייד --- */
@@ -1205,30 +1266,39 @@ function renderSummary(){
         <div style="font-size:26px;font-weight:800">${mgrActive}</div>
       </div>
       <div class="manager-header" style="text-align:center; border-bottom:2px solid #f59e0b; margin-bottom:12px;"><h3>${mgr}</h3></div>
-      <div class="event" style="text-align:center;font-weight:400">
+      <div class="summary-course-box">
         קורסים שמסתיימים החודש: ${mgrEndedThisMonth.length}
       </div>`;
 
     col.onclick = () => {
+      document.querySelectorAll('.manager-overlay-bg, .manager-details-overlay')
+        .forEach(el=>el.remove());
+
+      const overlayBg = document.createElement('div');
+      overlayBg.className = 'manager-overlay-bg';
+      document.body.appendChild(overlayBg);
 
       const details = document.createElement('div');
-      details.className = 'manager-details';
+      details.className = 'manager-details-overlay';
 
       details.innerHTML = `
-        <h3 style="margin-top:0">${mgr}</h3>
+        <h3>${mgr}</h3>
         ${
           mgrEndedThisMonth.length
             ? mgrEndedThisMonth.map(r=>{
                 const empName = (r.Employee && r.Employee.trim())
                   ? r.Employee
-                  : `<span style="color:var(--danger)">חסר מדריך</span>`;
+                  : `<span style="color:#dc2626;font-weight:700">חסר מדריך</span>`;
+
                 return `
-                  <div style="margin-bottom:14px;padding:12px;border-bottom:1px solid #eee">
-                    <strong>${r.Program}</strong><br>
-                    מדריך: ${empName}<br>
-                    בית ספר: ${r.School || '—'}<br>
-                    רשות: ${r.Authority || '—'}<br>
-                    תאריך סיום: ${parseDate(r.End).toLocaleDateString('he-IL')}
+                  <div class="manager-course-card">
+                    <div class="manager-course-title">${r.Program}</div>
+                    <div class="manager-course-meta">
+                      👤 מדריך: ${empName}<br>
+                      🏫 בית ספר: ${r.School || '—'}<br>
+                      🌍 רשות: ${r.Authority || '—'}<br>
+                      📅 תאריך סיום: ${parseDate(r.End).toLocaleDateString('he-IL')}
+                    </div>
                   </div>
                 `;
               }).join('')
@@ -1236,35 +1306,12 @@ function renderSummary(){
         }
       `;
 
-      document.querySelectorAll('.manager-details-overlay')
-        .forEach(el=>el.remove());
-
-      details.classList.add('manager-details-overlay');
       document.body.appendChild(details);
 
-      details.style.position = 'fixed';
-      details.style.top = '50%';
-      details.style.left = '50%';
-      details.style.transform = 'translate(-50%,-50%)';
-      details.style.zIndex = '100';
-      details.style.maxHeight = '80vh';
-      details.style.overflowY = 'auto';
-      details.style.width = '90%';
-      details.style.maxWidth = '800px';
-      details.style.background = '#fff';
-      details.style.boxShadow = '0 20px 60px rgba(0,0,0,0.25)';
-      details.style.borderRadius = '20px';
-      details.style.padding = '30px';
-
-      details.onclick = e => e.stopPropagation();
-
-      setTimeout(()=>{
-        document.addEventListener('click', function closeDetails(){
-          details.remove();
-          document.removeEventListener('click', closeDetails);
-        });
-      },0);
-
+      overlayBg.onclick = ()=>{
+        overlayBg.remove();
+        details.remove();
+      };
     };
 
     split.appendChild(col);
