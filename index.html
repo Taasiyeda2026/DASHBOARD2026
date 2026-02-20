@@ -1169,46 +1169,53 @@ function renderSummary(){
   }
 
   const currentMonthStart = new Date(currentYear, currentMonth, 1);
-  const nextMonthStart = new Date(currentYear, currentMonth + 1, 1);
 
   // כל הקורסים
   const courses = rawData.filter(isCourse);
-
-  // סה"כ קורסים פעילים (לא הסתיימו לפני תחילת החודש)
-  const totalCourses = rawData.filter(r => {
-    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
-      return false;
-
-    if(!r.End) return true;
-
-    const endDateVal = parseDate(r.End);
-    if(!endDateVal) return true;
-
-    return endDateVal >= currentMonthStart;
-  }).length;
 
   // פעילים בחודש הנבחר
   const activeThisMonth = rawData.filter(r => {
     if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
       return false;
 
-    return r.Dates.some(d =>
-      d &&
-      d.getFullYear() === currentYear &&
-      d.getMonth() === currentMonth
-    );
+    for(let i=0;i<16;i++){
+      const d = r.Dates[i];
+      if(
+        d &&
+        d.getFullYear() === currentYear &&
+        d.getMonth() === currentMonth
+      ){
+        return true;
+      }
+    }
+
+    return false;
   }).length;
 
-  // עתידיים מהחודש הבא והלאה
-  const totalFutureCourses = courses.filter(r => {
-    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
-      return false;
+  // עתידיים לפי MonthStart (1-12) מול החודש הנוכחי
+  const currentMonthForFuture = new Date().getMonth() + 1;
+  let totalFutureCourses = 0;
 
-    const startDate = getCourseStartDate(r);
-    if(!startDate) return false;
+  courses.forEach(r => {
+    const monthStartDate = getCourseStartDate(r);
+    const monthStart = monthStartDate ? monthStartDate.getMonth() + 1 : NaN;
+    const type = String(r.EventType || '').trim().toUpperCase();
 
-    return startDate >= nextMonthStart;
+    if(
+      type === 'COURSE' &&
+      monthStart > currentMonthForFuture
+    ){
+      totalFutureCourses++;
+    }
+  });
+
+  const totalEndedCourses = courses.filter(r => {
+    const end = endDate(r);
+    if(!end) return false;
+    return end.getMonth() === currentMonth;
   }).length;
+
+  const totalCourses = activeThisMonth + totalFutureCourses;
 
   titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
@@ -1231,6 +1238,11 @@ function renderSummary(){
         <div class="kpi-value">${totalFutureCourses}</div>
       </div>
 
+      <div class="kpi-card">
+        <div class="kpi-label">קורסים שהסתיימו</div>
+        <div class="kpi-value">${totalEndedCourses}</div>
+      </div>
+
     </div>
   `;
 
@@ -1242,9 +1254,10 @@ function renderSummary(){
     const mgrActive = mgrCourses.filter(r =>
       isCourseActiveInMonth(r, currentYear, currentMonth)
     ).length;
-    const mgrEndedThisMonth = mgrCourses.filter(r =>
-      isCourseEndingInMonth(r, currentYear, currentMonth)
-    ).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+    const mgrEndedThisMonth = mgrCourses.filter(r => {
+      const end = endDate(r);
+      return end && end.getMonth() === currentMonth;
+    }).sort((a,b)=>endDate(a)-endDate(b));
 
     const col = document.createElement('div'); col.className = 'summary-col';
     col.innerHTML = `
@@ -1284,7 +1297,7 @@ function renderSummary(){
                       👤 מדריך: ${empName}<br>
                       🏫 בית ספר: ${r.School || '—'}<br>
                       🌍 רשות: ${r.Authority || '—'}<br>
-                      📅 תאריך סיום: ${parseDate(r.End).toLocaleDateString('he-IL')}
+                      📅 תאריך סיום: ${endDate(r) ? endDate(r).toLocaleDateString('he-IL') : '—'}
                     </div>
                   </div>
                 `;
