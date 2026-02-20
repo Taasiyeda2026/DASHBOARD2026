@@ -67,20 +67,39 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   filter: brightness(0.9);
 }
+.today-calendar {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  cursor: pointer;
+  border: none;
+  clip-path: inset(0 round 10px);
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.today-calendar::before {
+  content: "📅";
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width:100%;
+  height:100%;
+}
+
+.today-calendar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(37,99,235,0.4);
+}
+
+.today-calendar:active {
+  transform: scale(0.92);
+}
 #btnMonth.active{background:#e0f2fe;border-color:#7dd3fc}
 #btnWeek.active{background:#ecfeff;border-color:#67e8f9}
 #btnSummary.active{background:#f0fdf4;border-color:#86efac}
 #btnInstructors.active{background:#fef3c7;border-color:#fcd34d}
-
-#btnCalendar{
-  display:none;
-  font-size:18px;
-  height:38px;
-  width:42px;
-  border-radius:12px;
-  align-items:center;
-  justify-content:center;
-}
 
 .nav{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:0;padding:10px}
 .nav-modes{display:flex;gap:8px;align-items:center}
@@ -286,10 +305,6 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 /* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
-  #btnCalendar{
-    display:flex;
-  }
-
   /* הקטנת ריווח כללי במובייל */
   header{
     padding: 10px 12px !important;
@@ -525,7 +540,6 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 <div class="nav">
   <div class="nav-modes">
     <select id="summaryMonth" style="display:none"></select>
-    <button id="btnCalendar" aria-label="לוח שנה" title="לוח שנה">📅</button>
     <button id="btnMonth" class="active">חודש</button>
     <button id="btnWeek">שבוע</button>
     <button id="btnSummary">סיכום</button>
@@ -534,6 +548,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   <div class="nav-arrows">
     <button id="prev" aria-label="הקודם">▶</button>
     <button id="goToday" class="today-star" title="היום" aria-label="היום"></button>
+    <button id="goCalendar" class="today-calendar" aria-label="חודש" title="חודש"></button>
     <span id="title"></span>
     <button id="next" aria-label="הבא">◀</button>
   </div>
@@ -558,7 +573,7 @@ const btnMonth=document.getElementById('btnMonth');
 const btnWeek=document.getElementById('btnWeek');
 const btnSummary=document.getElementById('btnSummary');
 const btnInstructors=document.getElementById('btnInstructors');
-const btnCalendar = document.getElementById('btnCalendar');
+const goCalendar = document.getElementById('goCalendar');
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
 const summaryMonth=document.getElementById('summaryMonth');
@@ -858,8 +873,10 @@ function render(){
   updateNavButtons();
   updateModeButtons();
 
-  if(window.innerWidth < 800){
-    btnCalendar.style.display = (mode === 'month') ? 'none' : 'flex';
+  if(mode === 'month'){
+    goCalendar.style.display = 'none';
+  } else {
+    goCalendar.style.display = 'inline-flex';
   }
 }
 
@@ -953,13 +970,6 @@ function renderMobileWeekDetail(weekStart, data){
 
   titleEl.textContent =
     `${weekStart.toLocaleDateString('he-IL')} – ${weekEnd.toLocaleDateString('he-IL')}`;
-
-  const backBtn = document.createElement('button');
-  backBtn.textContent = 'חזרה לחודש';
-  backBtn.style.margin = '10px';
-  backBtn.onclick = ()=> renderMobileMonth();
-
-  view.appendChild(backBtn);
 
   const container = document.createElement('div');
   container.style.display='flex';
@@ -1617,7 +1627,7 @@ btnInstructors.onclick = ()=>{
   mode='instructors';
   render();
 };
-btnCalendar.onclick = ()=>{
+goCalendar.onclick = ()=>{
   mode = 'month';
   currentDate = clampDateToDataRange(new Date());
   render();
