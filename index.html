@@ -1218,17 +1218,16 @@ function renderSummary(){
     );
   }).length;
 
-  const startingNextMonth = rawData.filter(r => {
+  const startingFuture = rawData.filter(r => {
     if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
       return false;
 
     const startDate = getCourseStartDate(r);
     if(!startDate) return false;
 
-    return (
-      startDate.getFullYear() === nextYear &&
-      startDate.getMonth() === nextMonth
-    );
+    const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0);
+
+    return startDate > currentMonthEnd;
   }).length;
 
   titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
@@ -1248,8 +1247,8 @@ function renderSummary(){
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-label">נפתחים בחודש הבא</div>
-        <div class="kpi-value">${startingNextMonth}</div>
+        <div class="kpi-label">נפתחים בעתיד</div>
+        <div class="kpi-value">${startingFuture}</div>
       </div>
 
     </div>
