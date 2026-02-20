@@ -584,21 +584,38 @@ function weekOverlapsDataRange(date){
   return weekEnd >= dataRange.min && weekStart <= dataRange.max;
 }
 
+function getMinAllowedMonth(){
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return new Date(today.getFullYear(), today.getMonth()-1, 1);
+}
+
 function canGoPrev(){
-  if(mode === 'summary') return summaryMonth.selectedIndex > 0;
+  if(mode === 'summary'){
+    if(summaryMonth.selectedIndex <= 0) return false;
+
+    const prevOption = summaryMonth.options[summaryMonth.selectedIndex-1].value;
+    const [y,m] = prevOption.split('-').map(Number);
+    const prevDate = new Date(y,m,1);
+
+    return prevDate >= getMinAllowedMonth();
+  }
   if(!dataRange) return false;
 
   if(mode === 'month'){
     const temp = new Date(currentDate);
     temp.setMonth(temp.getMonth()-1);
-    return temp.getFullYear() > dataRange.min.getFullYear() ||
-      (temp.getFullYear() === dataRange.min.getFullYear() && temp.getMonth() >= dataRange.min.getMonth());
+
+    return temp >= getMinAllowedMonth();
   }
 
   if(mode === 'week'){
     const temp = new Date(currentDate);
     temp.setDate(temp.getDate()-7);
-    return weekOverlapsDataRange(temp);
+
+    const minAllowed = getMinAllowedMonth();
+
+    return temp >= minAllowed;
   }
 
   return false;
@@ -1064,6 +1081,7 @@ function renderSummary(){
 
 function getUniqueInstructorMonths(){
   const monthsMap = new Map();
+  const minAllowed = getMinAllowedMonth();
   rawData.forEach(r=>{
     r.Dates.forEach(d=>{
       if(!d) return;
@@ -1081,8 +1099,12 @@ function getUniqueInstructorMonths(){
       (a[1].year - b[1].year) ||
       (a[1].month - b[1].month)
     )
-    .map(([value,{year,month}])=>({
-      value,
+    .map(([,obj])=>obj)
+    .filter(obj =>
+      new Date(obj.year,obj.month,1) >= minAllowed
+    )
+    .map(({year,month})=>({
+      value:`${year}-${String(month+1).padStart(2,'0')}`,
       label:new Date(year,month,1)
         .toLocaleDateString('he-IL',{month:'long',year:'numeric'})
     }));
@@ -1407,15 +1429,7 @@ document.getElementById('prev').onclick = ()=>{
     const temp = new Date(currentDate);
     temp.setDate(temp.getDate()-7);
 
-    const weekStart = new Date(temp);
-    weekStart.setDate(temp.getDate() - temp.getDay());
-    weekStart.setHours(0,0,0,0);
-
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    weekEnd.setHours(0,0,0,0);
-
-    if(dataRange && weekEnd >= dataRange.min && weekStart <= dataRange.max){
+    if(temp >= getMinAllowedMonth()){
       currentDate = temp;
     }
   }
@@ -1423,11 +1437,8 @@ document.getElementById('prev').onclick = ()=>{
     const temp = new Date(currentDate);
     temp.setMonth(temp.getMonth()-1);
 
-    if(dataRange){
-      const minMonth = new Date(dataRange.min.getFullYear(), dataRange.min.getMonth(), 1);
-      if(temp >= minMonth){
-        currentDate = temp;
-      }
+    if(temp >= getMinAllowedMonth()){
+      currentDate = temp;
     }
   }
 
