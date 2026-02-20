@@ -189,6 +189,13 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   margin-bottom:14px;
   box-shadow:0 4px 10px rgba(0,0,0,0.05);
   transition:0.2s;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.course-card span{
+  line-height:1.7;
 }
 
 .course-card:hover{
@@ -1628,7 +1635,6 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
         <div style="
           font-weight:800;
           font-size:16px;
-          margin-bottom:10px;
           padding:8px 12px;
           border-radius:10px;
           background:${getEmployeeColor(name)};
@@ -1636,12 +1642,12 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
           ${r.Program || '—'}
         </div>
 
-        <div style="margin-bottom:8px;">
+        <div>
           <span style="font-weight:700;color:#0f172a;">בית ספר:</span> ${r.School || '—'}<br>
           <span style="font-weight:700;color:#0f172a;">רשות:</span> ${r.Authority || '—'}
         </div>
 
-        <div style="margin-bottom:10px;">
+        <div>
           <span style="font-weight:700;color:#0f172a;">
             תאריכי פעילות
           </span>
