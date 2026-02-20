@@ -1192,13 +1192,22 @@ function renderSummary(){
     return false;
   }).length;
 
-  // עתידיים מהחודש הבא והלאה
-  const totalFutureCourses = courses.filter(r => {
-    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
-      return false;
+  // עתידיים לפי MonthStart (1-12) מול החודש הנוכחי
+  const currentMonthForFuture = new Date().getMonth() + 1;
+  let totalFutureCourses = 0;
 
-    const startDate = getCourseStartDate(r);
-    if(!startDate) return false;
+  courses.forEach(r => {
+    const monthStartDate = getCourseStartDate(r);
+    const monthStart = monthStartDate ? monthStartDate.getMonth() + 1 : NaN;
+    const type = String(r.EventType || '').trim().toUpperCase();
+
+    if(
+      type === 'COURSE' &&
+      monthStart > currentMonthForFuture
+    ){
+      totalFutureCourses++;
+    }
+  });
 
     return startDate.getMonth() > currentMonth;
   }).length;
