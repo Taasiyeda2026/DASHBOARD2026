@@ -249,8 +249,8 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 /* טיפול בטקסט ארוך בתוך התיבות בסיכום */
 .summary-col .event {
   width: 100%;
-  white-space: normal;
-  word-wrap: break-word;
+  white-space: normal;      /* מאפשר לטקסט לרדת שורה */
+  word-wrap: break-word;    /* שובר מילים ארוכות אם צריך */
   height: auto;
   min-height: unset;
   padding: 10px;
@@ -386,6 +386,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 /* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
+  /* הקטנת ריווח כללי במובייל */
   header{
     padding: 10px 12px !important;
   }
@@ -398,8 +399,10 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     padding: 10px !important;
   }
 
+  /* גריד עמודה אחת */
   .grid{grid-template-columns:1fr !important; gap:10px !important; padding:6px;}
 
+  /* ביטול גובה אחיד של ימים במובייל */
   .grid{
     grid-auto-rows: auto !important;
   }
@@ -410,6 +413,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     padding: 10px !important;
   }
 
+  /* סיכום - התאמה למסך קטן */
   .summary-split{
     grid-template-columns:1fr;
     justify-items:center;
@@ -426,6 +430,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     padding: 0 !important;
   }
 
+  /* פילטרים - עמודה אנכית במובייל */
   .controls {
     flex-direction: column;
     align-items: stretch;
@@ -435,7 +440,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   .controls select,
   .controls button {
     width: 100%;
-    height: 40px;
+    height: 40px;           /* גודל נגיש למגע */
     font-size: 14px;
   }
 
@@ -445,16 +450,19 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     padding:0 12px;
   }
 
+  /* ניווט - שתי שורות מסודרות */
   .nav {
     flex-direction: column !important;
     gap: 8px !important;
   }
 
+  /* הסתרת כפתורי חודש ושבוע במובייל */
   #btnMonth,
   #btnWeek{
     display: none !important;
   }
 
+  /* מרכוז שורת מצבי תצוגה */
   .nav-modes {
     width: 100%;
     display: flex !important;
@@ -464,6 +472,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     margin-bottom: 8px !important;
   }
 
+  /* התאמת גודל כפתורי סיכום ומדריכים */
   #btnSummary,
   #btnInstructors{
     flex: 0 1 auto !important;
@@ -484,6 +493,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     font-size: 14px;
   }
 
+  /* שורת ניווט (חיצים + כותרת) - שורה שנייה, מלא רוחב */
   .nav-arrows {
     width: 100%;
     justify-content: center;
@@ -504,6 +514,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     flex: 1 1 auto;
   }
 
+  /* כרטיסי ימים */
   .day {
     min-height: auto !important;
     padding: 10px !important;
@@ -512,12 +523,14 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     display: none !important;
   }
 
+  /* אירועים - גודל נגיש למגע */
   .event {
     font-size: 14px !important;
     padding: 10px !important;
     min-height: 52px !important;
   }
 
+  /* פאנל צד - מסך מלא במובייל */
   .side {
     width: 100% !important;
     max-width: 100% !important;
@@ -546,6 +559,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
     font-size: 34px !important;
   }
 
+  /* כותרת */
   .header-inner {
     padding: 10px;
     gap: 8px;
@@ -630,7 +644,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-
+// ... כאן כל פונקציות ה-JS שלך ...
 const view=document.getElementById('view');
 const titleEl=document.getElementById('title');
 const filtersEl=document.getElementById('filters');
@@ -977,6 +991,7 @@ function renderWeek(){
   view.appendChild(grid);
 }
 
+
 function renderMobileMonth(){
 
   const y = currentDate.getFullYear();
@@ -1064,7 +1079,7 @@ function buildDay(date,data){
   if(sameDay(date, new Date())){
     cell.classList.add('today');
   }
-
+  
   const dailyPool = [];
   data.forEach(r => r.Dates.forEach((dd, i) => {
     if(sameDay(dd, date)) dailyPool.push({ ...r, meetingIdx: i + 1 });
@@ -1089,7 +1104,7 @@ function buildDay(date,data){
   sortedGroups.forEach(g => {
     const evDiv = document.createElement('div');
     const first = g.items[0];
-
+    
     if(g.type === 'holiday') {
       evDiv.className = 'event'; evDiv.style.background = '#fee2e2';
       evDiv.innerHTML = `<strong>חג</strong> <div>${first.Program}</div>`;
@@ -1097,11 +1112,11 @@ function buildDay(date,data){
       const hasEmp = !!(first.Employee && first.Employee.trim());
       evDiv.className = 'event' + (!hasEmp ? ' missing' : '');
       evDiv.style.background = getEmployeeColor(first.Employee);
-
+      
       const count = g.items.length > 1 ? `<span class="badge-count">x${g.items.length}</span>` : '';
       const hourStr = first.StartTime ? `<div class="event-hour">${first.StartTime}</div>` : '';
       const empName = hasEmp ? `<strong>${first.Employee}</strong>` : `<strong style="color:var(--danger)">חסר מדריך</strong>`;
-
+      
       evDiv.innerHTML = `${count}${hourStr}${empName}<div>${first.Program}</div>`;
       evDiv.onclick = (e) => { e.stopPropagation(); openSideGrouped(g.items); };
     }
@@ -1117,12 +1132,12 @@ function openSideGrouped(items) {
     <div class='subtitle'>מנהל: ${first.Manager || '—'}</div>
     <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
   `;
-
+  
   items.forEach(item => {
     const end = endDate(item);
     const timeRange = (item.StartTime || item.EndTime) ? `${item.StartTime} – ${item.EndTime}` : '—';
     const empDisplay = (item.Employee && item.Employee.trim()) ? item.Employee : `<span style="color:var(--danger); font-weight:bold;">חסר מדריך</span>`;
-
+    
     sideContent.innerHTML += `
       <div class="group-item">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -1170,55 +1185,51 @@ function renderSummary(){
 
   const currentMonthStart = new Date(currentYear, currentMonth, 1);
 
-  // כל הקורסים
+  let nextMonth = currentMonth + 1;
+  let nextYear = currentYear;
+
+  if(nextMonth > 11){
+    nextMonth = 0;
+    nextYear++;
+  }
+
   const courses = rawData.filter(isCourse);
 
-  // פעילים בחודש הנבחר
+  const totalCourses = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    if(!r.End) return true;
+
+    const endDate = parseDate(r.End);
+    if(!endDate) return true;
+
+    return endDate >= currentMonthStart;
+  }).length;
+
   const activeThisMonth = rawData.filter(r => {
     if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
       return false;
 
-    for(let i=0;i<16;i++){
-      const d = r.Dates[i];
-      if(
-        d &&
-        d.getFullYear() === currentYear &&
-        d.getMonth() === currentMonth
-      ){
-        return true;
-      }
-    }
-
-    return false;
+    return r.Dates.some(d =>
+      d &&
+      d.getFullYear() === currentYear &&
+      d.getMonth() === currentMonth
+    );
   }).length;
 
-  // עתידיים לפי MonthStart (1-12) מול החודש הנוכחי
-  const currentMonthForFuture = new Date().getMonth() + 1;
-  let totalFutureCourses = 0;
+  const startingNextMonth = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
 
-  courses.forEach(r => {
-    const monthStartDate = getCourseStartDate(r);
-    const monthStart = monthStartDate ? monthStartDate.getMonth() + 1 : NaN;
-    const type = String(r.EventType || '').trim().toUpperCase();
+    const startDate = getCourseStartDate(r);
+    if(!startDate) return false;
 
-    if(
-      type === 'COURSE' &&
-      monthStart > currentMonthForFuture
-    ){
-      totalFutureCourses++;
-    }
-  });
-
-    return startDate.getMonth() > currentMonth;
+    return (
+      startDate.getFullYear() === nextYear &&
+      startDate.getMonth() === nextMonth
+    );
   }).length;
-
-  const totalEndedCourses = courses.filter(r => {
-    const end = endDate(r);
-    if(!end) return false;
-    return end.getMonth() === currentMonth;
-  }).length;
-
-  const totalCourses = activeThisMonth + totalFutureCourses;
 
   titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
@@ -1237,13 +1248,8 @@ function renderSummary(){
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-label">קורסים עתידיים</div>
-        <div class="kpi-value">${totalFutureCourses}</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-label">קורסים שהסתיימו</div>
-        <div class="kpi-value">${totalEndedCourses}</div>
+        <div class="kpi-label">נפתחים בחודש הבא</div>
+        <div class="kpi-value">${startingNextMonth}</div>
       </div>
 
     </div>
@@ -1257,10 +1263,9 @@ function renderSummary(){
     const mgrActive = mgrCourses.filter(r =>
       isCourseActiveInMonth(r, currentYear, currentMonth)
     ).length;
-    const mgrEndedThisMonth = mgrCourses.filter(r => {
-      const end = endDate(r);
-      return end && end.getMonth() === currentMonth;
-    }).sort((a,b)=>endDate(a)-endDate(b));
+    const mgrEndedThisMonth = mgrCourses.filter(r =>
+      isCourseEndingInMonth(r, currentYear, currentMonth)
+    ).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
 
     const col = document.createElement('div'); col.className = 'summary-col';
     col.innerHTML = `
@@ -1300,7 +1305,7 @@ function renderSummary(){
                       👤 מדריך: ${empName}<br>
                       🏫 בית ספר: ${r.School || '—'}<br>
                       🌍 רשות: ${r.Authority || '—'}<br>
-                      📅 תאריך סיום: ${endDate(r) ? endDate(r).toLocaleDateString('he-IL') : '—'}
+                      📅 תאריך סיום: ${parseDate(r.End).toLocaleDateString('he-IL')}
                     </div>
                   </div>
                 `;
@@ -1383,6 +1388,7 @@ function renderInstructors(){
   const todayValue =
     `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
 
+  // קבע חודש רק אם עדיין לא נבחר חודש
   if(!renderInstructors.selectedMonthValue){
 
     if(monthOptions.some(opt=>opt.value === todayValue)){
@@ -1548,6 +1554,8 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
   const month = selectedMonth ?? currentDate.getMonth();
   const year  = selectedYear ?? currentDate.getFullYear();
 
+  let totalWorkDays = 0;
+
   function normalize(d){
     const n = new Date(d);
     n.setHours(0,0,0,0);
@@ -1596,7 +1604,7 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
     }
   });
 
-  const totalWorkDays = maxDays;
+  totalWorkDays = maxDays;
   const employmentType = courses[0]?.EmploymentType || '—';
 
   sideContent.innerHTML = `
@@ -1683,7 +1691,6 @@ document.getElementById('prev').onclick = ()=>{
 
   render();
 };
-
 document.getElementById('next').onclick = ()=>{
   if(!canGoNext()) return;
 
@@ -1720,7 +1727,6 @@ document.getElementById('next').onclick = ()=>{
 
   render();
 };
-
 btnMonth.onclick = ()=>{
   mode='month';
   currentDate = clampDateToDataRange(new Date());
@@ -1766,8 +1772,7 @@ document.getElementById('goToday').onclick = ()=>{
 
   render();
 };
-
-managerFilter.onchange=render;
+managerFilter.onchange=render; 
 employeeFilter.onchange=render;
 document.getElementById('clearFilters').onclick=()=>{managerFilter.value='';employeeFilter.value='';render();};
 summaryMonth.onchange=render;
