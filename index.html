@@ -836,11 +836,20 @@ function getCourseStartDate(r){
 }
 
 function renderSummary(){
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  const selectedValue = summaryMonth.value;
 
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
+  let currentYear;
+  let currentMonth;
+
+  if(selectedValue){
+    const [y,m] = selectedValue.split('-').map(Number);
+    currentYear = y;
+    currentMonth = m;
+  } else {
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth();
+  }
 
   const currentMonthStart = new Date(currentYear, currentMonth, 1);
 
