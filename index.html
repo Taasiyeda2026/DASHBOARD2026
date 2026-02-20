@@ -1195,18 +1195,6 @@ function renderSummary(){
 
   const courses = rawData.filter(isCourse);
 
-  const totalCourses = rawData.filter(r => {
-    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
-      return false;
-
-    if(!r.End) return true;
-
-    const endDate = parseDate(r.End);
-    if(!endDate) return true;
-
-    return endDate >= currentMonthStart;
-  }).length;
-
   const activeThisMonth = rawData.filter(r => {
     if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
       return false;
@@ -1232,6 +1220,8 @@ function renderSummary(){
 
     return startDate >= nextMonthStart;
   }).length;
+
+  const totalCourses = activeThisMonth + startingFuture;
 
   titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
 
