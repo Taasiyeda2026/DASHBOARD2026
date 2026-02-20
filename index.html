@@ -70,6 +70,17 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 #btnMonth.active{background:#e0f2fe;border-color:#7dd3fc}
 #btnWeek.active{background:#ecfeff;border-color:#67e8f9}
 #btnSummary.active{background:#f0fdf4;border-color:#86efac}
+#btnInstructors.active{background:#fef3c7;border-color:#fcd34d}
+
+#btnCalendar{
+  display:none;
+  font-size:18px;
+  height:38px;
+  width:42px;
+  border-radius:12px;
+  align-items:center;
+  justify-content:center;
+}
 
 .nav{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin:0;padding:10px}
 .nav-modes{display:flex;gap:8px;align-items:center}
@@ -217,8 +228,68 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   margin-top: 8px;
 }
 
+/* ===== SUMMARY KPI ===== */
+
+.summary-wrap{
+  max-width:1200px;
+  margin:auto;
+  padding:30px 20px;
+  display:grid;
+  gap:30px;
+}
+
+.summary-top{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:20px;
+}
+
+.kpi-card{
+  background:#ffffff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:26px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.06);
+  text-align:center;
+}
+
+.kpi-label{
+  font-size:13px;
+  color:#64748b;
+  margin-bottom:8px;
+  font-weight:600;
+}
+
+.kpi-value{
+  font-size:40px;
+  font-weight:800;
+  color:#0f172a;
+}
+
+/* ===== MANAGER CARDS ===== */
+
+.summary-col{
+  background:#ffffff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:22px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.05);
+}
+
+.summary-col h3{
+  margin:0 0 12px 0;
+  font-size:16px;
+  font-weight:700;
+  border-bottom:2px solid #f59e0b;
+  padding-bottom:6px;
+}
+
 /* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
+  #btnCalendar{
+    display:flex;
+  }
+
   /* הקטנת ריווח כללי במובייל */
   header{
     padding: 10px 12px !important;
@@ -454,6 +525,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 <div class="nav">
   <div class="nav-modes">
     <select id="summaryMonth" style="display:none"></select>
+    <button id="btnCalendar" aria-label="לוח שנה" title="לוח שנה">📅</button>
     <button id="btnMonth" class="active">חודש</button>
     <button id="btnWeek">שבוע</button>
     <button id="btnSummary">סיכום</button>
@@ -486,6 +558,7 @@ const btnMonth=document.getElementById('btnMonth');
 const btnWeek=document.getElementById('btnWeek');
 const btnSummary=document.getElementById('btnSummary');
 const btnInstructors=document.getElementById('btnInstructors');
+const btnCalendar = document.getElementById('btnCalendar');
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
 const summaryMonth=document.getElementById('summaryMonth');
@@ -677,6 +750,18 @@ function updateNavButtons(){
   nextBtn.disabled = !canGoNext();
 }
 
+function updateModeButtons(){
+  btnMonth.classList.remove('active');
+  btnWeek.classList.remove('active');
+  btnSummary.classList.remove('active');
+  btnInstructors.classList.remove('active');
+
+  if(mode === 'month') btnMonth.classList.add('active');
+  if(mode === 'week') btnWeek.classList.add('active');
+  if(mode === 'summary') btnSummary.classList.add('active');
+  if(mode === 'instructors') btnInstructors.classList.add('active');
+}
+
 function endDate(r){
   const d=r.Dates.filter(Boolean);
   return d.length?new Date(Math.max(...d.map(x=>x.getTime()))):null;
@@ -771,6 +856,11 @@ function render(){
   }
 
   updateNavButtons();
+  updateModeButtons();
+
+  if(window.innerWidth < 800){
+    btnCalendar.style.display = (mode === 'month') ? 'none' : 'flex';
+  }
 }
 
 function renderMonth(){
@@ -1048,21 +1138,21 @@ function renderSummary(){
 
   const wrap = document.createElement('div'); wrap.className = 'summary-wrap';
   wrap.innerHTML = `
-    <div class='summary-top'>
+    <div class="summary-top">
 
-      <div style='font-size:14px;color:#64748b'>סה"כ קורסים</div>
-      <div style='font-size:40px;font-weight:800;margin-bottom:18px'>
-        ${totalCourses}
+      <div class="kpi-card">
+        <div class="kpi-label">סה"כ קורסים פעילים</div>
+        <div class="kpi-value">${totalCourses}</div>
       </div>
 
-      <div style='font-size:14px;color:#64748b'>כמות פעילים (החודש)</div>
-      <div style='font-size:28px;font-weight:800;margin-bottom:18px'>
-        ${activeThisMonth}
+      <div class="kpi-card">
+        <div class="kpi-label">פעילים החודש</div>
+        <div class="kpi-value">${activeThisMonth}</div>
       </div>
 
-      <div style='font-size:14px;color:#64748b'>מתחילים בחודש הבא</div>
-      <div style='font-size:28px;font-weight:800'>
-        ${startingNextMonth}
+      <div class="kpi-card">
+        <div class="kpi-label">נפתחים בחודש הבא</div>
+        <div class="kpi-value">${startingNextMonth}</div>
       </div>
 
     </div>
@@ -1525,6 +1615,11 @@ btnSummary.onclick = ()=>{
 };
 btnInstructors.onclick = ()=>{
   mode='instructors';
+  render();
+};
+btnCalendar.onclick = ()=>{
+  mode = 'month';
+  currentDate = clampDateToDataRange(new Date());
   render();
 };
 document.getElementById('goToday').onclick = ()=>{
