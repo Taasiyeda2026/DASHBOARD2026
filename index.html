@@ -219,8 +219,17 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
 /* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
+  /* הקטנת ריווח כללי במובייל */
+  header{
+    padding: 10px 12px !important;
+  }
+
+  .nav{
+    padding: 8px 10px !important;
+  }
+
   #view{
-    padding: 16px 12px 120px 12px;
+    padding: 10px !important;
   }
 
   /* גריד עמודה אחת */
@@ -278,14 +287,34 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   .nav {
     flex-direction: column !important;
     gap: 8px !important;
-    padding: 8px 10px;
   }
 
-  /* כפתורי מצב - שורה ראשונה, מתפרשים על כל הרוחב */
+  /* הסתרת כפתורי חודש ושבוע במובייל */
+  #btnMonth,
+  #btnWeek{
+    display: none !important;
+  }
+
+  /* מרכוז שורת מצבי תצוגה */
   .nav-modes {
     width: 100%;
-    justify-content: center;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 8px !important;
   }
+
+  /* התאמת גודל כפתורי סיכום ומדריכים */
+  #btnSummary,
+  #btnInstructors{
+    flex: 0 1 auto !important;
+    min-width: 120px;
+    height: 38px;
+    font-size: 14px;
+    border-radius: 14px;
+  }
+
   .nav-modes button {
     flex: 1 1 0;
     font-size: 12.5px;
