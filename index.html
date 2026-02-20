@@ -1218,6 +1218,9 @@ function renderSummary(){
     );
   }).length;
 
+  const nextMonthStart = new Date(currentYear, currentMonth + 1, 1);
+  nextMonthStart.setHours(0,0,0,0);
+
   const startingFuture = rawData.filter(r => {
     if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
       return false;
@@ -1225,9 +1228,9 @@ function renderSummary(){
     const startDate = getCourseStartDate(r);
     if(!startDate) return false;
 
-    const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0);
+    startDate.setHours(0,0,0,0);
 
-    return startDate > currentMonthEnd;
+    return startDate >= nextMonthStart;
   }).length;
 
   titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
