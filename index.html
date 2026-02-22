@@ -1778,6 +1778,7 @@ window.addEventListener('popstate', (e)=>{
   const isMobile = window.innerWidth < 800;
   if(isMobile && (mode === 'month' || mode === 'week')){
     side.classList.remove('open');
+    view.innerHTML = '';
     renderMobileMonth();
   }
 });
