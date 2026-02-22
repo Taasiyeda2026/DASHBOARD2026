@@ -1600,6 +1600,7 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
 
   totalWorkDays = maxDays;
   const employmentType = courses[0]?.EmploymentType || '—';
+  const managerName = courses[0]?.Manager || '—';
 
   sideContent.innerHTML = `
     <div class="instructor-header">
@@ -1608,6 +1609,7 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
         <span class="badge type">${employmentType}</span>
         <span class="badge days">${totalWorkDays} ימי עבודה בשבוע</span>
         <span class="badge courses">${courses.length} קורסים</span>
+        <span class="badge">מנהל: ${managerName}</span>
       </div>
     </div>
   `;
@@ -1648,11 +1650,6 @@ function openInstructorModal(name, courses, selectedMonth, selectedYear){
           </span>
           (${startDate}) - (${endDateFormatted})
         </div>
-
-        <div style="color:#475569; font-weight:600;">
-          מנהל: ${r.Manager || '—'}
-        </div>
-
       </div>
     `;
   });
