@@ -1037,6 +1037,7 @@ function renderMobileMonth(){
     `;
 
     box.onclick = ()=>{
+      history.pushState({mobileWeekDetail: true}, '');
       renderMobileWeekDetail(weekStart, data);
     };
 
@@ -1771,6 +1772,14 @@ summaryMonth.onchange=render;
 document.getElementById('closeSide').onclick=()=>side.classList.remove('open');
 
 window.addEventListener('load', load);
+
+window.addEventListener('popstate', (e)=>{
+  const isMobile = window.innerWidth < 800;
+  if(isMobile && (mode === 'month' || mode === 'week')){
+    side.classList.remove('open');
+    renderMobileMonth();
+  }
+});
 </script>
 </body>
 </html>
