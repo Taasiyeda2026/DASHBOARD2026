@@ -663,6 +663,8 @@ const summaryMonth=document.getElementById('summaryMonth');
 let rawData=[];
 let dataRange=null;
 let mode='month';
+let mobileWeekOpen = false;
+let mobileWeekStart = null;
 let currentDate=new Date(); currentDate.setHours(0,0,0,0);
 const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
@@ -933,6 +935,8 @@ function render(){
 
   view.innerHTML='';
   side.classList.remove('open');
+  mobileWeekOpen = false;
+  mobileWeekStart = null;
 
   if(mode === 'summary' || mode === 'instructors'){
     filtersEl.style.display = 'none';
@@ -1038,7 +1042,23 @@ function renderMobileMonth(){
     `;
 
     box.onclick = ()=>{
-      history.pushState({mobileWeekDetail: true}, '');
+
+      // אם כבר פתוח אותו שבוע → סגור
+      if(
+        mobileWeekOpen &&
+        mobileWeekStart &&
+        mobileWeekStart.getTime() === weekStart.getTime()
+      ){
+        mobileWeekOpen = false;
+        mobileWeekStart = null;
+        renderMobileMonth();
+        return;
+      }
+
+      // אחרת → פתח
+      mobileWeekOpen = true;
+      mobileWeekStart = weekStart;
+
       renderMobileWeekDetail(weekStart, data);
     };
 
@@ -1051,6 +1071,9 @@ function renderMobileMonth(){
 }
 
 function renderMobileWeekDetail(weekStart, data){
+
+  mobileWeekOpen = true;
+  mobileWeekStart = weekStart;
 
   view.innerHTML='';
 
