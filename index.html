@@ -385,6 +385,32 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
   line-height:1.8;
 }
 
+/* --- instructors main cards sizing (home instructors view only) --- */
+#view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"]{
+  grid-template-columns:repeat(auto-fill,minmax(90px,1fr)) !important;
+  gap:8px !important;
+}
+
+#view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div{
+  min-height:70px !important;
+  padding:8px !important;
+  border-radius:12px !important;
+}
+
+#view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:first-child{
+  font-size:9px !important;
+  margin-bottom:4px !important;
+}
+
+#view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:nth-child(2){
+  font-size:16px !important;
+}
+
+#view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:nth-child(3){
+  font-size:7px !important;
+  margin-top:3px !important;
+}
+
 /* --- התאמה מלאה לנייד --- */
 @media(max-width:800px){
   /* הקטנת ריווח כללי במובייל */
@@ -539,25 +565,31 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 
   .instructors-grid,
   #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"]{
-    grid-template-columns: 1fr !important;
-    gap: 14px !important;
+    grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+    gap: 6px !important;
   }
 
   .instructors-grid > div,
   #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div{
-    min-height: 130px;
-    padding: 18px !important;
-    border-radius: 18px;
+    min-height: 68px;
+    padding: 7px !important;
+    border-radius: 12px;
   }
 
   .instructors-grid > div div:first-child,
   #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:first-child{
-    font-size: 18px !important;
+    font-size: 9px !important;
   }
 
   .instructors-grid > div div:nth-child(2),
   #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:nth-child(2){
-    font-size: 34px !important;
+    font-size: 14px !important;
+  }
+
+  .instructors-grid > div div:nth-child(3),
+  #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"] > div div:nth-child(3){
+    font-size: 7px !important;
+    margin-top: 2px !important;
   }
 
   /* כותרת */
@@ -572,6 +604,11 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 }
 
 @media(max-width:600px){
+
+  #view > div[style*="grid-template-columns: repeat(auto-fill,minmax(180px,1fr))"]{
+    grid-template-columns: repeat(4,minmax(0,1fr)) !important;
+    gap: 4px !important;
+  }
 
   body, .controls, .instructor-header, .course-card, .course-meta, .instructor-badges{
     overflow-wrap:anywhere;
