@@ -1,0 +1,44 @@
+~/workspace$ git pull origin main
+From https://github.com/Taasiyeda2026/attendance-dev
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+~/workspace$ git push origin main --force
+Enumerating objects: 51, done.
+Counting objects: 100% (45/45), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (21/21), done.
+Writing objects: 100% (21/21), 20.13 KiB | 5.03 MiB/s, done.
+Total 21 (delta 12), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (12/12), completed with 2 local objects.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: 
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote: 
+remote:     - Push cannot contain secrets
+remote: 
+remote:     
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:     
+remote:      (?) This repository does not have Secret Scanning enabled, but is eligible. Enable Secret Scanning to view and manage detected secrets.
+remote:      Visit the repository settings page, https://github.com/Taasiyeda2026/attendance-dev/settings/security_analysis
+remote:     
+remote:     
+remote:       —— Azure Function Key ————————————————————————————————
+remote:        locations:
+remote:          - commit: a72283c9b97bdcaf717eb4efd16c75d51e4e0926
+remote:            path: index.html:3523
+remote:          - commit: 52ac3d9a4009ce16c5b9c352965a6cc06671c1b6
+remote:            path: index.html:3523
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/Taasiyeda2026/attendance-dev/security/secret-scanning/unblock-secret/3ACVT2hYz5dIoGUkVRgl40pWaGQ
+remote:     
+remote: 
+remote: 
+To https://github.com/Taasiyeda2026/attendance-dev
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/Taasiyeda2026/attendance-dev'
+~/workspace$ 

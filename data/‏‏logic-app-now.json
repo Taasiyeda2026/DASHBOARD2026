@@ -1,0 +1,1955 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "10.0.0.0",
+    "triggers": {
+      "manual": {
+        "type": "Request",
+        "kind": "Http",
+        "inputs": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "employeeId": {
+                "type": "string"
+              },
+              "employeeName": {
+                "type": "string"
+              },
+              "personalCode": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              },
+              "attendanceDate": {
+                "type": "string"
+              },
+              "startTime": {
+                "type": "string"
+              },
+              "endTime": {
+                "type": "string"
+              },
+              "workHours": {
+                "type": "number"
+              },
+              "activityType": {
+                "type": "string"
+              },
+              "schoolName": {
+                "type": "string"
+              },
+              "municipality": {
+                "type": "string"
+              },
+              "programName": {
+                "type": "string"
+              },
+              "kilometers": {
+                "type": "number"
+              },
+              "sessionNumber": {
+                "type": "number"
+              },
+              "totalExpenses": {
+                "type": "number"
+              },
+              "expensesDetails": {
+                "type": "string"
+              },
+              "notes": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "team": {
+                "type": "string"
+              },
+              "employmentType": {
+                "type": "string"
+              },
+              "monthKey": {
+                "type": "string"
+              },
+              "month": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              },
+              "approvedBy": {
+                "type": "string"
+              },
+              "approvedDate": {
+                "type": "string"
+              },
+              "attachmentsNames": {
+                "type": "string"
+              },
+              "fileName": {
+                "type": "string"
+              },
+              "fileContent": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "Parse_Request_Body": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@triggerBody()",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "employeeId": {
+                "type": "string"
+              },
+              "personalCode": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              },
+              "attendanceDate": {
+                "type": "string"
+              },
+              "startTime": {
+                "type": "string"
+              },
+              "endTime": {
+                "type": "string"
+              },
+              "workHours": {
+                "type": "number"
+              },
+              "activityType": {
+                "type": "string"
+              },
+              "schoolName": {
+                "type": "string"
+              },
+              "municipality": {
+                "type": "string"
+              },
+              "programName": {
+                "type": "string"
+              },
+              "kilometers": {
+                "type": "number"
+              },
+              "sessionNumber": {
+                "type": "number"
+              },
+              "totalExpenses": {
+                "type": "number"
+              },
+              "expensesDetails": {
+                "type": "string"
+              },
+              "notes": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "team": {
+                "type": "string"
+              },
+              "employmentType": {
+                "type": "string"
+              },
+              "employeeName": {
+                "type": "string"
+              },
+              "monthKey": {
+                "type": "string"
+              },
+              "month": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string"
+              },
+              "approvedBy": {
+                "type": "string"
+              },
+              "approvedDate": {
+                "type": "string"
+              },
+              "attachmentsNames": {
+                "type": "string"
+              },
+              "fileName": {
+                "type": "string"
+              },
+              "fileContent": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Initialize_CORS_Headers": {
+        "runAfter": {
+          "Parse_Request_Body": [
+            "Succeeded"
+          ]
+        },
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "CORSHeaders",
+              "type": "object",
+              "value": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Content-Type": "application/json"
+              }
+            }
+          ]
+        }
+      },
+      "Normalize_Action": {
+        "runAfter": {
+          "Initialize_CORS_Headers": [
+            "Succeeded"
+          ]
+        },
+        "type": "Compose",
+        "inputs": "@toLower(trim(coalesce(body('Parse_Request_Body')?['action'], '')))"
+      },
+      "Switch_Action": {
+        "runAfter": {
+          "Normalize_Action": [
+            "Succeeded"
+          ]
+        },
+        "cases": {
+          "auth": {
+            "case": "auth",
+            "actions": {
+              "Auth_Get_Employee": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('697f3cf6-2ed9-49ba-8a05-605d760af517'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}'"
+                  }
+                }
+              },
+              "Auth_Check_Code": {
+                "actions": {
+                  "Auth_Response_Success": {
+                    "type": "Response",
+                    "inputs": {
+                      "statusCode": 200,
+                      "headers": "@variables('CORSHeaders')",
+                      "body": {
+                        "success": true,
+                        "employee": "@first(body('Auth_Get_Employee')?['value'])"
+                      }
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Auth_Get_Employee": [
+                    "Succeeded"
+                  ]
+                },
+                "else": {
+                  "actions": {
+                    "Auth_Response_Invalid": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 401,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "מספר עובד או קוד אישי שגויים"
+                        }
+                      }
+                    }
+                  }
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@length(body('Auth_Get_Employee')?['value'])",
+                        0
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@first(body('Auth_Get_Employee')?['value'])?['personalCode']",
+                        "@triggerBody()?['personalCode']"
+                      ]
+                    }
+                  ]
+                },
+                "type": "If"
+              },
+              "Auth_Response_Failed": {
+                "runAfter": {
+                  "Auth_Get_Employee": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה בחיפוש עובד"
+                  }
+                }
+              }
+            }
+          },
+          "submit": {
+            "case": "submit",
+            "actions": {
+              "Submit_Create_Record": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "body": {
+                    "employeeName": "@triggerBody()?['employeeName']",
+                    "employeeId": "@triggerBody()?['employeeId']",
+                    "attendanceDate": "@triggerBody()?['attendanceDate']",
+                    "startTime": "@triggerBody()?['startTime']",
+                    "endTime": "@triggerBody()?['endTime']",
+                    "activityType": "@triggerBody()?['activityType']",
+                    "schoolName": "@triggerBody()?['schoolName']",
+                    "municipality": "@triggerBody()?['municipality']",
+                    "programName": "@triggerBody()?['programName']",
+                    "sessionNumber": "@triggerBody()?['sessionNumber']",
+                    "totalExpenses": "@triggerBody()?['totalExpenses']",
+                    "workHours": "@triggerBody()?['workHours']",
+                    "kilometers": "@triggerBody()?['kilometers']",
+                    "expensesDetails": "@triggerBody()?['expensesDetails']",
+                    "notes": "@triggerBody()?['notes']",
+                    "team": "@triggerBody()?['team']",
+                    "employmentType": "@triggerBody()?['employmentType']",
+                    "status": "@coalesce(triggerBody()?['status'], 'ממתין')",
+                    "attachmentsNames": "@triggerBody()?['attachmentsNames']"
+                  },
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items"
+                },
+                "runAfter": {
+                  "Submit_Check_Authorization": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Submit_Response_Success": {
+                "runAfter": {
+                  "Submit_Create_Record": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "recordId": "@body('Submit_Create_Record')?['ID']",
+                    "message": "הרשומה נוצרה בהצלחה"
+                  }
+                }
+              },
+              "Submit_Response_Failed": {
+                "runAfter": {
+                  "Submit_Create_Record": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה ביצירת רשומה"
+                  }
+                }
+              },
+              "Submit_Check_Authorization": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "instructor"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "runAfter": {
+                  "Submit_Block_When_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "actions": {
+                  "Submit_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Submit_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה ליצירת רשומה"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "Submit_Check_Locked": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}' and monthKey eq '@{triggerBody()?['monthKey']}' and released eq true"
+                  }
+                }
+              },
+              "Submit_Block_When_Locked": {
+                "type": "If",
+                "runAfter": {
+                  "Submit_Check_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@length(body('Submit_Check_Locked')?['value'])",
+                        0
+                      ]
+                    },
+                    {
+                      "not": {
+                        "equals": [
+                          "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                          "system_admin"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "actions": {
+                  "Submit_Locked_Response_Forbidden": {
+                    "type": "Response",
+                    "inputs": {
+                      "statusCode": 403,
+                      "headers": "@variables('CORSHeaders')",
+                      "body": {
+                        "success": false,
+                        "error": "אין הרשאה ליצירת רשומה לאחר אישור חודשי"
+                      }
+                    }
+                  },
+                  "Submit_Locked_Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    },
+                    "runAfter": {
+                      "Submit_Locked_Response_Forbidden": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "getemployeerecords": {
+            "case": "getemployeerecords",
+            "actions": {
+              "Employee_Get_Records": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}'",
+                    "$top": 5000
+                  }
+                }
+              },
+              "Employee_Response": {
+                "runAfter": {
+                  "Employee_Get_Records": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "records": "@body('Employee_Get_Records')?['value']"
+                  }
+                }
+              },
+              "Employee_Response_Failed": {
+                "runAfter": {
+                  "Employee_Get_Records": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה בטעינת רשומות"
+                  }
+                }
+              }
+            }
+          },
+          "getsummary": {
+            "case": "getsummary",
+            "actions": {
+              "Summary_Get_Records": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items",
+                  "queries": {
+                    "$filter": "@{if(equals(toLower(coalesce(triggerBody()?['mode'], '')), 'manager'), concat('team eq ''', triggerBody()?['team'], ''''), 'ID gt 0')}",
+                    "$orderby": "attendanceDate desc",
+                    "$top": 5000
+                  }
+                },
+                "runAfter": {
+                  "Summary_Check_Role": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Summary_Response": {
+                "runAfter": {
+                  "Summary_Get_Records": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "records": "@body('Summary_Get_Records')?['value']"
+                  }
+                }
+              },
+              "Summary_Response_Failed": {
+                "runAfter": {
+                  "Summary_Get_Records": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה בטעינת סיכום"
+                  }
+                }
+              },
+              "Summary_Check_Role": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "manager"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "operations_controller"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "payroll_officer"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "Summary_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Summary_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לצפייה בסיכום"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "updaterecord": {
+            "case": "updaterecord",
+            "actions": {
+              "Update_Record": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "patch",
+                  "body": {
+                    "employeeName": "@triggerBody()?['employeeName']",
+                    "employeeId": "@triggerBody()?['employeeId']",
+                    "attendanceDate": "@triggerBody()?['attendanceDate']",
+                    "startTime": "@triggerBody()?['startTime']",
+                    "endTime": "@triggerBody()?['endTime']",
+                    "activityType": "@triggerBody()?['activityType']",
+                    "schoolName": "@triggerBody()?['schoolName']",
+                    "municipality": "@triggerBody()?['municipality']",
+                    "programName": "@triggerBody()?['programName']",
+                    "sessionNumber": "@triggerBody()?['sessionNumber']",
+                    "totalExpenses": "@triggerBody()?['totalExpenses']",
+                    "workHours": "@triggerBody()?['workHours']",
+                    "kilometers": "@triggerBody()?['kilometers']",
+                    "expensesDetails": "@triggerBody()?['expensesDetails']",
+                    "notes": "@triggerBody()?['notes']",
+                    "status": "@triggerBody()?['status']",
+                    "approvedBy": "@triggerBody()?['approvedBy']",
+                    "approvedDate": "@triggerBody()?['approvedDate']",
+                    "team": "@triggerBody()?['team']",
+                    "employmentType": "@triggerBody()?['employmentType']",
+                    "attachmentsNames": "@triggerBody()?['attachmentsNames']"
+                  },
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items/@{encodeURIComponent(triggerBody()?['recordId'])}"
+                },
+                "runAfter": {
+                  "Update_Check_Authorization": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Update_Response": {
+                "runAfter": {
+                  "Update_Record": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "message": "הרשומה עודכנה בהצלחה"
+                  }
+                }
+              },
+              "Update_Response_Failed": {
+                "runAfter": {
+                  "Update_Record": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה בעדכון רשומה"
+                  }
+                }
+              },
+              "Update_Check_Locked": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}' and monthKey eq '@{triggerBody()?['monthKey']}' and released eq true"
+                  }
+                }
+              },
+              "Update_Block_When_Locked": {
+                "type": "If",
+                "runAfter": {
+                  "Update_Check_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@length(body('Update_Check_Locked')?['value'])",
+                        0
+                      ]
+                    },
+                    {
+                      "not": {
+                        "equals": [
+                          "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                          "system_admin"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "actions": {
+                  "Update_Locked_Response_Forbidden": {
+                    "type": "Response",
+                    "inputs": {
+                      "statusCode": 403,
+                      "headers": "@variables('CORSHeaders')",
+                      "body": {
+                        "success": false,
+                        "error": "אין הרשאה לעדכון רשומה לאחר אישור חודשי"
+                      }
+                    }
+                  },
+                  "Update_Locked_Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    },
+                    "runAfter": {
+                      "Update_Locked_Response_Forbidden": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                }
+              },
+              "Update_Check_Authorization": {
+                "type": "If",
+                "runAfter": {
+                  "Update_Block_When_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "instructor"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "manager"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "operations_controller"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "Update_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Update_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לעדכון רשומה"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "deleterecord": {
+            "case": "deleterecord",
+            "actions": {
+              "Get_Attendance_Record": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items/@{encodeURIComponent(triggerBody()?['recordId'])}"
+                }
+              },
+              "Delete_Check_Locked": {
+                "type": "ApiConnection",
+                "runAfter": {
+                  "Get_Attendance_Record": [
+                    "Succeeded"
+                  ]
+                },
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{body('Get_Attendance_Record')?['employeeId']}' and monthKey eq '@{body('Get_Attendance_Record')?['monthKey']}' and released eq true"
+                  }
+                }
+              },
+              "Delete_Block_When_Locked": {
+                "type": "If",
+                "runAfter": {
+                  "Delete_Check_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@length(body('Delete_Check_Locked')?['value'])",
+                        0
+                      ]
+                    },
+                    {
+                      "not": {
+                        "equals": [
+                          "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                          "system_admin"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "actions": {
+                  "Delete_Locked_Response_Forbidden": {
+                    "type": "Response",
+                    "inputs": {
+                      "statusCode": 403,
+                      "headers": "@variables('CORSHeaders')",
+                      "body": {
+                        "success": false,
+                        "error": "אין הרשאה למחיקת רשומה לאחר אישור חודשי"
+                      }
+                    }
+                  },
+                  "Delete_Locked_Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    },
+                    "runAfter": {
+                      "Delete_Locked_Response_Forbidden": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                }
+              },
+              "Delete_Check_Authorization": {
+                "type": "If",
+                "runAfter": {
+                  "Delete_Block_When_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "instructor"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "manager"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "operations_controller"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "Delete_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Delete_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה למחיקת רשומה"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "Delete_Record": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "delete",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items/@{encodeURIComponent(triggerBody()?['recordId'])}"
+                },
+                "runAfter": {
+                  "Delete_Check_Authorization": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Delete_Response": {
+                "runAfter": {
+                  "Delete_Record": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "message": "הרשומה נמחקה בהצלחה"
+                  }
+                }
+              },
+              "Delete_Response_Failed": {
+                "runAfter": {
+                  "Delete_Record": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה במחיקת רשומה"
+                  }
+                }
+              }
+            }
+          },
+          "exportdata": {
+            "case": "exportdata",
+            "actions": {
+              "Export_Get_All": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('Attendance'))}/items",
+                  "queries": {
+                    "$top": 5000
+                  }
+                },
+                "runAfter": {
+                  "Export_Check_Role": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Export_Response": {
+                "runAfter": {
+                  "Export_Get_All": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "data": "@body('Export_Get_All')?['value']"
+                  }
+                }
+              },
+              "Export_Response_Failed": {
+                "runAfter": {
+                  "Export_Get_All": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה בייצוא נתונים"
+                  }
+                }
+              },
+              "Export_Check_Role": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "payroll_officer"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "Export_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Export_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לייצוא נתונים"
+                        }
+                      }
+                    },
+                    "Export_Terminate_Forbidden": {
+                      "type": "Terminate",
+                      "inputs": {
+                        "runStatus": "Cancelled"
+                      },
+                      "runAfter": {
+                        "Export_Response_Forbidden": [
+                          "Succeeded"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "resetteammonth": {
+            "case": "resetteammonth",
+            "actions": {
+              "ResetMonth_Response": {
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "message": "החודש שוחרר בהצלחה",
+                    "team": "@{triggerBody()?['team']}",
+                    "month": "@{triggerBody()?['month']}",
+                    "mode": "@{triggerBody()?['mode']}"
+                  }
+                },
+                "runAfter": {
+                  "ResetMonth_ForEach": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "ResetMonth_Check_Role": {
+                "type": "If",
+                "expression": {
+                  "equals": [
+                    "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                    "system_admin"
+                  ]
+                },
+                "actions": {
+                  "ResetMonth_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "ResetMonth_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לאיפוס חודש"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "ResetMonth_Query": {
+                "type": "ApiConnection",
+                "runAfter": {
+                  "ResetMonth_Check_Role": [
+                    "Succeeded"
+                  ]
+                },
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "team eq '@{triggerBody()?['team']}' and monthKey eq '@{triggerBody()?['monthKey']}'"
+                  }
+                }
+              },
+              "ResetMonth_ForEach": {
+                "type": "Foreach",
+                "runAfter": {
+                  "ResetMonth_Query": [
+                    "Succeeded"
+                  ]
+                },
+                "foreach": "@body('ResetMonth_Query')?['value']",
+                "actions": {
+                  "ResetMonth_Update": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                      },
+                      "method": "patch",
+                      "body": {
+                        "managerApprovalDate": null,
+                        "released": false
+                      },
+                      "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items/@{encodeURIComponent(items('ResetMonth_ForEach')?['ID'])}"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "getmonthlyapproval": {
+            "case": "getmonthlyapproval",
+            "actions": {
+              "GetApproval_Query": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}' and monthKey eq '@{triggerBody()?['monthKey']}'"
+                  }
+                }
+              },
+              "GetApproval_Response": {
+                "runAfter": {
+                  "GetApproval_Query": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "approval": "@first(body('GetApproval_Query')?['value'])"
+                  }
+                }
+              }
+            }
+          },
+          "setinstructorapproval": {
+            "case": "setinstructorapproval",
+            "actions": {
+              "SetInstructor_Response": {
+                "runAfter": {
+                  "InstructorApproval_Condition": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "message": "הדיווח החודשי נשלח בהצלחה",
+                    "employeeId": "@{triggerBody()?['employeeId']}",
+                    "monthKey": "@{triggerBody()?['monthKey']}"
+                  }
+                }
+              },
+              "InstructorApproval_Check_Role": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "instructor"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "InstructorApproval_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "InstructorApproval_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לשליחת אישור חודשי"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "CheckExisting_Instructor": {
+                "type": "ApiConnection",
+                "runAfter": {
+                  "InstructorApproval_Check_Role": [
+                    "Succeeded"
+                  ]
+                },
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}' and monthKey eq '@{triggerBody()?['monthKey']}'"
+                  }
+                }
+              },
+              "InstructorApproval_Condition": {
+                "type": "If",
+                "runAfter": {
+                  "CheckExisting_Instructor": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "greater": [
+                    "@length(body('CheckExisting_Instructor')?['value'])",
+                    0
+                  ]
+                },
+                "actions": {
+                  "Update_InstructorApproval": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                      },
+                      "method": "patch",
+                      "body": {
+                        "employeeId": "@triggerBody()?['employeeId']",
+                        "employeeName": "@triggerBody()?['employeeName']",
+                        "instructorApprovalDate": "@{utcNow()}",
+                        "released": false,
+                        "monthKey": "@triggerBody()?['monthKey']",
+                        "team": "@triggerBody()?['team']"
+                      },
+                      "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items/@{encodeURIComponent(first(body('CheckExisting_Instructor')?['value'])?['ID'])}"
+                    }
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Create_InstructorApproval": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "Title": "@{triggerBody()?['employeeId']}-@{triggerBody()?['monthKey']}",
+                          "employeeId": "@triggerBody()?['employeeId']",
+                          "employeeName": "@triggerBody()?['employeeName']",
+                          "instructorApprovalDate": "@{utcNow()}",
+                          "released": false,
+                          "monthKey": "@triggerBody()?['monthKey']",
+                          "team": "@triggerBody()?['team']"
+                        },
+                        "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "setmanagerapproval": {
+            "case": "setmanagerapproval",
+            "actions": {
+              "CheckExisting_Manager": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "monthKey eq '@{triggerBody()?['monthKey']}'@{if(equals(toLower(coalesce(triggerBody()?['mode'], '')), 'manager'), concat(' and team eq ''', triggerBody()?['team'], ''''), '')}"
+                  }
+                },
+                "runAfter": {
+                  "ManagerApproval_Instructor_Check": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "ManagerApproval_Instructor_Query": {
+                "type": "ApiConnection",
+                "runAfter": {
+                  "ManagerApproval_Check_Role": [
+                    "Succeeded"
+                  ]
+                },
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "monthKey eq '@{triggerBody()?['monthKey']}'@{if(equals(toLower(coalesce(triggerBody()?['mode'], '')), 'manager'), concat(' and team eq ''', triggerBody()?['team'], ''''), '')} and instructorApprovalDate eq null"
+                  }
+                }
+              },
+              "ManagerApproval_Instructor_Check": {
+                "type": "If",
+                "runAfter": {
+                  "ManagerApproval_Instructor_Query": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@length(body('ManagerApproval_Instructor_Query')?['value'])",
+                        0
+                      ]
+                    },
+                    {
+                      "not": {
+                        "equals": [
+                          "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                          "system_admin"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "actions": {
+                  "ManagerApproval_Instructor_Response_Forbidden": {
+                    "type": "Response",
+                    "inputs": {
+                      "statusCode": 403,
+                      "headers": "@variables('CORSHeaders')",
+                      "body": {
+                        "success": false,
+                        "error": "לא ניתן לאשר חודש לפני אישור מדריך לכל העובדים"
+                      }
+                    }
+                  },
+                  "ManagerApproval_Instructor_Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    },
+                    "runAfter": {
+                      "ManagerApproval_Instructor_Response_Forbidden": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                }
+              },
+              "ForEach_SetReleased": {
+                "foreach": "@body('CheckExisting_Manager')?['value']",
+                "actions": {
+                  "Update_ManagerApproval": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                        }
+                      },
+                      "method": "patch",
+                      "body": {
+                        "managerApprovalDate": "@{utcNow()}",
+                        "released": true
+                      },
+                      "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items/@{encodeURIComponent(items('ForEach_SetReleased')?['ID'])}"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "CheckExisting_Manager": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Foreach"
+              },
+              "SetManager_Response": {
+                "runAfter": {
+                  "ForEach_SetReleased": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "message": "הדיווחים אושרו לשכר בהצלחה",
+                    "team": "@{triggerBody()?['team']}",
+                    "monthKey": "@{triggerBody()?['monthKey']}",
+                    "count": "@{length(body('CheckExisting_Manager')?['value'])}"
+                  }
+                }
+              },
+              "ManagerApproval_Check_Role": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "manager"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "operations_controller"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "ManagerApproval_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "ManagerApproval_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לאישור מנהל"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "getteamapprovalstatus": {
+            "case": "getteamapprovalstatus",
+            "actions": {
+              "GetTeamApprovals_Query": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "monthKey eq '@{triggerBody()?['monthKey']}'@{if(equals(toLower(coalesce(triggerBody()?['mode'], '')), 'manager'), concat(' and team eq ''', triggerBody()?['team'], ''''), if(equals(triggerBody()?['team'], 'all'), '', concat(' and team eq ''', triggerBody()?['team'], '''')))}"
+                  }
+                },
+                "runAfter": {
+                  "GetTeamApproval_Check_Role": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "GetTeamApprovals_Response": {
+                "runAfter": {
+                  "GetTeamApprovals_Query": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "employees": "@body('GetTeamApprovals_Query')?['value']"
+                  }
+                }
+              },
+              "GetTeamApproval_Check_Role": {
+                "type": "If",
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "manager"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "operations_controller"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "GetTeamApproval_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "GetTeamApproval_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה לצפייה בסטטוס אישורים"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "uploadfile": {
+            "case": "uploadfile",
+            "actions": {
+              "Create_File": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "body": "@base64ToBinary(triggerBody()?['fileContent'])",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/files",
+                  "queries": {
+                    "folderPath": "/קבצים מצורפים/Attachments",
+                    "name": "@{triggerBody()?['employeeId']}_@{triggerBody()?['attendanceDate']}_@{triggerBody()?['fileName']}",
+                    "queryParametersSingleEncoded": true
+                  }
+                },
+                "runAfter": {
+                  "Upload_Check_Authorization": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Upload_Response": {
+                "runAfter": {
+                  "Create_File": [
+                    "Succeeded"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 200,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": true,
+                    "message": "הקובץ הועלה בהצלחה",
+                    "fileUrl": "@{body('Create_File')?['Path']}"
+                  }
+                }
+              },
+              "Upload_Response_Failed": {
+                "runAfter": {
+                  "Create_File": [
+                    "Failed",
+                    "TimedOut"
+                  ]
+                },
+                "type": "Response",
+                "inputs": {
+                  "statusCode": 500,
+                  "headers": "@variables('CORSHeaders')",
+                  "body": {
+                    "success": false,
+                    "error": "שגיאה בהעלאת הקובץ"
+                  }
+                }
+              },
+              "Upload_Check_Locked": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['sharepointonline']['connectionId']"
+                    }
+                  },
+                  "method": "get",
+                  "path": "/datasets/@{encodeURIComponent(encodeURIComponent('https://think365orgil.sharepoint.com/sites/taasiyeda2026'))}/tables/@{encodeURIComponent(encodeURIComponent('511f5724-d561-4c60-831b-6b22ef1548d6'))}/items",
+                  "queries": {
+                    "$filter": "employeeId eq '@{triggerBody()?['employeeId']}' and monthKey eq '@{triggerBody()?['monthKey']}' and released eq true"
+                  }
+                }
+              },
+              "Upload_Block_When_Locked": {
+                "type": "If",
+                "runAfter": {
+                  "Upload_Check_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greater": [
+                        "@length(body('Upload_Check_Locked')?['value'])",
+                        0
+                      ]
+                    },
+                    {
+                      "not": {
+                        "equals": [
+                          "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                          "system_admin"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "actions": {
+                  "Upload_Locked_Response_Forbidden": {
+                    "type": "Response",
+                    "inputs": {
+                      "statusCode": 403,
+                      "headers": "@variables('CORSHeaders')",
+                      "body": {
+                        "success": false,
+                        "error": "אין הרשאה להעלאת קובץ לאחר אישור חודשי"
+                      }
+                    }
+                  },
+                  "Upload_Locked_Terminate": {
+                    "type": "Terminate",
+                    "inputs": {
+                      "runStatus": "Cancelled"
+                    },
+                    "runAfter": {
+                      "Upload_Locked_Response_Forbidden": [
+                        "Succeeded"
+                      ]
+                    }
+                  }
+                }
+              },
+              "Upload_Check_Authorization": {
+                "type": "If",
+                "runAfter": {
+                  "Upload_Block_When_Locked": [
+                    "Succeeded"
+                  ]
+                },
+                "expression": {
+                  "or": [
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "instructor"
+                      ]
+                    },
+                    {
+                      "equals": [
+                        "@toLower(coalesce(triggerBody()?['mode'], ''))",
+                        "system_admin"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "Upload_Authorized": {
+                    "type": "Compose",
+                    "inputs": "authorized"
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Upload_Response_Forbidden": {
+                      "type": "Response",
+                      "inputs": {
+                        "statusCode": 403,
+                        "headers": "@variables('CORSHeaders')",
+                        "body": {
+                          "success": false,
+                          "error": "אין הרשאה להעלאת קובץ"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "actions": {
+            "Default_Response": {
+              "type": "Response",
+              "inputs": {
+                "statusCode": 400,
+                "headers": "@variables('CORSHeaders')",
+                "body": {
+                  "success": false,
+                  "error": "פעולה לא ידועה"
+                }
+              }
+            }
+          }
+        },
+        "expression": "@outputs('Normalize_Action')",
+        "type": "Switch"
+      }
+    },
+    "outputs": {},
+    "parameters": {
+      "$connections": {
+        "type": "Object",
+        "defaultValue": {}
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {
+        "sharepointonline": {
+          "id": "/subscriptions/7b35da34-f8af-4193-b59f-03d769307e89/providers/Microsoft.Web/locations/israelcentral/managedApis/sharepointonline",
+          "connectionId": "/subscriptions/7b35da34-f8af-4193-b59f-03d769307e89/resourceGroups/Taasiyeda-ATT_group/providers/Microsoft.Web/connections/sharepointonline-1",
+          "connectionName": "sharepointonline-1",
+          "connectionProperties": {}
+        }
+      }
+    }
+  }
+}

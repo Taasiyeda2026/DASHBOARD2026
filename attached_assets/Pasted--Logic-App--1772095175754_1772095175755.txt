@@ -1,0 +1,164 @@
+המטרה:
+🔒 למנוע החזרת מידע רגיש לדפדפן
+🔒 למנוע גישה ישירה ל-Logic App
+🔒 למנוע שליחת בקשות מזויפות
+
+🎯 שלב 0 – עצירת חשיפה מיידית (היום)
+0.1 סינון תגובת Login ב-Logic App
+
+להפסיק להחזיר אובייקט SharePoint מלא.
+להחזיר רק:
+
+employeeId
+
+employeeName
+
+role
+
+team
+
+employmentType
+
+לא להחזיר:
+
+personalCode
+
+Author
+
+Editor
+
+Email
+
+@odata
+
+Links
+
+IDs פנימיים
+
+✔ מטרה: שגם אם מישהו רואה Network – אין שם מידע רגיש.
+
+0.2 מחיקת localStorage רגיש בפרונט
+
+להסיר:
+
+employeeId
+
+role
+
+employmentType
+
+personalCode
+
+כל מידע אישי
+
+להשאיר רק הגדרות תצוגה אם צריך.
+
+🎯 שלב 1 – מעבר דרך Azure Function (שכבת הגנה)
+
+✔ כבר הקמת Function — מצוין.
+
+1.1 לשים את כתובת ה-Logic App ב-Environment Variable
+
+LOGIC_APP_URL
+ולא בקוד באתר.
+
+1.2 לעדכן את האתר בגיטהאב
+
+כל קריאה שהייתה ל-Logic App → תופנה ל-Azure Function.
+
+מהיום:
+
+GitHub → Azure Function → Logic App
+
+לא:
+
+GitHub → Logic App
+🎯 שלב 2 – סגירת Logic App לציבור
+
+אחרי שה-Function עובד:
+
+2.1 Regenerate Access Key
+
+ב-Logic App → Access Keys → Regenerate
+
+כך שה-URL הישן שדלף לא יעבוד.
+
+2.2 לבטל כוכבית CORS
+
+במקום:
+
+Access-Control-Allow-Origin: *
+
+לשים:
+
+Access-Control-Allow-Origin: https://your-github-url
+🎯 שלב 3 – מניעת זיוף משתמשים (שלב קריטי)
+
+כרגע המשתמש שולח employeeId מהדפדפן.
+זה מסוכן.
+
+מה עושים:
+
+ב-Azure Function:
+
+אחרי login – לשמור employeeId בזיכרון שרת (או ב-token)
+
+בכל בקשה אחרת – להתעלם מ-employeeId שמגיע מהלקוח
+
+להשתמש רק ב-employeeId ששמור בצד השרת
+
+✔ כך מדריך לא יכול לשלוח employeeId אחר.
+
+🎯 שלב 4 – חסימת פעולות מסוכנות
+
+אם יש לך פעולות כמו:
+
+getAllEmployees
+
+exportData
+
+getSummary
+
+getTeamApprovalStatus
+
+ב-Azure Function:
+
+לבדוק role
+
+אם role != Admin → להחזיר 403
+
+לא לתת לפרונט להחליט הרשאות.
+
+🎯 שלב 5 – ניקוי Debug
+
+להסיר:
+
+console.log של response מלא
+
+console.log של payload
+
+console.log של employeeData
+
+🎯 תוצאה סופית
+
+אחרי כל השלבים:
+
+✔ ה-Logic App לא חשוף בדפדפן
+✔ אי אפשר לראות personalCode
+✔ אי אפשר לזייף employeeId
+✔ אי אפשר לקרוא getAllEmployees
+✔ גם אם מישהו חופר בקונסול – אין לו מה לראות
+
+📌 סדר ביצוע נכון
+
+סינון תגובות Logic App
+
+מחיקת localStorage רגיש
+
+חיבור GitHub ל-Function
+
+Regenerate key
+
+בדיקת role בצד שרת
+
+ניקוי console
