@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scheduling</title>
+<script src="feature-flags.js"></script>
+</head>
+<body>
+<script>
+window.EmployeeID = window.EmployeeID || sessionStorage.getItem('dash_empId') || '';
+(function guardSchedulingAccess(){
+  if (!window.ENABLE_SCHEDULING) {
+    location.replace('index.html');
+    return;
+  }
+
+  const id = String(window.EmployeeID || '').trim();
+  if (id !== '6000' && id !== '8000') {
+    document.body.innerHTML =
+      '<div style="font-family:Arial;padding:30px">אין הרשאה לעמוד זה.</div>';
+    throw new Error('Unauthorized access');
+  }
+})();
+location.replace('schedulingsystem.html');
+</script>
+</body>
+</html>

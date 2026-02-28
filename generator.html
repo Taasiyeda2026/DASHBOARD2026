@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מחולל קבצי נתונים</title>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html, body{margin:0;padding:0;width:100%;max-width:100%;overflow-x:hidden}
+body{-webkit-text-size-adjust:100%;font-family:'Segoe UI',Arial,sans-serif;background:#f1f5f9;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;direction:rtl}
+img{max-width:100%;height:auto}
+button,input,select{width:100%;max-width:100%}
+.container{width:100%;max-width:760px}
+h1{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:6px}
+.subtitle{font-size:13px;color:#64748b;margin-bottom:16px}
+.mode-selector{display:flex;gap:8px;background:#e2e8f0;border-radius:12px;padding:6px;margin-bottom:20px}
+.mode-btn{border:none;background:transparent;border-radius:9px;padding:10px 8px;font-size:13px;font-weight:700;color:#334155;cursor:pointer}
+.mode-btn.active{background:#fff;color:#4f46e5;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.mode-panel{display:none}
+.mode-panel.active{display:block}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.card{background:#fff;border:2px dashed #cbd5e1;border-radius:14px;padding:20px;text-align:center;transition:border-color .2s,background .2s;cursor:pointer;position:relative}
+.card:hover{border-color:#6366f1;background:#f5f3ff}
+.card.loaded{border-style:solid;border-color:#22c55e;background:#f0fdf4}
+.card.error{border-style:solid;border-color:#ef4444;background:#fef2f2}
+.card-icon{font-size:32px;margin-bottom:10px}
+.card-label{font-size:13px;font-weight:600;color:#334155;margin-bottom:4px}
+.card-hint{font-size:11px;color:#94a3b8;margin-bottom:12px}
+.card-status{font-size:12px;font-weight:600;color:#64748b;min-height:18px}
+.card.loaded .card-status{color:#16a34a}
+.card.error .card-status{color:#dc2626}
+.card input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s,opacity .2s}
+.btn-primary{background:#6366f1;color:#fff}
+.btn-primary:hover:not(:disabled){background:#4f46e5}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+.btn-download{background:#16a34a;color:#fff;margin-top:12px;display:none}
+.btn-download:hover{background:#15803d}
+.btn-secondary{background:#0f172a;color:#fff}
+.btn-secondary:hover:not(:disabled){background:#020617}
+.inline-actions{display:flex;gap:8px;margin-bottom:10px}
+.inline-actions .btn{margin:0}
+.selected-instructor{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#334155;display:none}
+.log{margin-top:20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;max-height:320px;overflow-y:auto;font-size:12px}
+.log:empty{display:none}
+.log-row{padding:8px 16px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px}
+.log-row:last-child{border-bottom:none}
+.log-ok .icon{color:#22c55e}
+.log-warn .icon{color:#f59e0b}
+.log-err .icon{color:#ef4444}
+.log-summary{padding:12px 16px;font-weight:700;color:#334155;background:#f8fafc;border-radius:0 0 12px 12px;font-size:13px}
+.progress-wrap{display:none;margin-top:16px}
+.progress-bar-bg{background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden}
+.progress-bar{background:#6366f1;height:100%;width:0%;transition:width .1s;border-radius:99px}
+.progress-label{font-size:12px;color:#64748b;margin-top:6px;text-align:center}
+.schema{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:24px;font-size:12px;color:#475569}
+.schema h3{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px}
+.schema-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px}
+.schema-item{display:flex;gap:6px;align-items:flex-start}
+.schema-key{font-family:monospace;background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:11px;white-space:nowrap;color:#6366f1}
+.schema-req{color:#ef4444;font-size:10px;margin-right:2px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:640px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-head{padding:12px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.modal-title{font-size:15px;font-weight:700;color:#1e293b}
+.modal-body{padding:12px;overflow:auto}
+.modal-close{border:none;background:#e2e8f0;border-radius:8px;padding:6px 10px;cursor:pointer;font-weight:700;color:#334155;width:auto}
+.pick-table{width:100%;border-collapse:collapse;font-size:12px}
+.pick-table th,.pick-table td{border-bottom:1px solid #f1f5f9;padding:8px;text-align:right}
+.pick-table th{background:#f8fafc;color:#334155;position:sticky;top:0}
+.pick-btn{width:auto;padding:6px 10px;border:none;background:#4f46e5;color:#fff;border-radius:8px;cursor:pointer}
+.search-input{margin-bottom:10px;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
+.note{font-size:12px;color:#64748b;margin-bottom:10px}
+
+@media(max-width:600px){
+  body{padding:20px 12px;}
+  .cards{grid-template-columns:1fr !important;}
+  .schema-grid{grid-template-columns:1fr !important;}
+  .schema{padding:12px 14px;}
+  h1{font-size:18px;}
+  .mode-selector{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>מחולל קבצי נתונים</h1>
+  <p class="subtitle">העלה שלושה קבצי אקסל — המערכת תייצר את כל ה-JSON ותוריד אותם כ-ZIP</p>
+
+  <div class="mode-selector" id="modeSelector">
+    <button class="mode-btn active" data-mode="full">FULL — מחולל מלא (כמו היום)</button>
+    <button class="mode-btn" data-mode="instructor">INSTRUCTOR ONLY — הפקה למדריך אחד</button>
+    <button class="mode-btn" data-mode="notes">NOTES — פתקים / תזכורות</button>
+  </div>
+
+  <section class="mode-panel active" id="panel-full">
+    <div class="schema">
+      <h3>מבנה עמודות נדרש</h3>
+      <div class="schema-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div>
+          <div style="font-weight:600;margin-bottom:6px;color:#334155">main.xlsx</div>
+          <div class="schema-item"><span class="schema-key">EmployeeID</span><span class="schema-req">*</span></div>
+          <div class="schema-item"><span class="schema-key">Employee</span><span class="schema-req">*</span></div>
+          <div class="schema-item"><span class="schema-key">Program, School, Authority</span></div>
+          <div class="schema-item"><span class="schema-key">CourseManager</span></div>
+          <div class="schema-item"><span class="schema-key">EventType, StartTime, EndTime</span></div>
+          <div class="schema-item"><span class="schema-key">Date1 – Date16</span></div>
+          <div class="schema-item"><span class="schema-key">End, MonthStart, MonthEnd</span></div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:6px;color:#334155">codes.xlsx</div>
+          <div class="schema-item"><span class="schema-key">EmployeeID</span><span class="schema-req">*</span></div>
+          <div class="schema-item"><span class="schema-key">EntryCode</span><span class="schema-req">*</span></div>
+          <div class="schema-item"><span class="schema-key">Role</span><span class="schema-req">*</span> <span style="color:#64748b">(instructor / admin)</span></div>
+          <div class="schema-item"><span class="schema-key">Employee, InstructorManager</span></div>
+          <div class="schema-item"><span class="schema-key">EmploymentType</span></div>
+          <div class="schema-item"><span class="schema-key">HomeAuthority</span></div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:6px;color:#334155">distance.xlsx</div>
+          <div class="schema-item"><span class="schema-key">Authority</span><span class="schema-req">*</span></div>
+          <div class="schema-item"><span class="schema-key">Latitude</span><span class="schema-req">*</span></div>
+          <div class="schema-item"><span class="schema-key">Longitude</span><span class="schema-req">*</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cards" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="card" id="cardMain"><div class="card-icon">📊</div><div class="card-label">קובץ נתונים ראשי</div><div class="card-hint">main.xlsx</div><div class="card-status" id="statusMain">לחץ או גרור קובץ</div><input type="file" id="mainFile" accept=".xlsx,.xls"></div>
+      <div class="card" id="cardCodes"><div class="card-icon">🔑</div><div class="card-label">קובץ קודי כניסה</div><div class="card-hint">codes.xlsx</div><div class="card-status" id="statusCodes">לחץ או גרור קובץ</div><input type="file" id="codesFile" accept=".xlsx,.xls"></div>
+      <div class="card" id="cardDistance"><div class="card-icon">📍</div><div class="card-label">מרחקים ורשויות</div><div class="card-hint">distance.xlsx</div><div class="card-status" id="statusDistance">לחץ או גרור קובץ</div><input type="file" id="distanceFile" accept=".xlsx,.xls"></div>
+    </div>
+
+    <button class="btn btn-primary" id="generateBtn" disabled>⚙ צור קבצי JSON</button>
+    <button class="btn btn-download" id="downloadBtn">⬇ הורד data.zip</button>
+
+    <div class="progress-wrap" id="progressWrap"><div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div><div class="progress-label" id="progressLabel">מעבד...</div></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <section class="mode-panel" id="panel-instructor">
+    <div class="schema">
+      <h3>INSTRUCTOR ONLY — קלט חובה</h3>
+      <div class="note">יש להעלות main.xlsx + codes.xlsx + distance.xlsx ואז לבחור מדריך מהרשימה.</div>
+      <div class="schema-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div><div class="schema-item"><span class="schema-key">main.xlsx</span><span class="schema-req">*</span></div></div>
+        <div><div class="schema-item"><span class="schema-key">codes.xlsx</span><span class="schema-req">*</span></div></div>
+        <div><div class="schema-item"><span class="schema-key">distance.xlsx</span><span class="schema-req">*</span></div></div>
+      </div>
+    </div>
+
+    <div class="cards" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="card" id="cardMainInstructor"><div class="card-icon">📊</div><div class="card-label">קובץ נתונים ראשי</div><div class="card-hint">main.xlsx</div><div class="card-status" id="statusMainInstructor">לחץ או גרור קובץ</div><input type="file" id="mainFileInstructor" accept=".xlsx,.xls"></div>
+      <div class="card" id="cardCodesInstructor"><div class="card-icon">🔑</div><div class="card-label">קובץ קודי כניסה</div><div class="card-hint">codes.xlsx</div><div class="card-status" id="statusCodesInstructor">לחץ או גרור קובץ</div><input type="file" id="codesFileInstructor" accept=".xlsx,.xls"></div>
+      <div class="card" id="cardDistanceInstructor"><div class="card-icon">📍</div><div class="card-label">מרחקים ורשויות</div><div class="card-hint">distance.xlsx</div><div class="card-status" id="statusDistanceInstructor">לחץ או גרור קובץ</div><input type="file" id="distanceFileInstructor" accept=".xlsx,.xls"></div>
+    </div>
+
+    <div class="inline-actions">
+      <button class="btn btn-secondary" id="pickInstructorBtn" disabled>בחר מדריך</button>
+      <button class="btn btn-primary" id="generateInstructorBtn" disabled>⚙ ייצר למדריך</button>
+    </div>
+    <div class="selected-instructor" id="selectedInstructorBox"></div>
+    <button class="btn btn-download" id="downloadInstructorBtn">⬇ הורד instructor-data.zip</button>
+
+    <div class="progress-wrap" id="progressWrapInstructor"><div class="progress-bar-bg"><div class="progress-bar" id="progressBarInstructor"></div></div><div class="progress-label" id="progressLabelInstructor">מעבד...</div></div>
+    <div class="log" id="logInstructor"></div>
+  </section>
+
+  <section class="mode-panel" id="panel-notes">
+    <div class="schema">
+      <h3>NOTES — קלט חובה</h3>
+      <div class="note">העלה notes.xlsx עם Sheet בשם <strong>Notes</strong> ועמודות Program + SessionNumber + Rem*/Gen*.</div>
+    </div>
+
+    <div class="cards" style="grid-template-columns:1fr">
+      <div class="card" id="cardNotes"><div class="card-icon">🗒️</div><div class="card-label">קובץ פתקים / תזכורות</div><div class="card-hint">notes.xlsx</div><div class="card-status" id="statusNotes">לחץ או גרור קובץ</div><input type="file" id="notesFile" accept=".xlsx,.xls"></div>
+    </div>
+
+    <button class="btn btn-primary" id="generateNotesBtn" disabled>⚙ המר והורד</button>
+    <button class="btn btn-download" id="downloadNotesBtn">⬇ הורד notes-data.zip</button>
+
+    <div class="progress-wrap" id="progressWrapNotes"><div class="progress-bar-bg"><div class="progress-bar" id="progressBarNotes"></div></div><div class="progress-label" id="progressLabelNotes">מעבד...</div></div>
+    <div class="log" id="logNotes"></div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="instructorModalBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">בחירת מדריך</div>
+      <button class="modal-close" id="closeInstructorModalBtn">סגור</button>
+    </div>
+    <div class="modal-body">
+      <input id="instructorSearch" class="search-input" placeholder="חיפוש לפי שם או מספר עובד">
+      <div class="log" id="instructorModalLog"></div>
+      <table class="pick-table" id="instructorTable">
+        <thead><tr><th>EmployeeID</th><th>Employee</th><th>EmploymentType</th><th>HomeAuthority</th><th></th></tr></thead>
+        <tbody id="instructorTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const SALT = "MY_SECRET_2026";
+let mode = 'full';
+
+const state = {
+  full: { mainData:null, codesData:null, distanceData:null, zipBlob:null },
+  instructor: { mainData:null, codesData:null, distanceData:null, selectedInstructor:null, zipBlob:null },
+  notes: { notesRows:null, zipBlob:null }
+};
+
+async function sha256(text){
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function readExcel(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]));
+      }catch(err){ reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function readExcelSheet(file, sheetName){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      try{
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        const sheet = wb.Sheets[sheetName];
+        if(!sheet) throw new Error(`לא נמצא Sheet בשם ${sheetName}`);
+        resolve(XLSX.utils.sheet_to_json(sheet, { defval: '' }));
+      }catch(err){ reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function collectCourseDates(course){
+  const dates = [];
+  for(let i = 1; i <= 30; i++){
+    if(course[`Date${i}`] != null && course[`Date${i}`] !== '') dates.push(course[`Date${i}`]);
+  }
+  return dates;
+}
+
+function normalizeCourse(course, extraFields = {}){
+  const { Manager, ...courseWithoutManager } = course;
+  return { ...courseWithoutManager, Dates: collectCourseDates(course), ...extraFields };
+}
+
+function buildAuthorityLocations(distanceData){
+  const authorityLocations = {};
+  distanceData.forEach(r => {
+    const auth = String(r.Authority ?? '').trim();
+    const lat = Number(r.Latitude);
+    const lng = Number(r.Longitude);
+    if(auth && !isNaN(lat) && !isNaN(lng)) authorityLocations[auth] = { lat, lng };
+  });
+  return authorityLocations;
+}
+
+function buildSchedulingJson(mainData, codesData, distanceData){
+  const authorityLocations = buildAuthorityLocations(distanceData);
+  const schedulingInstructors = codesData
+    .filter(r => String(r.Role ?? '').trim().toLowerCase() === 'instructor')
+    .map(r => ({
+      EmployeeID: String(r.EmployeeID ?? '').trim(),
+      Employee: String(r.Employee ?? '').trim(),
+      InstructorManager: String(r.InstructorManager ?? '').trim(),
+      EmploymentType: String(r.EmploymentType ?? '').trim(),
+      HomeAuthority: String(r.HomeAuthority ?? '').trim(),
+      Role: 'instructor'
+    }));
+
+  const schedulingCourses = mainData.map(course => normalizeCourse(course, {
+    CourseManager: String(course.CourseManager ?? '').trim()
+  }));
+
+  return {
+    generatedAt: new Date().toISOString(),
+    authorityLocations,
+    instructors: schedulingInstructors,
+    courses: schedulingCourses
+  };
+}
+
+function setCard(id, stateClass, text){
+  const card = document.getElementById(id);
+  const statusId = 'status' + id.replace('card','');
+  const status = document.getElementById(statusId);
+  if(!card || !status) return;
+  card.classList.remove('loaded','error');
+  if(stateClass) card.classList.add(stateClass);
+  status.textContent = text;
+}
+
+function setProgress(prefix, isVisible, pct, label){
+  const wrap = document.getElementById(`progressWrap${prefix}`);
+  const bar = document.getElementById(`progressBar${prefix}`);
+  const text = document.getElementById(`progressLabel${prefix}`);
+  wrap.style.display = isVisible ? 'block' : 'none';
+  if(typeof pct === 'number') bar.style.width = `${pct}%`;
+  if(label != null) text.textContent = label;
+}
+
+function resetFileInput(id){
+  const el = document.getElementById(id);
+  if(el) el.value = '';
+}
+
+function resetModeStates(){
+  state.full = { mainData:null, codesData:null, distanceData:null, zipBlob:null };
+  state.instructor = { mainData:null, codesData:null, distanceData:null, selectedInstructor:null, zipBlob:null };
+  state.notes = { notesRows:null, zipBlob:null };
+
+  ['Main','Codes','Distance','MainInstructor','CodesInstructor','DistanceInstructor','Notes'].forEach(name=>setCard('card'+name,'','לחץ או גרור קובץ'));
+
+  ['mainFile','codesFile','distanceFile','mainFileInstructor','codesFileInstructor','distanceFileInstructor','notesFile'].forEach(resetFileInput);
+
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('downloadBtn').style.display = 'none';
+  document.getElementById('log').innerHTML = '';
+  setProgress('', false, 0, 'מעבד...');
+
+  document.getElementById('pickInstructorBtn').disabled = true;
+  document.getElementById('generateInstructorBtn').disabled = true;
+  document.getElementById('downloadInstructorBtn').style.display = 'none';
+  document.getElementById('logInstructor').innerHTML = '';
+  const selectedBox = document.getElementById('selectedInstructorBox');
+  selectedBox.style.display = 'none';
+  selectedBox.innerHTML = '';
+  document.getElementById('instructorModalLog').innerHTML = '';
+  document.getElementById('instructorTableBody').innerHTML = '';
+  document.getElementById('instructorSearch').value = '';
+  setProgress('Instructor', false, 0, 'מעבד...');
+
+  document.getElementById('generateNotesBtn').disabled = true;
+  document.getElementById('downloadNotesBtn').style.display = 'none';
+  document.getElementById('logNotes').innerHTML = '';
+  setProgress('Notes', false, 0, 'מעבד...');
+}
+
+function switchMode(nextMode){
+  mode = nextMode;
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+  document.querySelectorAll('.mode-panel').forEach(panel => panel.classList.remove('active'));
+  document.getElementById(`panel-${mode}`).classList.add('active');
+  closeInstructorModal();
+  resetModeStates();
+}
+
+function updateFullReady(){
+  const s = state.full;
+  document.getElementById('generateBtn').disabled = !(s.mainData && s.codesData && s.distanceData);
+}
+
+function updateInstructorReady(){
+  const s = state.instructor;
+  const hasFiles = !!(s.mainData && s.codesData && s.distanceData);
+  document.getElementById('pickInstructorBtn').disabled = !hasFiles;
+  document.getElementById('generateInstructorBtn').disabled = !(hasFiles && s.selectedInstructor);
+}
+
+function logRow(el, cls, text){
+  el.innerHTML += `<div class="log-row ${cls}"><span class="icon">${cls==='log-ok'?'✓':cls==='log-warn'?'⚠':'✖'}</span> ${text}</div>`;
+}
+
+async function generateFullZip(){
+  const log = document.getElementById('log');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const s = state.full;
+
+  log.innerHTML = '';
+  downloadBtn.style.display = 'none';
+  setProgress('', true, 0, 'מעבד...');
+
+  const zip = new JSZip();
+  const instructorsFolder = zip.folder('data/instructors');
+  const adminsFolder = zip.folder('data/admins');
+  const schedulingFolder = zip.folder('data/Scheduling');
+
+  const authorityLocations = buildAuthorityLocations(s.distanceData);
+
+  const instructorManagersByEmployeeId = new Map(
+    s.codesData
+      .filter(r => String(r.Role ?? '').trim().toLowerCase() === 'instructor')
+      .map(r => [String(r.EmployeeID ?? '').trim(), String(r.InstructorManager ?? '').trim()])
+  );
+
+  let instructorCount = 0, adminCount = 0, skipped = 0;
+  const total = s.codesData.length;
+
+  for(let idx = 0; idx < total; idx++){
+    const row = s.codesData[idx];
+    const EmployeeID = String(row.EmployeeID ?? '').trim();
+    const EntryCode = String(row.EntryCode ?? '').trim();
+    const Role = String(row.Role ?? '').trim().toLowerCase();
+    const NameField = row.Employee ? String(row.Employee).trim() : '';
+
+    setProgress('', true, Math.round(((idx+1)/Math.max(total,1))*100), `מעבד ${idx+1} מתוך ${total}…`);
+
+    if(!EmployeeID || !EntryCode || !Role){
+      skipped++;
+      log.innerHTML += `<div class="log-row log-warn"><span class="icon">⚠</span> שורה ${idx+2}: חסרים שדות — דולגה</div>`;
+      continue;
+    }
+
+    const hash = await sha256(EmployeeID + EntryCode + SALT);
+
+    if(Role === 'instructor'){
+      const instructorManager = String(row.InstructorManager ?? '').trim();
+      const courses = s.mainData
+        .filter(r => Number(r.EmployeeID) === Number(EmployeeID))
+        .map(course => normalizeCourse(course, { InstructorManager: instructorManager }));
+
+      const name = NameField || courses[0]?.Employee || '';
+      instructorsFolder.file(`${hash}.json`, JSON.stringify({name, data: courses}, null, 2));
+      log.innerHTML += `<div class="log-row log-ok"><span class="icon">✓</span> מדריך: <strong>${name||EmployeeID}</strong> — ${courses.length} קורסים</div>`;
+      instructorCount++;
+    } else if(Role === 'admin'){
+      const allCourses = s.mainData.map(course => {
+        const employeeId = String(course.EmployeeID ?? '').trim();
+        return normalizeCourse(course, { InstructorManager: instructorManagersByEmployeeId.get(employeeId) || '' });
+      });
+
+      const name = NameField || EmployeeID;
+      adminsFolder.file(`${hash}.json`, JSON.stringify({name, data: allCourses}, null, 2));
+      log.innerHTML += `<div class="log-row log-ok"><span class="icon">✓</span> מנהל: <strong>${name||EmployeeID}</strong> — ${allCourses.length} קורסים</div>`;
+      adminCount++;
+    } else {
+      skipped++;
+      log.innerHTML += `<div class="log-row log-warn"><span class="icon">⚠</span> ${EmployeeID}: תפקיד לא מוכר "${row.Role}" — דולגה</div>`;
+    }
+
+    if(idx % 10 === 9) await new Promise(r => setTimeout(r, 0));
+  }
+
+  const schedulingJson = buildSchedulingJson(s.mainData, s.codesData, s.distanceData);
+  schedulingFolder.file('scheduling.json', JSON.stringify(schedulingJson, null, 2));
+
+  // אופציונלי: ספירת EVENT מתוך mainData
+  const schedulingEventCount = s.mainData.filter(r => String(r.EventType ?? '').trim().toUpperCase() === 'EVENT').length;
+
+  log.innerHTML += `<div class="log-summary">סה"כ: ${instructorCount} מדריכים · ${adminCount} מנהלים · ${skipped} דולגו · ${Object.keys(authorityLocations).length} רשויות · scheduling.json נוצר · EVENT: ${schedulingEventCount}</div>`;
+
+  s.zipBlob = await zip.generateAsync({type:'blob'});
+  setProgress('', true, 100, 'הושלם!');
+  downloadBtn.style.display = 'block';
+  log.scrollTop = log.scrollHeight;
+}
+
+function getInstructorCandidates(mainData, codesData){
+  const mainIds = new Set(mainData.map(r => String(r.EmployeeID ?? '').trim()).filter(Boolean));
+  return codesData
+    .filter(r => String(r.Role ?? '').trim().toLowerCase() === 'instructor')
+    .map(r => ({
+      EmployeeID: String(r.EmployeeID ?? '').trim(),
+      Employee: String(r.Employee ?? '').trim(),
+      EntryCode: String(r.EntryCode ?? '').trim(),
+      InstructorManager: String(r.InstructorManager ?? '').trim(),
+      EmploymentType: String(r.EmploymentType ?? '').trim(),
+      HomeAuthority: String(r.HomeAuthority ?? '').trim(),
+      inMain: mainIds.has(String(r.EmployeeID ?? '').trim())
+    }))
+    .filter(r => r.EmployeeID);
+}
+
+function renderSelectedInstructor(){
+  const box = document.getElementById('selectedInstructorBox');
+  const picked = state.instructor.selectedInstructor;
+  if(!picked){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  box.innerHTML = `נבחר: <strong>${picked.Employee || 'ללא שם'}</strong> (${picked.EmployeeID}) <button class="modal-close" id="replaceInstructorBtn" style="margin-right:8px">החלף מדריך</button>`;
+  document.getElementById('replaceInstructorBtn').addEventListener('click', openInstructorModal);
+}
+
+function openInstructorModal(){
+  const log = document.getElementById('instructorModalLog');
+  const s = state.instructor;
+  log.innerHTML = '';
+
+  if(!(s.mainData && s.codesData)){
+    logRow(log,'log-err','יש להעלות main.xlsx + codes.xlsx לפני בחירת מדריך.');
+    document.getElementById('instructorModalBackdrop').style.display = 'flex';
+    return;
+  }
+
+  const candidates = getInstructorCandidates(s.mainData, s.codesData);
+  if(!candidates.length){
+    logRow(log,'log-err','לא נמצאו מדריכים מתוך הקבצים שהועלו.');
+    document.getElementById('instructorTableBody').innerHTML = '';
+    document.getElementById('instructorModalBackdrop').style.display = 'flex';
+    return;
+  }
+
+  document.getElementById('instructorModalBackdrop').style.display = 'flex';
+  renderInstructorTable(candidates);
+}
+
+function closeInstructorModal(){
+  document.getElementById('instructorModalBackdrop').style.display = 'none';
+}
+
+function renderInstructorTable(candidates){
+  const q = String(document.getElementById('instructorSearch').value || '').trim();
+  const body = document.getElementById('instructorTableBody');
+  const filtered = q
+    ? candidates.filter(r => (r.Employee || '').includes(q) || r.EmployeeID.includes(q))
+    : candidates;
+
+  if(!filtered.length){
+    body.innerHTML = '<tr><td colspan="5">לא נמצאו תוצאות.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.map(r => `
+    <tr>
+      <td>${r.EmployeeID}</td>
+      <td>${r.Employee || '—'}</td>
+      <td>${r.EmploymentType || '—'}</td>
+      <td>${r.HomeAuthority || '—'}</td>
+      <td><button class="pick-btn" data-emp="${r.EmployeeID}">בחר</button></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('.pick-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const emp = btn.dataset.emp;
+      const selected = candidates.find(r => r.EmployeeID === emp);
+      state.instructor.selectedInstructor = selected || null;
+      updateInstructorReady();
+      renderSelectedInstructor();
+      closeInstructorModal();
+    });
+  });
+
+  body.querySelectorAll('tr').forEach((tr, idx)=>{
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', (e)=>{
+      if(e.target.closest('button')) return;
+      const selected = filtered[idx];
+      state.instructor.selectedInstructor = selected || null;
+      updateInstructorReady();
+      renderSelectedInstructor();
+      closeInstructorModal();
+    });
+  });
+}
+
+async function generateInstructorZip(){
+  const log = document.getElementById('logInstructor');
+  const downloadBtn = document.getElementById('downloadInstructorBtn');
+  const s = state.instructor;
+
+  log.innerHTML = '';
+  downloadBtn.style.display = 'none';
+
+  if(!s.selectedInstructor){ logRow(log,'log-err','לא נבחר מדריך.'); return; }
+
+  const instructorRow = s.codesData.find(r =>
+    String(r.Role ?? '').trim().toLowerCase() === 'instructor' &&
+    String(r.EmployeeID ?? '').trim() === s.selectedInstructor.EmployeeID
+  );
+
+  if(!instructorRow){ logRow(log,'log-err','המדריך שנבחר לא נמצא או אינו מוגדר כמדריך בקובץ codes.xlsx.'); return; }
+
+  const entryCode = String(instructorRow.EntryCode ?? '').trim();
+  if(!entryCode){ logRow(log,'log-err',`למדריך ${s.selectedInstructor.EmployeeID} חסר EntryCode.`); return; }
+
+  setProgress('Instructor', true, 20, 'מעבד מדריך...');
+
+  const employeeId = String(instructorRow.EmployeeID ?? '').trim();
+  const hash = await sha256(employeeId + entryCode + SALT);
+  const instructorManager = String(instructorRow.InstructorManager ?? '').trim();
+
+  const courses = s.mainData
+    .filter(r => Number(r.EmployeeID) === Number(employeeId))
+    .map(course => normalizeCourse(course, { InstructorManager: instructorManager }));
+
+  const eventCountForInstructor = courses.filter(c => String(c.EventType ?? '').trim().toUpperCase() === 'EVENT').length;
+
+  const zip = new JSZip();
+  zip.folder('data/instructors').file(`${hash}.json`, JSON.stringify({
+    name: String(instructorRow.Employee ?? '').trim() || courses[0]?.Employee || '',
+    data: courses
+  }, null, 2));
+
+  setProgress('Instructor', true, 60, 'מייצר scheduling.json...');
+  const schedulingJson = buildSchedulingJson(s.mainData, s.codesData, s.distanceData);
+  zip.folder('data/Scheduling').file('scheduling.json', JSON.stringify(schedulingJson, null, 2));
+
+  s.zipBlob = await zip.generateAsync({type:'blob'});
+  setProgress('Instructor', true, 100, 'הושלם!');
+
+  const displayName = String(instructorRow.Employee ?? '').trim() || employeeId;
+  logRow(log,'log-ok',`נוצר ZIP למדריך ${displayName}.`);
+  log.innerHTML += `<div class="log-summary">רשומות: ${courses.length} · EVENT למדריך: ${eventCountForInstructor} · כולל scheduling.json</div>`;
+  downloadBtn.style.display = 'block';
+}
+
+function trimText(v){
+  return String(v ?? '').trim();
+}
+
+function toSessionNumber(value){
+  if(typeof value === 'number' && Number.isFinite(value)) return value;
+  const n = Number(String(value ?? '').trim());
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function addUniqueOrdered(target, seenSet, values){
+  values.forEach(v => {
+    const t = trimText(v);
+    if(!t) return;
+    if(!seenSet.has(t)){
+      seenSet.add(t);
+      target.push(t);
+    }
+  });
+}
+
+function convertNotesRows(rows){
+  if(!rows.length) return { version: 1, notesByKey: {} };
+
+  const firstRow = rows[0] || {};
+  if(!Object.prototype.hasOwnProperty.call(firstRow, 'Program') || !Object.prototype.hasOwnProperty.call(firstRow, 'SessionNumber')){
+    throw new Error('חסרות עמודות חובה Program או SessionNumber.');
+  }
+
+  const store = new Map();
+  const ensureKey = (key) => {
+    if(!store.has(key)){
+      store.set(key, {
+        message: [], reminder: [], general: [],
+        seenMessage: new Set(), seenReminder: new Set(), seenGeneral: new Set()
+      });
+    }
+    return store.get(key);
+  };
+
+  rows.forEach((row, idx) => {
+    const program = trimText(row.Program);
+    const sessionNumber = toSessionNumber(row.SessionNumber);
+    if(!program) throw new Error(`שורה ${idx+2}: Program חסר.`);
+    if(!Number.isFinite(sessionNumber)) throw new Error(`שורה ${idx+2}: SessionNumber לא מספרי.`);
+
+    const rem = [1,2,3,4,5].map(i => row[`Rem${i}`]);
+    const gen = [1,2,3,4,5].map(i => row[`Gen${i}`]);
+
+    const key = `${program}|${sessionNumber}`;
+    const rec = ensureKey(key);
+    addUniqueOrdered(rec.reminder, rec.seenReminder, rem);
+    addUniqueOrdered(rec.general, rec.seenGeneral, gen);
+
+    // חוק: Rem של מפגש X הוא Message של מפגש X+1
+    const keyNext = `${program}|${sessionNumber+1}`;
+    const nextRec = ensureKey(keyNext);
+    addUniqueOrdered(nextRec.message, nextRec.seenMessage, rem);
+  });
+
+  const notesByKey = {};
+  Array.from(store.entries()).forEach(([key, rec]) => {
+    notesByKey[key] = { message: rec.message, reminder: rec.reminder, general: rec.general };
+  });
+
+  return { version: 1, notesByKey };
+}
+
+async function generateNotesZip(){
+  const log = document.getElementById('logNotes');
+  const downloadBtn = document.getElementById('downloadNotesBtn');
+  const s = state.notes;
+
+  log.innerHTML = '';
+  downloadBtn.style.display = 'none';
+
+  if(!s.notesRows){ logRow(log,'log-err','יש להעלות notes.xlsx.'); return; }
+
+  try {
+    setProgress('Notes', true, 25, 'בודק נתונים...');
+    const notesJson = convertNotesRows(s.notesRows);
+    setProgress('Notes', true, 70, 'מייצר ZIP...');
+    const zip = new JSZip();
+    zip.folder('data/notes').file('notes.json', JSON.stringify(notesJson, null, 2));
+    s.zipBlob = await zip.generateAsync({type:'blob'});
+    setProgress('Notes', true, 100, 'הושלם!');
+
+    logRow(log,'log-ok',`notes.json נוצר בהצלחה (${Object.keys(notesJson.notesByKey).length} מפתחות).`);
+    log.innerHTML += '<div class="log-summary">הקובץ כולל: data/notes/notes.json</div>';
+    downloadBtn.style.display = 'block';
+  } catch(err){
+    setProgress('Notes', true, 0, 'שגיאה');
+    logRow(log,'log-err',err.message || 'שגיאה לא צפויה.');
+  }
+}
+
+// Mode switching
+Array.from(document.querySelectorAll('.mode-btn')).forEach(btn=>{
+  btn.addEventListener('click', ()=> switchMode(btn.dataset.mode));
+});
+
+// FULL handlers
+
+document.getElementById('mainFile').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardMain','','טוען...');
+  try{ state.full.mainData = await readExcel(file); setCard('cardMain','loaded',`✓ ${state.full.mainData.length} שורות נטענו`); }
+  catch(_){ state.full.mainData = null; setCard('cardMain','error','שגיאה בקריאת הקובץ'); }
+  updateFullReady();
+});
+
+document.getElementById('codesFile').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardCodes','','טוען...');
+  try{ state.full.codesData = await readExcel(file); setCard('cardCodes','loaded',`✓ ${state.full.codesData.length} עובדים נטענו`); }
+  catch(_){ state.full.codesData = null; setCard('cardCodes','error','שגיאה בקריאת הקובץ'); }
+  updateFullReady();
+});
+
+document.getElementById('distanceFile').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardDistance','','טוען...');
+  try{ state.full.distanceData = await readExcel(file); setCard('cardDistance','loaded',`✓ ${state.full.distanceData.length} רשויות נטענו`); }
+  catch(_){ state.full.distanceData = null; setCard('cardDistance','error','שגיאה בקריאת הקובץ'); }
+  updateFullReady();
+});
+
+document.getElementById('generateBtn').addEventListener('click', generateFullZip);
+document.getElementById('downloadBtn').addEventListener('click', ()=> saveAs(state.full.zipBlob, 'data.zip'));
+
+// INSTRUCTOR ONLY handlers
+
+document.getElementById('mainFileInstructor').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardMainInstructor','','טוען...');
+  try{ state.instructor.mainData = await readExcel(file); setCard('cardMainInstructor','loaded',`✓ ${state.instructor.mainData.length} שורות נטענו`); }
+  catch(_){ state.instructor.mainData = null; setCard('cardMainInstructor','error','שגיאה בקריאת הקובץ'); }
+  state.instructor.selectedInstructor = null; renderSelectedInstructor(); updateInstructorReady();
+});
+
+document.getElementById('codesFileInstructor').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardCodesInstructor','','טוען...');
+  try{ state.instructor.codesData = await readExcel(file); setCard('cardCodesInstructor','loaded',`✓ ${state.instructor.codesData.length} עובדים נטענו`); }
+  catch(_){ state.instructor.codesData = null; setCard('cardCodesInstructor','error','שגיאה בקריאת הקובץ'); }
+  state.instructor.selectedInstructor = null; renderSelectedInstructor(); updateInstructorReady();
+});
+
+document.getElementById('distanceFileInstructor').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardDistanceInstructor','','טוען...');
+  try{ state.instructor.distanceData = await readExcel(file); setCard('cardDistanceInstructor','loaded',`✓ ${state.instructor.distanceData.length} רשויות נטענו`); }
+  catch(_){ state.instructor.distanceData = null; setCard('cardDistanceInstructor','error','שגיאה בקריאת הקובץ'); }
+  updateInstructorReady();
+});
+
+document.getElementById('pickInstructorBtn').addEventListener('click', openInstructorModal);
+document.getElementById('closeInstructorModalBtn').addEventListener('click', closeInstructorModal);
+document.getElementById('instructorModalBackdrop').addEventListener('click', (e)=>{ if(e.target.id === 'instructorModalBackdrop') closeInstructorModal(); });
+document.getElementById('instructorSearch').addEventListener('input', ()=>{
+  const s = state.instructor;
+  if(!(s.mainData && s.codesData)) return;
+  renderInstructorTable(getInstructorCandidates(s.mainData, s.codesData));
+});
+document.getElementById('generateInstructorBtn').addEventListener('click', generateInstructorZip);
+document.getElementById('downloadInstructorBtn').addEventListener('click', ()=> saveAs(state.instructor.zipBlob, 'instructor-data.zip'));
+
+// NOTES handlers
+
+document.getElementById('notesFile').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  setCard('cardNotes','','טוען...');
+  try{
+    state.notes.notesRows = await readExcelSheet(file, 'Notes');
+    setCard('cardNotes','loaded',`✓ ${state.notes.notesRows.length} שורות נטענו`);
+    document.getElementById('generateNotesBtn').disabled = false;
+  }catch(err){
+    state.notes.notesRows = null;
+    setCard('cardNotes','error', err.message || 'שגיאה בקריאת הקובץ');
+    document.getElementById('generateNotesBtn').disabled = true;
+  }
+});
+
+document.getElementById('generateNotesBtn').addEventListener('click', generateNotesZip);
+document.getElementById('downloadNotesBtn').addEventListener('click', ()=> saveAs(state.notes.zipBlob, 'notes-data.zip'));
+
+resetModeStates();
+</script>
+</body>
+</html>

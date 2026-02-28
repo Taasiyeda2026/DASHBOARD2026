@@ -1,0 +1,2635 @@
+function excelSerialToJSDate(serial) {
+  if (!serial || isNaN(serial)) return null;
+  const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+  const msPerDay = 86400000;
+  const date = new Date(excelEpoch.getTime() + serial * msPerDay);
+  return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function excelDecimalToTime(v) {
+  if (v == null || v === '') return '';
+  if (typeof v === 'number') {
+    const totalMinutes = Math.round(v * 24 * 60);
+    const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const m = String(totalMinutes % 60).padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  return String(v);
+}
+
+function escapeHtml(str){
+  if(typeof str !== 'string') return '';
+  return str
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function normalizeData(data){
+  return data.map(r=>({
+    ...r,
+    StartTime: excelDecimalToTime(r.StartTime),
+    EndTime: excelDecimalToTime(r.EndTime),
+    End: (typeof r.End === 'number') ? excelSerialToJSDate(r.End) : (r.End ? new Date(r.End) : null),
+    Dates: Array.isArray(r.Dates)
+      ? r.Dates.map(d => excelSerialToJSDate(d)).filter(Boolean)
+      : []
+  }));
+}
+
+function sortByDateAndTime(list) {
+  return [...list].sort((a, b) => {
+    const aDate = a.date instanceof Date ? a.date : new Date(a.date);
+    const bDate = b.date instanceof Date ? b.date : new Date(b.date);
+
+    if (aDate.getTime() !== bDate.getTime()) {
+      return aDate - bDate;
+  }
+
+    const [aH, aM] = String(a.start || '99:99').split(':').map(Number);
+    const [bH, bM] = String(b.start || '99:99').split(':').map(Number);
+
+    return (aH * 60 + aM) - (bH * 60 + bM);
+  });
+}
+
+function getEarliestDate(dates) {
+  const validDates = (dates || []).filter(Boolean);
+  if(validDates.length === 0) return null;
+  return new Date(Math.min(...validDates.map(d => d.getTime())));
+}
+
+function toDateAndTimeSortable(item, date, start) {
+  return {
+    ...item,
+    date,
+    start: start || '99:99'
+  };
+}
+
+rawData = normalizeData(rawData);
+
+let schedulingJson = null;
+let employmentTypeByEmployeeId = new Map();
+let notesByKey = new Map();
+
+function eventTypeOf(record){
+  return String(record?.EventType || '').trim().toUpperCase();
+}
+
+function isEvent(record){
+  return eventTypeOf(record) === 'EVENT';
+}
+
+async function loadSchedulingJson(){
+  try{
+    const res = await fetch('data/Scheduling/scheduling.json', { cache: 'no-store' });
+    if(!res.ok) throw new Error('Failed to fetch scheduling.json: ' + res.status);
+    schedulingJson = await res.json();
+
+    const instructors = Array.isArray(schedulingJson?.instructors) ? schedulingJson.instructors : [];
+
+    employmentTypeByEmployeeId = new Map(
+      instructors.map(i => [
+        String(i.EmployeeID ?? '').trim(),
+        String(i.EmploymentType ?? '').trim()
+      ])
+    );
+  }catch(err){
+    console.error('loadSchedulingJson error:', err);
+    schedulingJson = null;
+    employmentTypeByEmployeeId = new Map();
+  }
+}
+
+async function loadNotesJson(){
+  try{
+    const res = await fetch('data/notes/notes.json', { cache: 'no-store' });
+    if(res.status === 404){
+      notesByKey = new Map();
+      return;
+  }
+    if(!res.ok) throw new Error('Failed to fetch notes.json: ' + res.status);
+
+    const payload = await res.json();
+    notesByKey = new Map(Object.entries(payload?.notesByKey || {}));
+  }catch(err){
+    console.warn('loadNotesJson warning:', err);
+    notesByKey = new Map();
+  }
+}
+
+function getEmploymentTypeForEmployeeId(employeeId){
+  if(userRole === 'instructor') return '—';
+
+  const id = String(employeeId ?? '').trim();
+  if(!id) return '—';
+
+  return employmentTypeByEmployeeId.get(id) || '—';
+}
+function enforceInstructorMode(){
+  if(userRole === 'instructor'){
+    window.mode = 'month';
+  }
+}
+
+const view=document.getElementById('view');
+const titleEl=document.getElementById('title');
+const filtersEl=document.getElementById('filters');
+const side=document.getElementById('side');
+const sideContent=document.getElementById('sideContent');
+const daySheet=document.getElementById('daySheet');
+const daySheetBackdrop=document.getElementById('daySheetBackdrop');
+const daySheetTitle=document.getElementById('daySheetTitle');
+const daySheetContent=document.getElementById('daySheetContent');
+const daySheetClose=document.getElementById('daySheetClose');
+const btnMonth=document.getElementById('btnMonth');
+const btnWeek=document.getElementById('btnWeek');
+const btnSummary=document.getElementById('btnSummary');
+const btnInstructors=document.getElementById('btnInstructors');
+const btnEndDates=document.getElementById('btnEndDates');
+const goCalendar = document.getElementById('goCalendar');
+const managerFilter=document.getElementById('managerFilter');
+const employeeFilter=document.getElementById('employeeFilter');
+const summaryMonth=document.getElementById('summaryMonth');
+
+function updateSchedulingButtonVisibility(){
+  const btn = document.getElementById('btnScheduling');
+  if(!btn) return;
+
+  if(!window.ENABLE_SCHEDULING){
+    btn.style.display = 'none';
+    return;
+  }
+
+  const id = String(window.EmployeeID || '').trim();
+
+  if(id === '6000' || id === '8000'){
+    btn.style.display = '';
+  }else{
+    btn.style.display = 'none';
+  }
+}
+
+function updateEndDatesButtonVisibility(){
+  if(!btnEndDates) return;
+  const id = String(window.EmployeeID || '').trim();
+  if(id === '7000' || id === '8000'){
+    btnEndDates.style.display = '';
+  }else{
+    btnEndDates.style.display = 'none';
+  }
+}
+
+if(userRole === 'instructor'){
+  btnSummary.style.display = 'none';
+  btnInstructors.style.display = 'none';
+  btnMonth.style.display = 'none';
+  btnWeek.style.display = 'none';
+  filtersEl.style.display = 'none';
+  window.mode = 'month';
+}
+
+let dataRange=null;
+let _mode='month';
+Object.defineProperty(window, 'mode', {
+  get(){ return _mode; },
+  set(value){
+    if(userRole === 'instructor'){
+      _mode = 'month';
+      return;
+  }
+    _mode = value;
+  },
+  configurable: false
+});
+const isMobile = () => window.innerWidth < 800;
+let openWeekId = null;
+let currentDate=new Date(); currentDate.setHours(0,0,0,0);
+const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+const employeeColors = {
+  "הנאא אבו אמזה": "#ffe1fb",
+  "יונתן יהונתן פתייה": "#F7F5ED",
+  "אביב בלנדר": "#FCF2FD",
+  "אסיל ג'בר": "#ffd3ef",
+  "ברקת קטעי": "#baffce",
+  "אלכס זפקה": "#FFF5EC",
+  "עליזה מולה": "#dccfff",
+  "ליאל בן חמו": "#FFFFE9",
+  "אפרת אוחיון": "#EFEAFF",
+  "אלדר מיכאל טייב": "#E4F6FF",
+  "הילה רוזן": "#ffd2f8",
+  "תמר שפיר": "#F9EEEE",
+  "אילנה טיטייבסקי": "#E6FFEB",
+  "אמיר מלמוד": "#E4F6FF",
+  "אוריה פדידה": "#DDFFFA",
+  "אושרי רם": "#DDFFFA",
+  "כרמית סמנדרוב": "#ffecda",
+  "מיכל שכטמן": "#ffffd1",
+  "ראנה סאלח": "#FCF2FD",
+  "סוהא סאלם": "#ffefc5",
+  "קרן גורביץ": "#F2FCFD",
+  "אביגדור שרון": "#DDFFFA"
+};
+window.employeeColors = employeeColors;
+
+function getEmployeeColor(name) {
+  if (!name || name.trim() === "") return "#ffffff";
+  return employeeColors[name.trim()] || "#f1f5f9";
+}
+
+function hashStringToHue(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+function ensureColorContrast(colorValue) {
+  const tuple = toRgbTuple(colorValue).split(',').map(v => Number(v.trim()));
+  if (tuple.length !== 3 || tuple.some(v => Number.isNaN(v))) return colorValue;
+
+  let [r, g, b] = tuple;
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  if (luminance <= 0.82) return colorValue;
+
+  const darkenFactor = luminance > 0.9 ? 0.72 : 0.84;
+  r = Math.max(0, Math.round(r * darkenFactor));
+  g = Math.max(0, Math.round(g * darkenFactor));
+  b = Math.max(0, Math.round(b * darkenFactor));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function hasStrongSaturation(colorValue) {
+  const tuple = toRgbTuple(colorValue).split(',').map(v => Number(v.trim()));
+  if (tuple.length !== 3 || tuple.some(v => Number.isNaN(v))) return false;
+  const [r, g, b] = tuple;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === 0) return false;
+  const saturation = (max - min) / max;
+  return saturation >= 0.2;
+}
+
+function instructorColor(name) {
+  const mappedColor = getEmployeeColor(name);
+  const hasMappedColor = mappedColor !== '#f1f5f9' && mappedColor !== '#ffffff';
+
+  if (hasMappedColor && hasStrongSaturation(mappedColor)) {
+    return ensureColorContrast(mappedColor);
+  }
+
+  const hue = hashStringToHue(String(name || ''));
+  return ensureColorContrast(`hsl(${hue} 70% 52%)`);
+}
+
+function toRgbTuple(colorValue) {
+  if (!colorValue) return '148, 163, 184';
+  const normalized = String(colorValue).trim();
+  const hexMatch = normalized.match(/^#([\da-f]{3}|[\da-f]{6})$/i);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    const fullHex = hex.length === 3 ? hex.split('').map(ch => ch + ch).join('') : hex;
+    const r = parseInt(fullHex.slice(0, 2), 16);
+    const g = parseInt(fullHex.slice(2, 4), 16);
+    const b = parseInt(fullHex.slice(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
+  }
+
+  const rgbMatch = normalized.match(/^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d*\.?\d+))?\s*\)$/i);
+  if (rgbMatch) {
+    const clamp = (v) => Math.max(0, Math.min(255, Math.round(Number(v))));
+    return `${clamp(rgbMatch[1])}, ${clamp(rgbMatch[2])}, ${clamp(rgbMatch[3])}`;
+  }
+
+  const hslMatch = normalized.match(/^hsl\((\d+)\s+(\d+)%\s+(\d+)%\)$/i);
+  if (hslMatch) {
+    const h = Number(hslMatch[1]) / 360;
+    const s = Number(hslMatch[2]) / 100;
+    const l = Number(hslMatch[3]) / 100;
+    const hue2rgb = (p, q, t) => {
+      let v = t;
+      if (v < 0) v += 1;
+      if (v > 1) v -= 1;
+      if (v < 1 / 6) return p + (q - p) * 6 * v;
+      if (v < 1 / 2) return q;
+      if (v < 2 / 3) return p + (q - p) * (2 / 3 - v) * 6;
+      return p;
+  };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const r = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
+    const g = Math.round(hue2rgb(p, q, h) * 255);
+    const b = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
+    return `${r}, ${g}, ${b}`;
+  }
+
+  return '148, 163, 184';
+}
+
+function applyInstructorColorVars(node, colorValue) {
+  node.style.setProperty('--instructor-color', colorValue);
+  node.style.setProperty('--instructor-color-rgb', toRgbTuple(colorValue));
+}
+
+function formatTime(v){
+  if(v==null||v==='') return '';
+  if(typeof v==='number'){
+    const totalMinutes = Math.round(v * 24 * 60);
+    const h = String(Math.floor(totalMinutes/60)).padStart(2,'0');
+    const m = String(totalMinutes%60).padStart(2,'0');
+    return `${h}:${m}`;
+  }
+  return String(v);
+}
+
+const sameDay=(a,b)=>a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+
+function parseDate(v){
+  if(!v) return null;
+  const d=new Date(v);
+  return isNaN(d)?null:d;
+}
+
+function isCourse(r){
+  return eventTypeOf(r) === 'COURSE';
+}
+
+function getSessionNumberForItem(item){
+  if(Number.isFinite(item.meetingIdx)) return item.meetingIdx;
+
+  const dates = Array.isArray(item.Dates) ? item.Dates : [];
+  const selectedDate = item.selectedDate instanceof Date ? item.selectedDate : null;
+  if(!selectedDate) return null;
+
+  const idx = dates.findIndex(d => sameDay(d, selectedDate));
+  return idx >= 0 ? idx + 1 : null;
+}
+
+function getNotesForCourseItem(item){
+  if(userRole !== 'instructor' || !isCourse(item)) return null;
+
+  const program = String(item.Program || '').trim();
+  const sessionNumber = getSessionNumberForItem(item);
+  if(!program || !sessionNumber) return null;
+
+  const noteData = notesByKey.get(`${program}|${sessionNumber}`);
+  if(!noteData || typeof noteData !== 'object') return null;
+
+  const toArray = (v) => Array.isArray(v) ? v.filter(Boolean) : [];
+  // The Rem of session X is the note (הודעה) for session X
+  const message = toArray(noteData.reminder);
+  const general = toArray(noteData.general);
+
+  // "תזכורת לשיעור הבא" = the Rem of the next session (if exists)
+  const nextNoteData = notesByKey.get(`${program}|${sessionNumber + 1}`);
+  const reminder = nextNoteData ? toArray(nextNoteData.reminder) : [];
+
+  if(!message.length && !reminder.length && !general.length) return null;
+
+  return { message, reminder, general };
+}
+
+function applyNotesBoxColor(){
+  const boxes = document.querySelectorAll('.notes-box');
+  if(!boxes.length) return;
+
+  const name =
+    (window.currentUserName ||
+     window.currentUser?.name ||
+     window.currentUser?.Employee ||
+     '').trim();
+
+  const baseColor =
+    (window.employeeColors && name && window.employeeColors[name])
+      ? window.employeeColors[name]
+      : '#f8fafc';
+
+  boxes.forEach(box => {
+    box.style.backgroundColor = baseColor;
+  });
+}
+
+function renderNotesBlock(notes, employeeName){
+  if(!notes) return '';
+
+  const sections = [
+    { title: 'הודעה', items: notes.message },
+    { title: 'תזכורת לשיעור הבא', items: notes.reminder },
+    { title: 'מידע כללי', items: notes.general }
+  ].filter(section => section.items.length > 0)
+    .map(section => `
+      <div class="notes-section">
+        <div class="note-section-title">${section.title}</div>
+        <ul>
+          ${section.items.map(line => `<li>${line}</li>`).join('')}
+        </ul>
+    </div>
+    `).join('');
+
+  if(!sections) return '';
+
+  return `
+    <div class="notes-box" id="notesBox">
+      <div class="notes-title">פתקים</div>
+      <div class="notes-content">
+        ${sections}
+    </div>
+    </div>
+  `;
+}
+
+
+function getCourseManager(r){
+  return String(r.CourseManager ?? '').trim();
+}
+
+function getInstructorManager(r){
+  return String(r.InstructorManager ?? '').trim();
+}
+
+function getManagerForCourseViews(r){
+  return userRole === 'instructor' ? getInstructorManager(r) : getCourseManager(r);
+}
+
+
+function isEventVisibleToCurrentUser(record){
+  if(!isEvent(record)) return true;
+  if(userRole !== 'instructor') return true;
+
+  const eventEmployeeId = String(record.EmployeeID || '').trim();
+  const currentEmployeeId = String(window.EmployeeID || '').trim();
+  return !!eventEmployeeId && eventEmployeeId === currentEmployeeId;
+}
+
+function isCourseActiveInMonth(r, year, month){
+  return isCourse(r) &&
+    r.Dates.some(d =>
+      d &&
+      d.getFullYear() === year &&
+      d.getMonth() === month
+    );
+}
+
+function isCourseEndingInMonth(r, year, month){
+  if(!isCourse(r) || !r.End) return false;
+  const d = parseDate(r.End);
+  return d &&
+         d.getFullYear() === year &&
+         d.getMonth() === month;
+}
+
+function getBusiestWeekWorkDays(courses, year, month){
+  const weeksMap = {};
+
+  courses.forEach(r=>{
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+
+    r.Dates.forEach(d=>{
+      if(
+        d &&
+        d.getFullYear() === year &&
+        d.getMonth() === month
+      ){
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        weekStart.setHours(0,0,0,0);
+
+        const key = weekStart.toISOString();
+
+        if(!weeksMap[key]){
+          weeksMap[key] = new Set();
+      }
+
+        weeksMap[key].add(d.toDateString());
+    }
+  });
+  });
+
+  let maxDays = 0;
+
+  Object.values(weeksMap).forEach(set=>{
+    if(set.size > maxDays){
+      maxDays = set.size;
+  }
+  });
+
+  return maxDays;
+}
+
+function clampDateToDataRange(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  if(!dataRange) return d;
+  if(d < dataRange.min) return new Date(dataRange.min);
+  if(d > dataRange.max) return new Date(dataRange.max);
+  return d;
+}
+
+function weekOverlapsDataRange(date){
+  if(!dataRange) return true;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - date.getDay());
+  weekStart.setHours(0,0,0,0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(0,0,0,0);
+
+  return weekEnd >= dataRange.min && weekStart <= dataRange.max;
+}
+
+function getMinAllowedMonth(){
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  return new Date(today.getFullYear(), today.getMonth()-1, 1);
+}
+
+function canGoPrev(){
+  if(window.mode === 'summary'){
+    if(summaryMonth.selectedIndex <= 0) return false;
+
+    const prevOption = summaryMonth.options[summaryMonth.selectedIndex-1].value;
+    const [y,m] = prevOption.split('-').map(Number);
+    const prevDate = new Date(y,m,1);
+
+    return prevDate >= getMinAllowedMonth();
+  }
+  if(!dataRange) return false;
+
+  if(window.mode === 'month'){
+    if(userRole === 'instructor' && isMobile()){
+      // מדריך במובייל – ניווט שבועי
+      const temp = new Date(currentDate);
+      temp.setDate(temp.getDate() - 7);
+      return temp >= getMinAllowedMonth();
+  }
+    const temp = new Date(currentDate);
+    temp.setMonth(temp.getMonth()-1);
+
+    return temp >= getMinAllowedMonth();
+  }
+
+  if(window.mode === 'week'){
+    const temp = new Date(currentDate);
+    temp.setDate(temp.getDate()-7);
+
+    const minAllowed = getMinAllowedMonth();
+
+    return temp >= minAllowed;
+  }
+
+  return false;
+}
+
+function canGoNext(){
+  if(window.mode === 'summary') return summaryMonth.selectedIndex < summaryMonth.options.length-1;
+  if(!dataRange) return false;
+
+  if(window.mode === 'month'){
+    if(userRole === 'instructor' && isMobile()){
+      // מדריך במובייל – ניווט שבועי
+      const temp = new Date(currentDate);
+      temp.setDate(temp.getDate() + 7);
+      return weekOverlapsDataRange(temp);
+  }
+    const temp = new Date(currentDate);
+    temp.setMonth(temp.getMonth()+1);
+    return temp.getFullYear() < dataRange.max.getFullYear() ||
+      (temp.getFullYear() === dataRange.max.getFullYear() && temp.getMonth() <= dataRange.max.getMonth());
+  }
+
+  if(window.mode === 'week'){
+    const temp = new Date(currentDate);
+    temp.setDate(temp.getDate()+7);
+    return weekOverlapsDataRange(temp);
+  }
+
+  return false;
+}
+
+function updateNavButtons(){
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  prevBtn.disabled = !canGoPrev();
+  nextBtn.disabled = !canGoNext();
+}
+
+function updateModeButtons(){
+  btnMonth.classList.remove('active');
+  btnWeek.classList.remove('active');
+  btnSummary.classList.remove('active');
+  btnInstructors.classList.remove('active');
+  if(btnEndDates) btnEndDates.classList.remove('active');
+
+  if(window.mode === 'month') btnMonth.classList.add('active');
+  if(window.mode === 'week') btnWeek.classList.add('active');
+  if(window.mode === 'summary') btnSummary.classList.add('active');
+  if(window.mode === 'instructors') btnInstructors.classList.add('active');
+  if(window.mode === 'enddates' && btnEndDates) btnEndDates.classList.add('active');
+}
+
+function endDate(r){
+  const d=r.Dates.filter(Boolean);
+  return d.length?new Date(Math.max(...d.map(x=>x.getTime()))):null;
+}
+
+function getDataDateRange(){
+  const allDates = rawData.flatMap(r => r.Dates.filter(Boolean));
+
+  if(allDates.length === 0) return null;
+
+  const min = new Date(Math.min(...allDates.map(d=>d.getTime())));
+  const max = new Date(Math.max(...allDates.map(d=>d.getTime())));
+
+  min.setHours(0,0,0,0);
+  max.setHours(0,0,0,0);
+
+  return { min, max };
+}
+
+function updatePageUserName(user){
+  const header = document.getElementById('pageEmployeeHeader') || document.getElementById('greetingName');
+  if(!header) return;
+
+  if(!user){
+    header.textContent = '';
+    return;
+  }
+
+  if(user.Role === 'instructor'){
+    header.textContent = user.Employee || '';
+    return;
+  }
+
+  if(user.Role === 'manager' || user.Role === 'admin'){
+    header.textContent = user.Employee || user.Name || user.Manager || '';
+    return;
+  }
+
+  header.textContent = user.Employee || user.Manager || user.Name || '';
+}
+
+async function initFromRawData(){
+  dataRange = getDataDateRange();
+  window.dataRange = dataRange;
+  initFilters();
+  initSummaryMonths();
+  currentDate = clampDateToDataRange(new Date());
+
+  const sessionName = sessionStorage.getItem('dash_name') || '';
+  const currentUser = rawData.find(r => String(r.EmployeeID || '').trim() === String(window.EmployeeID || '').trim());
+  const currentUserForHeader = {
+    ...(currentUser || {}),
+    Role: userRole,
+    Name: sessionName || currentUser?.Name || '',
+    Manager: currentUser?.Manager || sessionName || ''
+  };
+  window.currentUser = currentUserForHeader;
+  window.currentUserName = currentUserForHeader.Employee || currentUserForHeader.Name || '';
+  window.currentUserEmployeeID = String(window.EmployeeID || '').trim();
+  updatePageUserName(currentUserForHeader);
+
+  updateSchedulingButtonVisibility();
+  updateEndDatesButtonVisibility();
+
+  window.mode='month';
+
+  if(userRole === 'instructor'){
+    await loadSchedulingJson();
+    await loadNotesJson();
+    if(schedulingJson && Array.isArray(schedulingJson.courses)){
+      const holidays = schedulingJson.courses.filter(
+        r => eventTypeOf(r) === 'HOLIDAY'
+      );
+      if(holidays.length){
+        rawData = rawData.concat(normalizeData(holidays));
+    }
+  }
+
+    if(schedulingJson){
+      const currentEmployeeId = String(window.EmployeeID || '').trim();
+      const eventsFromCourses = Array.isArray(schedulingJson.courses)
+        ? schedulingJson.courses.filter(isEvent)
+        : [];
+      const eventsLegacy = Array.isArray(schedulingJson.events) ? schedulingJson.events : [];
+      const visibleEvents = eventsFromCourses
+        .concat(eventsLegacy)
+        .filter(e => String(e.EmployeeID || '').trim() === currentEmployeeId);
+
+      if(visibleEvents.length){
+        const existingEventKeys = new Set(
+          rawData
+            .filter(isEvent)
+            .map(r => `${String(r.EmployeeID || '').trim()}|${String(r.Program || '').trim()}|${String(r.Date1 || '').trim()}|${String(r.StartTime || '').trim()}|${String(r.EndTime || '').trim()}`)
+        );
+
+        const missingEvents = visibleEvents.filter(e => {
+          const key = `${String(e.EmployeeID || '').trim()}|${String(e.Program || '').trim()}|${String(e.Date1 || '').trim()}|${String(e.StartTime || '').trim()}|${String(e.EndTime || '').trim()}`;
+          return !existingEventKeys.has(key);
+      });
+
+        if(missingEvents.length){
+          rawData = rawData.concat(normalizeData(missingEvents));
+      }
+    }
+  }
+  } else {
+    await loadSchedulingJson();
+    notesByKey = new Map();
+    if(schedulingJson){
+      const eventsFromCourses = Array.isArray(schedulingJson.courses)
+        ? schedulingJson.courses.filter(isEvent)
+        : [];
+      const eventsLegacy = Array.isArray(schedulingJson.events) ? schedulingJson.events : [];
+      const allEvents = eventsFromCourses.concat(eventsLegacy);
+      if(allEvents.length){
+        const existingEventKeys = new Set(
+          rawData
+            .filter(isEvent)
+            .map(r => `${String(r.EmployeeID || '').trim()}|${String(r.Program || '').trim()}|${String(r.Date1 || '').trim()}|${String(r.StartTime || '').trim()}|${String(r.EndTime || '').trim()}`)
+        );
+
+        const missingEvents = allEvents.filter(e => {
+          const key = `${String(e.EmployeeID || '').trim()}|${String(e.Program || '').trim()}|${String(e.Date1 || '').trim()}|${String(e.StartTime || '').trim()}|${String(e.EndTime || '').trim()}`;
+          return !existingEventKeys.has(key);
+      });
+
+        if(missingEvents.length){
+          rawData = rawData.concat(normalizeData(missingEvents));
+      }
+    }
+  }
+  }
+
+  render();
+  applyNotesBoxColor();
+}
+
+function initFilters(){
+  const managers=[...new Set(rawData.map(r=>getCourseManager(r)).filter(Boolean))];
+  const employees=[...new Set(rawData.map(r=>r.Employee).filter(Boolean))];
+  managerFilter.innerHTML='<option value="">כל המנהלים</option>'+managers.map(v=>`<option>${v}</option>`).join('');
+  employeeFilter.innerHTML='<option value="">כל המדריכים</option>'+employees.map(v=>`<option>${v}</option>`).join('');
+}
+
+function initSummaryMonths(){
+  const months=[...new Set(rawData.flatMap(r=>r.Dates.filter(Boolean)).map(d=>`${d.getFullYear()}-${d.getMonth()}`))].sort();
+  summaryMonth.innerHTML=months.map(k=>{
+    const [y,m]=k.split('-').map(Number);
+    return `<option value="${k}">${new Date(y,m).toLocaleString('he-IL',{month:'long',year:'numeric'})}</option>`;
+  }).join('');
+  const todayKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+  const idx = months.indexOf(todayKey);
+  if(idx >= 0) summaryMonth.selectedIndex = idx;
+}
+
+function fitViewToScreen() {
+  if (window.innerWidth <= 800) return;
+  const view = document.getElementById('view');
+  if (!view) return;
+  Array.from(view.children).forEach(c => { c.style.zoom = ''; });
+  if(window.mode === 'enddates') return;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const viewH = view.clientHeight;
+    const contentH = view.scrollHeight;
+    if (!viewH || !contentH) return;
+    const z = Math.max(0.70, Math.min(0.88, viewH / contentH));
+    Array.from(view.children).forEach(c => { c.style.zoom = z; });
+  }));
+}
+window.addEventListener('resize', fitViewToScreen);
+
+function render(){
+
+  enforceInstructorMode();
+  view.innerHTML=''; view.style.display=''; view.style.flexDirection=''; view.style.alignItems=''; view.style.justifyContent=''; view.style.width=''; view.scrollTop=0; window.scrollTo(0,0); document.documentElement.scrollTop=0; document.body.scrollTop=0; view.classList.toggle('week-mode', window.mode === 'week');
+  view.classList.toggle('view-week', window.mode === 'week');
+  view.classList.toggle('view-month', window.mode === 'month');
+  view.classList.toggle('view-instructors', window.mode === 'instructors');
+  view.classList.toggle('view-summary', window.mode === 'summary');
+  view.classList.toggle('view-managers', window.mode === 'instructors');
+  view.classList.toggle('view-enddates', window.mode === 'enddates');
+  closeSidePanel();
+
+  if(userRole === 'instructor' || window.mode === 'summary' || window.mode === 'instructors' || window.mode === 'enddates' || isMobile()){
+    filtersEl.style.display = 'none';
+  }else{
+    filtersEl.style.display = 'flex';
+  }
+
+  if(window.mode==='summary'){
+    renderSummary();
+  }
+  else if(window.mode==='week'){
+    renderWeekView();
+  }
+  else if(window.mode==='instructors'){
+    renderInstructors();
+  }
+  else if(window.mode==='enddates'){
+    renderEndDates();
+  }
+  else{
+    renderMonthView();
+  }
+
+  updateNavButtons();
+  updateModeButtons();
+
+  if(window.mode === 'month' || window.mode === 'enddates'){
+    goCalendar.style.display = 'none';
+  } else {
+    goCalendar.style.display = 'inline-flex';
+  }
+
+  applyNotesBoxColor();
+  fitViewToScreen();
+}
+
+function renderMonthView(){
+  if(userRole === 'instructor'){
+    if(isMobile()){
+      renderInstructorMobileWeek();
+  } else {
+      renderInstructorGridMonth();
+  }
+    return;
+  }
+  if(isMobile()){
+    renderMobileMonth();
+    return;
+  }
+  renderDesktopMonth();
+}
+
+function renderInstructorMobileWeek(){
+  renderMobileMonthAccordion(applyFilters());
+}
+
+function renderInstructorGridMonth(){
+  const y = currentDate.getFullYear();
+  const m = currentDate.getMonth();
+  const monthTitle = new Date(y,m,1).toLocaleString('he-IL',{month:'long',year:'numeric'});
+  titleEl.textContent = monthTitle;
+
+  const data = applyFilters();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'instructor-cal-wrap';
+
+  const grid = document.createElement('div');
+  grid.className = 'instructor-cal-grid';
+
+  const first = new Date(y,m,1);
+  const last  = new Date(y,m+1,0);
+
+  // שורת כותרת ימים
+  ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'].forEach((d, i) => {
+    const h = document.createElement('div');
+    h.className = 'instructor-cal-header-cell' + (i === 6 ? ' ic-shabbat-header' : '');
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  // תאים ריקים לפני תחילת החודש
+  for(let i = 0; i < first.getDay(); i++){
+    const empty = document.createElement('div');
+    empty.className = 'instructor-cal-cell ic-empty';
+    grid.appendChild(empty);
+  }
+
+  for(let d = 1; d <= last.getDate(); d++){
+    const date = new Date(y,m,d);
+    const isToday = sameDay(date, today);
+
+    // איסוף כל האירועים של היום
+    const dailyItems = [];
+    data.forEach(r => r.Dates.forEach((dd, idx) => {
+      if(sameDay(dd, date)) dailyItems.push({ ...r, meetingIdx: idx+1, selectedDate: dd });
+  }));
+
+    // קיבוץ לפי תוכנית (זהה ל-buildDay)
+    const groupsMap = {};
+    dailyItems.forEach(ev => {
+      if(ev.EventType === 'HOLIDAY'){
+        const key = `holiday-${ev.Program}`;
+        if(!groupsMap[key]) groupsMap[key] = { type:'holiday', items:[ev] };
+    } else if(isEvent(ev)){
+        const key = `event-${ev.Employee}-${ev.Program}`;
+        if(!groupsMap[key]) groupsMap[key] = { type:'event', time: ev.StartTime||'99:99', items:[] };
+        groupsMap[key].items.push(ev);
+    } else {
+        const key = `${ev.Employee}-${ev.Program}`;
+        if(!groupsMap[key]) groupsMap[key] = { type:'course', time: ev.StartTime||'99:99', items:[] };
+        groupsMap[key].items.push(ev);
+    }
+  });
+    const groups = Object.values(groupsMap)
+      .sort((a,b) => (a.time||'').localeCompare(b.time||''));
+    const activityGroups = groups.filter(g => g.type !== 'holiday');
+    const hasActivity = activityGroups.length > 0;
+
+    const isShabbat = date.getDay() === 6;
+    const cell = document.createElement('div');
+    cell.className = 'instructor-cal-cell calendar-day' +
+      (isShabbat ? ' ic-shabbat' : '') +
+      (date.getDay() === 5 ? ' ic-friday' : '') +
+      (isToday ? ' ic-today is-today' : '');
+
+    // תצוגת יום: יום בשבוע מקוצר + יום/חודש
+    const numWrap = document.createElement('div');
+    numWrap.className = 'instructor-cal-day-num day-number date-number' + (isToday ? ' ic-today-num' : '');
+    const day = date.getDate();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const weekdays = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+    const weekday = weekdays[date.getDay()];
+    numWrap.textContent = `${weekday} ${day}/${month}`;
+
+    if(hasActivity && !isToday && !isShabbat){
+      const firstActivity = activityGroups[0]?.items?.[0] || null;
+      const instructorName = firstActivity?.Employee || firstActivity?.Instructor || firstActivity?.EmployeeName || '';
+      const mappedEmployeeColor = getEmployeeColor(instructorName);
+      const activityColor = (instructorName && mappedEmployeeColor !== '#f1f5f9' && mappedEmployeeColor !== '#ffffff')
+        ? instructorColor(instructorName)
+        : getProgramColor(firstActivity?.Program || '');
+
+      numWrap.classList.add('has-day-activity');
+      numWrap.style.setProperty('--activity-color', activityColor);
+    }
+
+    cell.appendChild(numWrap);
+
+    // פילים של אירועים (מקסימום 3) – לא בשבת
+    const maxPills = 3;
+    if(!isShabbat) groups.slice(0, maxPills).forEach(g => {
+      const firstItem = g.items[0];
+      const pill = document.createElement('div');
+      pill.className = 'instructor-cal-pill calendar-event';
+      const instructorName = firstItem.Employee || firstItem.Instructor || firstItem.EmployeeName || '';
+      const eventColor = g.type === 'holiday' ? '#cbd5e1' : instructorColor(instructorName);
+      applyInstructorColorVars(pill, eventColor);
+      if(g.type === 'holiday') pill.classList.add('holiday');
+      if(g.type === 'holiday') pill.addEventListener('click', e => e.stopPropagation());
+      const txt = firstItem.Program || '';
+      const text = document.createElement('span');
+      text.className = 'instructor-cal-pill-text';
+      text.textContent = txt.length > 13 ? txt.slice(0,12)+'…' : txt;
+      pill.appendChild(text);
+      cell.appendChild(pill);
+  });
+
+    if(!isShabbat && groups.length > maxPills){
+      const more = document.createElement('div');
+      more.className = 'instructor-cal-more';
+      more.textContent = `+${groups.length - maxPills}`;
+      cell.appendChild(more);
+  }
+
+    // לחיצה → פתח פאנל צד (לא לחגים)
+    const nonHolidayItems = dailyItems.filter(item => String(item.EventType || '').trim().toUpperCase() !== 'HOLIDAY');
+    if(nonHolidayItems.length > 0){
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSideGrouped(nonHolidayItems);
+    });
+  }
+
+    grid.appendChild(cell);
+  }
+
+  wrap.appendChild(grid);
+  view.appendChild(wrap);
+
+  if(window.currentUserRole === 'instructor'){
+    const currentYear = y;
+    const currentMonth = m;
+    const currentEmployeeID = String(window.currentUserEmployeeID || window.EmployeeID || '').trim();
+
+    const activeCourses = rawData.filter(r =>
+      isCourse(r) &&
+      String(r.EmployeeID || '').trim() === currentEmployeeID &&
+      isCourseActiveByRange(r, currentYear, currentMonth)
+    ).length;
+
+    const dailyActivitiesCount = rawData.filter(r => {
+      const type = String(r.EventType || '').trim().toUpperCase();
+      const isDaily = type === 'WORKSHOP' || type === 'TOUR';
+      const isOwn = String(r.EmployeeID || '').trim() === currentEmployeeID;
+      const date1 = parseDate(r.Date1);
+      const inMonthByDate1 = date1 && date1.getFullYear() === currentYear && date1.getMonth() === currentMonth;
+
+      return isDaily && isOwn && inMonthByDate1;
+  }).length;
+
+    const distinctDays = new Set(
+      rawData
+        .filter(r =>
+          r.EmployeeID == currentEmployeeID &&
+          r.Dates?.some(d =>
+            d.getFullYear() === currentYear &&
+            d.getMonth() === currentMonth
+          )
+        )
+        .flatMap(r =>
+          r.Dates
+            .filter(d =>
+              d.getFullYear() === currentYear &&
+              d.getMonth() === currentMonth
+            )
+            .map(d => d.toDateString())
+        )
+    ).size;
+
+    const personalSummary = document.createElement('div');
+    personalSummary.className = 'personal-summary-row';
+
+    personalSummary.innerHTML = `
+      <div class="kpi-card">
+        <div class="kpi-label summary-label">קורסים פעילים</div>
+        <div class="kpi-value summary-number">${activeCourses}</div>
+    </div>
+      <div class="kpi-card">
+        <div class="kpi-label summary-label">סדנאות/סיורים</div>
+        <div class="kpi-value summary-number">${dailyActivitiesCount}</div>
+    </div>
+      <div class="kpi-card">
+        <div class="kpi-label summary-label">ימי פעילות</div>
+        <div class="kpi-value summary-number">${distinctDays}</div>
+    </div>
+  `;
+
+    view.appendChild(personalSummary);
+  }
+}
+
+function renderWeekView(){
+  if (isMobile()) {
+    renderMobileMonthAccordion();
+  } else {
+    renderDesktopWeekView();
+  }
+}
+
+function renderDesktopMonth(){
+  titleEl.textContent=currentDate.toLocaleString('he-IL',{month:'long',year:'numeric'});
+  const data=applyFilters();
+  const grid=document.createElement('div'); grid.className='grid';
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  const first=new Date(y,m,1),last=new Date(y,m+1,0);
+  for(let i=0;i<first.getDay();i++) grid.appendChild(Object.assign(document.createElement('div'), {className:'day inactive'}));
+  for(let d=1;d<=last.getDate();d++){ grid.appendChild(buildDay(new Date(y,m,d),data)); }
+  view.appendChild(grid);
+}
+
+function renderDesktopWeekView(){
+  const s=new Date(currentDate); s.setDate(s.getDate()-s.getDay());
+  const e=new Date(s); e.setDate(e.getDate()+6);
+  titleEl.textContent=`${s.toLocaleDateString('he-IL')} – ${e.toLocaleDateString('he-IL')}`;
+  const data=applyFilters();
+  const grid=document.createElement('div'); grid.className='grid';
+  for(let i=0;i<7;i++){
+    const cur=new Date(s); cur.setDate(s.getDate()+i);
+    grid.appendChild(buildDay(cur,data));
+  }
+  view.appendChild(grid);
+}
+
+function renderMobileWeekView(){
+  const weekStart = new Date(currentDate);
+  weekStart.setDate(currentDate.getDate() - currentDate.getDay());
+  weekStart.setHours(0,0,0,0);
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  titleEl.textContent = `${weekStart.toLocaleDateString('he-IL')} – ${weekEnd.toLocaleDateString('he-IL')}`;
+
+  const data = applyFilters();
+  const wrapper = document.createElement('div');
+  wrapper.className = 'mobile-narrow-wrap';
+
+  const container = document.createElement('div');
+  container.style.cssText = 'display:flex;flex-direction:column;gap:12px;padding:10px 10px 200px;';
+
+  for(let i = 0; i < 7; i++){
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + i);
+    container.appendChild(buildDay(date, data));
+  }
+
+  wrapper.appendChild(container);
+  view.appendChild(wrapper);
+
+  requestAnimationFrame(() => {
+    const todayEl = container.querySelector('.today');
+    if(todayEl){
+      const viewEl = document.getElementById('view');
+      const rect = todayEl.getBoundingClientRect();
+      const viewRect = viewEl.getBoundingClientRect();
+      viewEl.scrollTo({
+        top: viewEl.scrollTop + rect.top - viewRect.top - 10,
+        behavior: 'auto'
+    });
+  }
+  });
+}
+
+function initMobileAccordion(){
+
+  if (window.innerWidth > 768) return;
+
+  const weeks = document.querySelectorAll('.mobile-week');
+
+  weeks.forEach(week => {
+
+    const header = week.querySelector('.mobile-week-header');
+    if (!header) return;
+
+    header.addEventListener('click', () => {
+
+      const isOpen = week.classList.contains('open');
+
+      weeks.forEach(w => w.classList.remove('open'));
+
+      if (!isOpen) {
+        week.classList.add('open');
+    }
+
+  });
+
+  });
+}
+
+
+function renderMobileMonthAccordion(data){
+  const y = currentDate.getFullYear();
+  const m = currentDate.getMonth();
+  titleEl.textContent = new Date(y,m,1).toLocaleString('he-IL',{month:'long',year:'numeric'});
+
+  if(!data) data = applyFilters();
+  const first = new Date(y,m,1);
+  const last  = new Date(y,m+1,0);
+  const start = new Date(first);
+  start.setHours(0,0,0,0);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'mobile-narrow-wrap';
+
+  const container = document.createElement('div');
+  container.className = 'mobile-accordion';
+
+  const sideNav = document.createElement('div');
+  sideNav.className = 'week-side-nav';
+
+  const setActiveWeek = (weekKey) => {
+    sideNav.querySelectorAll('button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.weekKey === weekKey);
+    });
+  };
+
+  let todayWeekEl = null;
+  let cursor = new Date(start);
+  let weekNumber = 1;
+
+  while(cursor <= last){
+    const weekStart = new Date(cursor);
+    const weekEnd   = new Date(cursor);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    if(weekEnd > last){
+      weekEnd.setTime(last.getTime());
+    }
+
+    const containsToday = today >= weekStart && today <= weekEnd;
+
+    const weekEl = document.createElement('div');
+    weekEl.className = 'accordion-week' + (containsToday ? ' accordion-today' : '');
+
+    const header = document.createElement('div');
+    header.className = 'accordion-header';
+    header.innerHTML = `
+      <div>
+        <div class="accordion-header-text">${weekStart.toLocaleDateString('he-IL')} – ${weekEnd.toLocaleDateString('he-IL')}</div>
+      </div>
+      <span class="accordion-arrow">▼</span>
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'accordion-content';
+
+    const weekKey = weekStart.toISOString();
+
+    const openWeek = () => {
+      const isOpen = weekEl.classList.contains('open');
+      container.querySelectorAll('.accordion-week.open').forEach(w => w.classList.remove('open'));
+      if(!isOpen){
+        weekEl.classList.add('open');
+        setActiveWeek(weekKey);
+        if(!content.dataset.loaded){
+          for(let i = 0; i < 7; i++){
+            const date = new Date(weekStart);
+            date.setDate(weekStart.getDate() + i);
+            if(date > weekEnd) break;
+            content.appendChild(buildDay(date, data));
+          }
+          content.dataset.loaded = 'true';
+        }
+        setTimeout(() => {
+          const viewEl = document.getElementById('view');
+          const rect = weekEl.getBoundingClientRect();
+          const viewRect = viewEl.getBoundingClientRect();
+          viewEl.scrollTo({ top: viewEl.scrollTop + rect.top - viewRect.top - 10, behavior: 'smooth' });
+        }, 50);
+      } else {
+        setActiveWeek('');
+      }
+    };
+
+    header.addEventListener('click', openWeek);
+
+    const navBtn = document.createElement('button');
+    navBtn.type = 'button';
+    navBtn.dataset.weekKey = weekKey;
+    navBtn.textContent = String(weekNumber);
+    navBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openWeek();
+    });
+    sideNav.appendChild(navBtn);
+
+    weekEl.appendChild(header);
+    weekEl.appendChild(content);
+
+    container.appendChild(weekEl);
+    cursor.setDate(cursor.getDate() + 7);
+    weekNumber += 1;
+  }
+
+  wrapper.appendChild(sideNav);
+  wrapper.appendChild(container);
+  view.appendChild(wrapper);
+}
+
+function renderMobileMonth(){
+  renderMobileMonthAccordion();
+}
+
+function openMobileWeekDetail(weekStart, data){
+  renderMobileMonthAccordion(data);
+}
+
+function toggleWeek(weekId) {
+  if (!isMobile()) return;
+
+  const clicked = document.getElementById(`week-${weekId}`);
+  if (!clicked) return;
+
+  if (openWeekId === weekId) {
+    clicked.classList.remove('open');
+    openWeekId = null;
+    return;
+  }
+
+  if (openWeekId !== null) {
+    const previous = document.getElementById(`week-${openWeekId}`);
+    if (previous) previous.classList.remove('open');
+  }
+
+  clicked.classList.add('open');
+  openWeekId = weekId;
+}
+
+function buildDay(date,data){
+  const cell=document.createElement('div');
+  cell.className='day day-column';
+  const isToday = sameDay(date, new Date());
+  const dayNumberMarkup = isToday ? `<span class='day-number'>${date.getDate()}</span>` : `${date.getDate()}`;
+  cell.innerHTML=`<div class='day-header' style='text-align:center;'>${dayNames[date.getDay()]} | <span dir='ltr'>${dayNumberMarkup}/${date.getMonth()+1}</span></div>`;
+  if(isToday){
+    cell.classList.add('today');
+  }
+
+  const dailyPool = [];
+  data.forEach(r => r.Dates.forEach((dd, i) => {
+    if(sameDay(dd, date)) dailyPool.push({ ...r, meetingIdx: i + 1, selectedDate: dd });
+  }));
+
+  const groupsMap = {};
+  dailyPool.forEach(ev => {
+    if(ev.EventType === 'HOLIDAY') {
+      const key = `holiday-${ev.Program}`;
+      if(!groupsMap[key]) groupsMap[key] = { type:'holiday', time: '00:00', items:[ev] };
+  } else if(isEvent(ev)) {
+      const key = `event-${ev.Employee}-${ev.Program}`;
+      if(!groupsMap[key]) groupsMap[key] = { type:'event', time: ev.StartTime || '99:99', items:[] };
+      groupsMap[key].items.push(ev);
+  } else {
+      const key = `${ev.Employee}-${ev.Program}`;
+      if(!groupsMap[key]) groupsMap[key] = { type:'course', time: ev.StartTime || '99:99', items:[] };
+      groupsMap[key].items.push(ev);
+  }
+  });
+
+  const sortedGroups = Object.values(groupsMap).sort((a, b) => a.time.localeCompare(b.time));
+
+  if(sortedGroups.length === 0) {
+    cell.classList.add('empty');
+    const emptyDay = document.createElement('div');
+    emptyDay.className = 'empty-day';
+    emptyDay.textContent = 'אין פעילות';
+    cell.appendChild(emptyDay);
+  }
+
+  sortedGroups.forEach(g => {
+    const evDiv = document.createElement('div');
+    const first = g.items[0];
+    const instructorName = first.Employee || first.Instructor || first.EmployeeName || '';
+    applyInstructorColorVars(evDiv, instructorColor(instructorName));
+
+    if(g.type === 'holiday') {
+      evDiv.className = 'event schedule-card holiday';
+      evDiv.innerHTML = `<div class="title">${first.Program || ""}</div>`;
+  } else if(g.type === 'event') {
+      evDiv.className = 'event schedule-card';
+      const hourStr = (first.StartTime || first.EndTime) ? `<div class="event-hour">${first.StartTime || '—'}–${first.EndTime || '—'}</div>` : '';
+      evDiv.innerHTML = `${hourStr}<strong class="title">${first.Program}</strong><div class="meta">פעילות יומית</div>`;
+      evDiv.onclick = (e) => { e.stopPropagation(); openSideGrouped(g.items); };
+  } else {
+      const hasEmp = !!(first.Employee && first.Employee.trim());
+      evDiv.className = 'event schedule-card' + (!hasEmp ? ' missing' : '');
+
+      const count = g.items.length > 1 ? `<div class="group-count" role="button" tabindex="0" aria-label="צפייה בקבוצות">➕ ${g.items.length}</div>` : '';
+      const hourStr = first.StartTime ? `<div class="event-hour">${first.StartTime}</div>` : '';
+      const empName = hasEmp ? `<strong class="title">${first.Employee}</strong>` : `<strong class="title" style="color:var(--danger)">חסר מדריך</strong>`;
+      const meta = `<div class="meta">${first.Program}</div>`;
+
+      evDiv.innerHTML = `${count}${hourStr}${empName}${meta}`;
+      evDiv.onclick = (e) => { e.stopPropagation(); openSideGrouped(g.items); };
+      const groupCountEl = evDiv.querySelector('.group-count');
+      if(groupCountEl){
+        const openGroup = (e) => {
+          e.stopPropagation();
+          openSideGrouped(g.items);
+      };
+        groupCountEl.addEventListener('click', openGroup);
+        groupCountEl.addEventListener('keydown', (e) => {
+          if(e.key === 'Enter' || e.key === ' '){
+            e.preventDefault();
+            openGroup(e);
+        }
+      });
+    }
+  }
+    cell.appendChild(evDiv);
+  });
+  return cell;
+}
+
+const PROGRAM_COLORS = {
+  'ביומימיקרי': '#02b79c',
+  'מנהיגות ירוקה': '#4caf50',
+  'טכנולוגיות החלל': '#3b82f6',
+  'ביומימיקרי לחטיבה': '#006717',
+  'בינה מלאכותית': '#800080',
+  'רוקחים עולם': '#a91515',
+  'השמיים אינם הגבול': '#545454',
+  'פורצות דרך': '#e61ca1',
+  'יישומי AI': '#8106cd',
+  'פרימיום': '#ff6700',
+
+  'תלמידים להייטק': '#3b82f6',
+  'מייקרים': '#0292b7',
+
+  'תמיר - קווסט חדר בריחה': '#ff6700',
+  'תמיר - איפה דדי?': '#ff6700'
+};
+function getProgramColor(name){ return PROGRAM_COLORS[name] || '#1e293b'; }
+
+function shouldUseInstructorDaySheet(){
+  return userRole === 'instructor' && window.mode === 'month' && window.innerWidth <= 768;
+}
+
+function buildGroupedDetailsContent(items){
+  const sortedItems = sortByDateAndTime(
+    items.map(item => toDateAndTimeSortable(item, item.selectedDate || getEarliestDate(item.Dates), item.StartTime))
+  );
+
+  if(sortedItems.length === 0) return null;
+
+  const first = sortedItems[0];
+  let html = '';
+
+  if(isEvent(first)){
+    const timeRange = (first.StartTime || first.EndTime) ? `${first.StartTime} – ${first.EndTime}` : '—';
+    html = `
+      <h2>${first.Program}</h2>
+      <div class='subtitle'>מנהל: ${getManagerForCourseViews(first) || '—'}</div>
+      <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+      <div class="group-item">
+        <div class='row'><span class='label'>מדריך</span><span class='value'>${first.Employee || '—'}</span></div>
+        <div class='row'><span class='label'>שעות</span><span class='value'>${timeRange}</span></div>
+        ${first.Note ? `<div class='row'><span class='label'>הערה</span><span class='value'>${first.Note}</span></div>` : ''}
+    </div>
+  `;
+    return { title: first.Program || 'פרטי פעילות', html };
+  }
+
+  const allSameProgram = sortedItems.every(i => i.Program === first.Program);
+
+  if(allSameProgram){
+    html = `
+      <h2 style="color:${getProgramColor(first.Program)}">${first.Program}</h2>
+      <div class='subtitle'>מנהל: ${getManagerForCourseViews(first) || '—'}</div>
+      <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+  `;
+  } else {
+    html = `
+      <h2>פעילויות</h2>
+      <div style="border-top:1px solid var(--border); margin-top:10px; padding-top:10px;"></div>
+  `;
+  }
+
+  sortedItems.forEach(item => {
+    const type = eventTypeOf(item);
+    const isDaily = type === 'WORKSHOP' || type === 'TOUR';
+    const end = endDate(item);
+    const timeRange = (item.StartTime || item.EndTime) ? `${item.StartTime} – ${item.EndTime}` : '—';
+    const empDisplay = (item.Employee && item.Employee.trim()) ? item.Employee : `<span style="color:var(--danger); font-weight:bold;">חסר מדריך</span>`;
+    const notesHtml = renderNotesBlock(getNotesForCourseItem(item), item.Employee || '');
+    const activityDate = item.selectedDate || getEarliestDate(item.Dates);
+    const activityDateText = activityDate ? activityDate.toLocaleDateString('he-IL') : '—';
+    const programHeader = !allSameProgram ? `<div style="font-weight:700;font-size:14px;color:${getProgramColor(item.Program)};margin-bottom:8px">${item.Program || '—'}</div>` : '';
+
+    if(isDaily){
+      html += `
+        <div class="group-item">
+          ${programHeader}
+          <div class='row'><span class='label'>תאריך</span><span class='value'>${activityDateText}</span></div>
+          <div class='row'><span class='label'>רשות</span><span class='value'>${item.Authority || '—'}</span></div>
+          <div class='row'><span class='label'>בית ספר</span><span class='value'>${item.School || '—'}</span></div>
+          <div class='row'><span class='label'>שעות</span><span class='value'>${timeRange}</span></div>
+          <div class='row'><span class='label'>מדריך</span><span class='value'>${empDisplay}</span></div>
+    </div>
+    `;
+      return;
+  }
+
+    html += `
+      <div class="group-item">
+        ${programHeader}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div class='badge'>מפגש ${item.meetingIdx}</div>
+          <div style="background:#334155; color:#fff; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:bold;">${timeRange}</div>
+    </div>
+        <div class='row'><span class='label'>מדריך</span><span class='value'>${empDisplay}</span></div>
+        <div class='row'><span class='label'>בית ספר</span><span class='value'>${item.School || '—'}</span></div>
+        <div class='row'><span class='label'>רשות</span><span class='value'>${item.Authority || '—'}</span></div>
+        <div class='row'><span class='label'>סיום קורס</span><span class='value'>${end ? end.toLocaleDateString('he-IL') : '—'}</span></div>
+        ${notesHtml}
+    </div>
+  `;
+  });
+
+  const sheetTitle = allSameProgram ? (first.Program || 'פרטי יום') : 'פרטי יום';
+  return { title: sheetTitle, html };
+}
+
+function openSideGrouped(items) {
+  const content = buildGroupedDetailsContent(items);
+  if(!content) return;
+
+  sideContent.innerHTML = content.html;
+  applyNotesBoxColor();
+  openSidePanel();
+}
+
+function applyFilters(){
+  return rawData.filter(r =>
+    isEventVisibleToCurrentUser(r) &&
+    (!managerFilter.value || getManagerForCourseViews(r) === managerFilter.value) &&
+    (!employeeFilter.value || r.Employee === employeeFilter.value)
+  );
+}
+
+function getCourseStartDate(r){
+  if(!Array.isArray(r.Dates) || r.Dates.length === 0) return null;
+  return new Date(Math.min(...r.Dates.map(d => d.getTime())));
+}
+
+function getCourseEndDate(r){
+  if(!Array.isArray(r.Dates) || r.Dates.length === 0) return null;
+  return new Date(Math.max(...r.Dates.map(d => d.getTime())));
+}
+
+function isCourseActiveByRange(r, currentYear, currentMonth){
+  if(!isCourse(r)) return false;
+
+  const startDate = getCourseStartDate(r);
+  const endDate = getCourseEndDate(r);
+
+  if(!startDate || !endDate) return false;
+
+  const monthStart = new Date(currentYear, currentMonth, 1);
+  const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+
+  return startDate <= monthEnd && endDate >= monthStart;
+}
+
+function openMissingCourses(year, month){
+  const missingCourses = rawData.filter(r => {
+
+    if (String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    if (r.Employee && r.Employee.trim())
+      return false;
+
+    const activeInMonth = r.Dates.some(d =>
+      d &&
+      d.getFullYear() === year &&
+      d.getMonth() === month
+    );
+
+    const startDate = getCourseStartDate(r);
+    const nextMonthStart = new Date(year, month + 1, 1);
+    nextMonthStart.setHours(0,0,0,0);
+
+    const isFuture =
+      startDate &&
+      startDate >= nextMonthStart;
+
+    return activeInMonth || isFuture;
+  });
+
+  const sortedMissingCourses = sortByDateAndTime(
+    missingCourses.map(r => toDateAndTimeSortable(r, getCourseStartDate(r), r.StartTime))
+  );
+
+  sideContent.innerHTML = `
+    <h2>קורסים ללא מדריך</h2>
+    <div class="subtitle">${sortedMissingCourses.length} קורסים</div>
+    <div style="border-top:1px solid var(--border); margin:10px 0;"></div>
+  `;
+
+  sortedMissingCourses.forEach(r => {
+
+    const startDate = getCourseStartDate(r);
+    const end = endDate(r);
+
+    sideContent.innerHTML += `
+      <div class="course-card">
+        <div style="font-weight:800;font-size:16px;margin-bottom:6px">
+          ${r.Program || '—'}
+    </div>
+        <div>🏫 בית ספר: ${r.School || '—'}</div>
+        <div>🌍 רשות: ${r.Authority || '—'}</div>
+        <div>👨‍💼 מנהל: ${getCourseManager(r) || '—'}</div>
+        <div>📅 התחלה: ${startDate ? startDate.toLocaleDateString('he-IL') : '—'}</div>
+        <div>🏁 סיום: ${end ? end.toLocaleDateString('he-IL') : '—'}</div>
+    </div>
+  `;
+  });
+
+  openSidePanel();
+}
+
+function openManagerOverlay(mgr, year, month){
+  const courses = rawData.filter(isCourse);
+  const mgrCourses = courses.filter(r=>getCourseManager(r) === mgr);
+  const mgrEndedThisMonth = mgrCourses.filter(r =>
+    isCourseEndingInMonth(r, year, month)
+  ).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+
+  const mgrMissingActive = mgrCourses.filter(r =>
+    isCourseActiveByRange(r, year, month) &&
+    (!r.Employee || !r.Employee.trim())
+  );
+
+  sideContent.innerHTML = `
+    <h2>${mgr}</h2>
+    <div class="subtitle">קורסים מסתיימים החודש: ${mgrEndedThisMonth.length}</div>
+    <div style="border-top:1px solid var(--border);margin:10px 0 14px;"></div>
+    ${mgrMissingActive.length > 0 ? `
+      <div style="background:#fef2f2;border:1.5px solid #dc2626;border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-weight:800;color:#dc2626;margin-bottom:8px">⚠ קורסים פעילים ללא מדריך: ${mgrMissingActive.length}</div>
+        ${mgrMissingActive.map(r=>`
+          <div style="font-size:13px;padding:5px 0;border-bottom:1px solid #fecaca">
+            ${r.Program || '—'}${r.School ? ` · ${r.School}` : ''}
+      </div>`).join('')}
+    </div>` : ''}
+    ${mgrEndedThisMonth.length
+      ? mgrEndedThisMonth.map(r=>{
+          const empName = (r.Employee && r.Employee.trim())
+            ? r.Employee
+            : `<span style="color:#dc2626;font-weight:700">חסר מדריך</span>`;
+          return `
+            <div class="group-item">
+              <div style="font-weight:800;font-size:15px;margin-bottom:6px">${r.Program}</div>
+              <div style="font-size:13px;color:#475569;line-height:1.7">
+                👤 מדריך: ${empName}<br>
+                🏫 בית ספר: ${r.School || '—'}<br>
+                🌍 רשות: ${r.Authority || '—'}<br>
+                📅 סיום: ${parseDate(r.End).toLocaleDateString('he-IL')}
+          </div>
+        </div>`;
+      }).join('')
+      : '<div style="color:#94a3b8;text-align:center;padding:20px 0">אין קורסים המסתיימים החודש</div>'
+  }
+  `;
+  openSidePanel();
+}
+
+function renderSummary(){
+  const selectedValue = summaryMonth.value;
+
+  let currentYear;
+  let currentMonth;
+
+  if(selectedValue){
+    const [y,m] = selectedValue.split('-').map(Number);
+    currentYear = y;
+    currentMonth = m;
+  } else {
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth();
+  }
+
+  const currentMonthStart = new Date(currentYear, currentMonth, 1);
+
+  let nextMonth = currentMonth + 1;
+  let nextYear = currentYear;
+
+  if(nextMonth > 11){
+    nextMonth = 0;
+    nextYear++;
+  }
+
+  const courses = rawData.filter(isCourse);
+
+  const activeThisMonth = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    return isCourseActiveByRange(r, currentYear, currentMonth);
+  }).length;
+
+  const nextMonthStart = new Date(currentYear, currentMonth + 1, 1);
+  nextMonthStart.setHours(0,0,0,0);
+
+  const startingFuture = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    const startDate = getCourseStartDate(r);
+    if(!startDate) return false;
+
+    startDate.setHours(0,0,0,0);
+
+    return startDate >= nextMonthStart;
+  }).length;
+
+  const totalCourses = activeThisMonth + startingFuture;
+
+  const dailyActivitiesThisMonth = rawData.filter(r => {
+
+    const type = String(r.EventType).trim().toUpperCase();
+
+    const isDaily = type === 'WORKSHOP' || type === 'TOUR';
+
+    const inMonth = r.Dates?.some(d =>
+      d.getFullYear() === currentYear &&
+      d.getMonth() === currentMonth
+    );
+
+    const isAllowed =
+      window.currentUserRole === 'admin'
+        ? true
+        : r.EmployeeID == (window.currentUserEmployeeID || window.EmployeeID);
+
+    return isDaily && inMonth && isAllowed;
+  });
+
+  const dailyCount = dailyActivitiesThisMonth.length;
+
+  const missingInstructorCount = rawData.filter(r => {
+
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
+      return false;
+
+    if(r.Employee && r.Employee.trim())
+      return false;
+
+    const activeInMonth = r.Dates.some(d =>
+      d &&
+      d.getFullYear() === currentYear &&
+      d.getMonth() === currentMonth
+    );
+
+    const startDate = getCourseStartDate(r);
+    const isFuture =
+      startDate &&
+      startDate >= nextMonthStart;
+
+    return activeInMonth || isFuture;
+
+  }).length;
+
+  titleEl.textContent = currentMonthStart.toLocaleString('he-IL',{month:'long',year:'numeric'});
+
+  const wrap = document.createElement('div');
+  wrap.className = 'summary-wrapper';
+  wrap.innerHTML = `
+    <div class="kpi-total">
+      <div class="kpi-title">סה"כ קורסים פעילים</div>
+      <div class="kpi-number">${totalCourses}</div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-small blue">
+        <div class="kpi-title">פעילים החודש</div>
+        <div class="kpi-number">${activeThisMonth}</div>
+    </div>
+
+      <div class="kpi-small green">
+        <div class="kpi-title">נפתחים בעתיד</div>
+        <div class="kpi-number">${startingFuture}</div>
+    </div>
+
+      <div class="kpi-small orange">
+        <div class="kpi-title">סדנאות וסיורים</div>
+        <div class="kpi-number">${dailyCount}</div>
+    </div>
+    </div>
+
+    ${missingInstructorCount > 0 ? `
+      <div class="alert-missing" data-action="missing" style="cursor:pointer">
+        ⚠ חסרים ${missingInstructorCount} מדריכים לשיבוץ
+    </div>
+    ` : ''}
+  `;
+  const managers = [...new Set(rawData.filter(isCourse).map(r=>getCourseManager(r)).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'he'));
+  
+  const split = document.createElement('div');
+  split.className = 'managers-row';
+  split.style.marginTop = '20px';
+
+  managers.forEach((mgr,index)=>{
+    const mgrCourses = courses.filter(r=>getCourseManager(r) === mgr);
+    const mgrActive = mgrCourses.filter(r =>
+      isCourseActiveByRange(r, currentYear, currentMonth)
+    ).length;
+    const mgrEndedThisMonth = mgrCourses.filter(r =>
+      isCourseEndingInMonth(r, currentYear, currentMonth)
+    ).sort((a,b)=>parseDate(a.End)-parseDate(b.End));
+
+    const mgrFuture = mgrCourses.filter(r => {
+      const start = getCourseStartDate(r);
+      return start && start >= nextMonthStart;
+  }).length;
+
+    const col = document.createElement('div');
+    col.className = `manager-card${index === 1 ? ' secondary' : ''}`;
+    col.dataset.manager = mgr;
+    col.innerHTML = `
+      <div class="manager-name">${mgr}</div>
+      <div class="manager-metric">
+        <span>קורסים פעילים</span>
+        <strong>${mgrActive}</strong>
+    </div>
+      <div class="manager-metric">
+        <span>מסתיימים החודש</span>
+        <strong>${mgrEndedThisMonth.length}</strong>
+    </div>
+      <div class="manager-metric">
+        <span>נפתחים בעתיד</span>
+        <strong>${mgrFuture}</strong>
+    </div>`;
+
+    split.appendChild(col);
+  });
+  wrap.appendChild(split);
+  view.appendChild(wrap);
+
+  wrap.addEventListener('click', function(e){
+
+    // === חסר מדריך ===
+    if(e.target.closest('[data-action="missing"]')){
+      e.stopPropagation();
+      openMissingCourses(currentYear, currentMonth);
+      return;
+    }
+
+    // === מנהל ===
+    const managerCol = e.target.closest('[data-manager]');
+    if(managerCol){
+      e.stopPropagation();
+      const mgrName = managerCol.dataset.manager;
+      openManagerOverlay(mgrName, currentYear, currentMonth);
+  }
+
+  });
+}
+
+function getUniqueInstructorMonths(){
+  const monthsMap = new Map();
+  const minAllowed = getMinAllowedMonth();
+  rawData.forEach(r=>{
+    r.Dates.forEach(d=>{
+      if(!d) return;
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const key = `${year}-${String(month+1).padStart(2,'0')}`;
+      if(!monthsMap.has(key)){
+        monthsMap.set(key,{year,month});
+    }
+  });
+  });
+
+  return [...monthsMap.entries()]
+    .sort((a,b)=>
+      (a[1].year - b[1].year) ||
+      (a[1].month - b[1].month)
+    )
+    .map(([,obj])=>obj)
+    .filter(obj =>
+      new Date(obj.year,obj.month,1) >= minAllowed
+    )
+    .map(({year,month})=>({
+      value:`${year}-${String(month+1).padStart(2,'0')}`,
+      label:new Date(year,month,1)
+        .toLocaleDateString('he-IL',{month:'long',year:'numeric'})
+  }));
+}
+
+function renderInstructors(){
+
+  titleEl.textContent = "מדריכים";
+
+  const managers=[...new Set(rawData.map(r=>getInstructorManager(r)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const selectedManager = renderInstructors.selectedManager || '';
+
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+  controls.style.margin = '10px auto 0';
+  controls.style.maxWidth = '1200px';
+
+  const managerSelect = document.createElement('select');
+  managerSelect.innerHTML = '<option value="">כל המנהלים</option>' + managers.map(v=>`<option value="${v}">${v}</option>`).join('');
+  managerSelect.value = selectedManager;
+  managerSelect.onchange = () => {
+    renderInstructors.selectedManager = managerSelect.value;
+    render();
+  };
+  controls.appendChild(managerSelect);
+
+  const monthSelect = document.createElement('select');
+  const monthOptions = getUniqueInstructorMonths();
+  monthSelect.innerHTML = monthOptions
+    .map(opt=>`<option value="${opt.value}">${opt.label}</option>`)
+    .join('');
+
+  const todayValue =
+    `${currentDate.getFullYear()}-${String(currentDate.getMonth()+1).padStart(2,'0')}`;
+
+  if(!renderInstructors.selectedMonthValue){
+
+    if(monthOptions.some(opt=>opt.value === todayValue)){
+      renderInstructors.selectedMonthValue = todayValue;
+  }
+    else if(monthOptions.length > 0){
+      renderInstructors.selectedMonthValue = monthOptions[0].value;
+  }
+
+  }
+
+  monthSelect.value = renderInstructors.selectedMonthValue;
+  monthSelect.onchange = () => {
+    renderInstructors.selectedMonthValue = monthSelect.value;
+    render();
+  };
+  controls.appendChild(monthSelect);
+
+  view.appendChild(controls);
+
+  let selectedMonth = currentDate.getMonth();
+  let selectedYear = currentDate.getFullYear();
+
+  const selectedMonthValue = renderInstructors.selectedMonthValue;
+
+  const [y,m] = selectedMonthValue.split('-').map(Number);
+  selectedYear = y;
+  selectedMonth = m - 1;
+
+  const instructorsMap = {};
+  const instructorMetaByName = {};
+  const missingInstructorCourses = [];
+  const allActiveCourses = [];
+
+  rawData.forEach(r => {
+    if(!isCourse(r)) return;
+    if(!isCourseActiveByRange(r, selectedYear, selectedMonth)) return;
+
+    if(selectedManager && getInstructorManager(r) !== selectedManager) return;
+
+    allActiveCourses.push(r);
+
+    if(!r.Employee || !r.Employee.trim()){
+      missingInstructorCourses.push(r);
+      return;
+  }
+
+    if(!instructorsMap[r.Employee]){
+      instructorsMap[r.Employee] = [];
+      instructorMetaByName[r.Employee] = {
+        EmployeeID: String(r.EmployeeID || '').trim(),
+        Employee: r.Employee
+    };
+  }
+    instructorsMap[r.Employee].push(r);
+  });
+
+  const instructorDailyCountByName = {};
+
+  Object.keys(instructorsMap).forEach(name => {
+    const instructor = instructorMetaByName[name] || {};
+
+    const instructorDailyCount = rawData.filter(r => {
+
+      const type = String(r.EventType).trim().toUpperCase();
+
+      const isDaily = type === 'WORKSHOP' || type === 'TOUR';
+
+      const inMonth = r.Dates?.some(d =>
+        d.getFullYear() === selectedYear &&
+        d.getMonth() === selectedMonth
+      );
+
+      return isDaily &&
+             inMonth &&
+             r.EmployeeID == instructor.EmployeeID;
+
+  }).length;
+
+    instructorDailyCountByName[name] = instructorDailyCount;
+  });
+
+  const visibleInstructorNames = Object.keys(instructorsMap).filter(name => {
+    if(userRole === 'admin') return true;
+    if(userRole === 'instructor'){
+      const instructor = instructorMetaByName[name] || {};
+      return String(instructor.EmployeeID || '').trim() === String(window.currentUserEmployeeID || window.EmployeeID || '').trim();
+  }
+    return true;
+  });
+
+  const names = visibleInstructorNames
+    .sort((a,b)=> instructorsMap[b].length - instructorsMap[a].length || a.localeCompare(b,'he'));
+
+  const totalCourses = allActiveCourses.length;
+
+  const summaryHeader = document.createElement('div');
+  summaryHeader.style.textAlign = 'center';
+  summaryHeader.style.margin = '10px 0 20px 0';
+  summaryHeader.style.fontSize = '16px';
+  summaryHeader.style.fontWeight = '700';
+  summaryHeader.style.lineHeight = '1.8';
+
+  summaryHeader.innerHTML = `
+    כמות מדריכים: ${names.length}<br>
+    כמות קורסים: ${totalCourses}
+    ${userRole === 'admin' && missingInstructorCourses.length > 0
+      ? `<br><span style="color:#dc2626;font-weight:800">⚠ חסר מדריך: ${missingInstructorCourses.length} קורסים</span>`
+      : ''}
+  `;
+
+  view.appendChild(summaryHeader);
+
+  if(names.length===0 && (userRole !== 'admin' || missingInstructorCourses.length===0)){
+    const empty = document.createElement('div');
+    empty.style.textAlign = 'center';
+    empty.style.padding = '40px';
+    empty.style.color = '#94a3b8';
+    empty.textContent = 'לא נמצאו מדריכים פעילים';
+    view.appendChild(empty);
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'instructors-grid';
+
+  if(userRole === 'admin' && missingInstructorCourses.length > 0){
+    const box = document.createElement('div');
+    box.className = 'instructor-card instructor-card-missing';
+
+    box.innerHTML = `
+      <div class="instructor-card-name" style="color:var(--danger)">חסר מדריך</div>
+      <div class="instructor-card-count" style="color:var(--danger)">${missingInstructorCourses.length}</div>
+      <div class="instructor-card-label">תוכניות פעילות</div>
+  `;
+
+    box.onclick = (e)=>{ e.stopPropagation(); openInstructorModal("חסר מדריך", missingInstructorCourses, selectedMonth, selectedYear); };
+
+    grid.appendChild(box);
+  }
+
+  names.forEach(name=>{
+    const instructorDailyCount = instructorDailyCountByName[name] || 0;
+    const dailyWorkshopsContent = instructorDailyCount > 0
+      ? `סדנאות/סיורים: ${instructorDailyCount}`
+      : '&nbsp;';
+
+    const box = document.createElement('div');
+    box.className = 'instructor-card';
+    box.style.background = getEmployeeColor(name);
+
+    box.addEventListener('mouseenter', ()=>{ if(!window.matchMedia('(hover:none)').matches) box.style.transform='scale(1.03)'; });
+    box.addEventListener('mouseleave', ()=>{ box.style.transform='scale(1)'; });
+
+    box.innerHTML = `
+      <div class="instructor-card-name">${name}</div>
+      <div class="instructor-card-count">${instructorsMap[name].length}</div>
+      <div class="instructor-card-label">קורסים פעילים</div>
+      <div class="instructor-card-daily">${dailyWorkshopsContent}</div>
+  `;
+
+    box.onclick = (e)=>{ e.stopPropagation(); openInstructorModal(name, instructorsMap[name], selectedMonth, selectedYear); };
+
+    grid.appendChild(box);
+  });
+
+  view.appendChild(grid);
+}
+
+function openInstructorModal(name, courses, selectedMonth, selectedYear){
+  console.log('פתיחת מודל מדריך:', name);
+  const month = selectedMonth ?? currentDate.getMonth();
+  const year  = selectedYear ?? currentDate.getFullYear();
+
+  let totalWorkDays = 0;
+
+  function normalize(d){
+    const n = new Date(d);
+    n.setHours(0,0,0,0);
+    return n;
+  }
+
+  const weeks = {};
+
+  const courseOnlyRecords = courses.filter(r => isCourse(r));
+
+  const instructorEmpID = courseOnlyRecords?.[0]?.EmployeeID;
+  const dailyRecords = instructorEmpID ? rawData.filter(r => {
+    const type = String(r.EventType || '').trim().toUpperCase();
+    const isDaily = type === 'WORKSHOP' || type === 'TOUR';
+    const inMonth = r.Dates?.some(d =>
+      d.getFullYear() === year &&
+      d.getMonth() === month
+    );
+    return isDaily && inMonth && r.EmployeeID == instructorEmpID;
+  }).sort((a, b) => {
+    const da = getEarliestDate(a.Dates) || new Date(0);
+    const db = getEarliestDate(b.Dates) || new Date(0);
+    return da - db;
+  }) : [];
+
+  const sortedCourses = sortByDateAndTime(
+    courseOnlyRecords.map(r => toDateAndTimeSortable(r, getEarliestDate(r.Dates), r.StartTime))
+  );
+
+  sortedCourses.forEach(r=>{
+
+    if(!isCourse(r)) return;
+
+    r.Dates.forEach(d=>{
+
+      if(!d) return;
+
+      const date = normalize(d);
+
+      if(
+        date.getFullYear() === selectedYear &&
+        date.getMonth() === selectedMonth
+      ){
+
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        weekStart.setHours(0,0,0,0);
+
+        const key = weekStart.toISOString();
+
+        if(!weeks[key]){
+          weeks[key] = new Set();
+      }
+
+        weeks[key].add(date.toDateString());
+    }
+
+  });
+
+  });
+
+  let maxDays = 0;
+
+  Object.values(weeks).forEach(set=>{
+    if(set.size > maxDays){
+      maxDays = set.size;
+  }
+  });
+
+  totalWorkDays = maxDays;
+  const employmentType = getEmploymentTypeForEmployeeId(courseOnlyRecords?.[0]?.EmployeeID);
+  const managerName = getInstructorManager(courseOnlyRecords[0]) || '—';
+
+  // הוספת שורת רשות אם מדובר ב"חסר מדריך"
+  let authorityRow = '';
+  if (name === "חסר מדריך" && courseOnlyRecords[0]?.Authority) {
+    authorityRow = `<span class="badge" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;">רשות: ${courseOnlyRecords[0].Authority}</span>`;
+  }
+
+  sideContent.innerHTML = `
+    <div class="instructor-header">
+      <div class="instructor-name">${name}</div>
+      <div class="instructor-badges">
+        <span class="badge type">${employmentType}</span>
+        <span class="badge days">${totalWorkDays} ימי עבודה בשבוע</span>
+        <span class="badge courses">${sortedCourses.length} קורסים</span>
+          ${dailyRecords.length > 0 ? `<span class="badge" style="background:#d1fae5;color:#065f46;">${dailyRecords.length} סדנאות/סיורים</span>` : ''}
+        <span class="badge">מנהל: ${managerName}</span>
+        ${authorityRow}
+      </div>
+      </div>
+  `;
+
+  sortedCourses.forEach(r=>{
+
+    const end = endDate(r);
+
+    const courseStartDate = getEarliestDate(r.Dates);
+
+    const startDate = courseStartDate
+      ? courseStartDate.toLocaleDateString('he-IL')
+      : '—';
+
+    const endDateFormatted = end
+      ? end.toLocaleDateString('he-IL')
+      : '—';
+
+    sideContent.innerHTML += `
+      <div class="course-card">
+        <div class="course-title" style="background:${getEmployeeColor(name)};">${r.Program || '—'}</div>
+        <div>
+          <span style="font-weight:700;color:#0f172a;">בית ספר:</span> ${r.School || '—'}<br>
+          <span style="font-weight:700;color:#0f172a;">רשות:</span> ${r.Authority || '—'}
+        </div>
+        <div>
+          <div style="font-weight:700;color:#0f172a;">תאריכי פעילות</div>
+          <div>(${startDate}) - (${endDateFormatted})</div>
+        </div>
+      </div>
+  `;
+  });
+
+  if(dailyRecords.length > 0){
+    sideContent.innerHTML += `
+      <div style="font-weight:800;font-size:15px;margin:16px 0 8px;color:#1b7895;border-top:1px solid var(--border);padding-top:14px;">
+        סדנאות וסיורים
+      </div>
+  `;
+    dailyRecords.forEach(r => {
+      const type = String(r.EventType || '').trim().toUpperCase();
+      const typeLabel = type === 'TOUR' ? 'סיור' : 'סדנה';
+      const activityDate = getEarliestDate(r.Dates);
+      const activityDateText = activityDate ? activityDate.toLocaleDateString('he-IL') : '—';
+      const timeRange = (r.StartTime || r.EndTime) ? `${r.StartTime || ''} – ${r.EndTime || ''}` : '—';
+      sideContent.innerHTML += `
+        <div class="course-card">
+          <div class="course-title" style="background:#d1fae5;color:#065f46;">
+            ${r.Program || typeLabel}
+            <span style="font-size:12px;font-weight:600;margin-right:6px;">(${typeLabel})</span>
+          </div>
+          <div>
+            <span style="font-weight:700;color:#0f172a;">בית ספר:</span> ${r.School || '—'}<br>
+            <span style="font-weight:700;color:#0f172a;">רשות:</span> ${r.Authority || '—'}
+          </div>
+          <div>
+            <div style="font-weight:700;color:#0f172a;">תאריך</div>
+            <div>${activityDateText}${timeRange !== '—' ? ' | ' + timeRange : ''}</div>
+          </div>
+        </div>
+  `;
+  });
+  }
+
+  openSidePanel();
+}
+
+document.getElementById('prev').onclick = ()=>{
+  enforceInstructorMode();
+  if(!canGoPrev()) return;
+
+  if(window.mode==='summary'){
+    summaryMonth.selectedIndex = Math.max(0, summaryMonth.selectedIndex-1);
+  }
+  else if(window.mode==='week'){
+    const temp = new Date(currentDate);
+    temp.setDate(temp.getDate()-7);
+
+    if(temp >= getMinAllowedMonth()){
+      currentDate = temp;
+  }
+  }
+  else if(window.mode==='month'){
+    if(userRole === 'instructor' && isMobile()){
+      // מדריך במובייל – ניווט שבועי
+      const temp = new Date(currentDate);
+      temp.setDate(temp.getDate() - 7);
+      if(temp >= getMinAllowedMonth()) currentDate = temp;
+  } else {
+      const temp = new Date(currentDate);
+      temp.setMonth(temp.getMonth()-1);
+      if(temp >= getMinAllowedMonth()) currentDate = temp;
+  }
+  }
+
+  render();
+};
+document.getElementById('next').onclick = ()=>{
+  enforceInstructorMode();
+  if(!canGoNext()) return;
+
+  if(window.mode==='summary'){
+    summaryMonth.selectedIndex = Math.min(summaryMonth.options.length-1, summaryMonth.selectedIndex+1);
+  }
+  else if(window.mode==='week'){
+    const temp = new Date(currentDate);
+    temp.setDate(temp.getDate()+7);
+
+    const weekStart = new Date(temp);
+    weekStart.setDate(temp.getDate() - temp.getDay());
+    weekStart.setHours(0,0,0,0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(0,0,0,0);
+
+    if(dataRange && weekEnd >= dataRange.min && weekStart <= dataRange.max){
+      currentDate = temp;
+  }
+  }
+  else if(window.mode==='month'){
+    if(userRole === 'instructor' && isMobile()){
+      // מדריך במובייל – ניווט שבועי
+      const temp = new Date(currentDate);
+      temp.setDate(temp.getDate() + 7);
+      if(weekOverlapsDataRange(temp)) currentDate = temp;
+  } else {
+      const temp = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 1);
+      if(dataRange){
+        const maxMonth = new Date(dataRange.max.getFullYear(), dataRange.max.getMonth(), 1);
+        if(temp <= maxMonth) currentDate = temp;
+    }
+  }
+  }
+
+  render();
+};
+btnMonth.onclick = ()=>{
+  window.mode='month';
+  currentDate = clampDateToDataRange(new Date());
+  render();
+};
+btnWeek.onclick = ()=>{
+  if(userRole === 'instructor') return;
+  window.mode='week';
+  currentDate = clampDateToDataRange(new Date());
+  render();
+};
+btnSummary.onclick = ()=>{
+  if(userRole === 'instructor') return;
+  window.mode='summary';
+  render();
+};
+btnInstructors.onclick = ()=>{
+  if(userRole === 'instructor') return;
+  window.mode='instructors';
+  render();
+};
+if(btnEndDates){
+  btnEndDates.onclick = ()=>{
+    window.mode='enddates';
+    render();
+  };
+}
+
+function renderEndDates(){
+  titleEl.textContent = 'תאריכי סיום קורסים';
+
+  const courses = rawData
+    .filter(r => isCourse(r) && r.End instanceof Date && !isNaN(r.End.getTime()))
+    .filter(r => r.End.getMonth() >= 0 && r.End.getMonth() <= 5)
+    .slice()
+    .sort((a, b) => a.End - b.End);
+
+  const groupedByMonth = new Map();
+  courses.forEach(course => {
+    const endDate = course.End;
+    const key = `${endDate.getFullYear()}-${endDate.getMonth()}`;
+    if(!groupedByMonth.has(key)){
+      groupedByMonth.set(key, {
+        monthLabel: endDate.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' }),
+        courses: []
+      });
+    }
+    groupedByMonth.get(key).courses.push(course);
+  });
+
+  const monthSections = [...groupedByMonth.values()].map((group, groupIndex) => {
+    const rows = group.courses
+      .slice()
+      .sort((a, b) => a.End - b.End)
+      .map(course => {
+        const endDateText = course.End.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const courseIndex = courses.indexOf(course);
+        return `
+          <tr class="end-courses-row" data-course-index="${courseIndex}">
+            <td class="col-end-date" data-label="תאריך סיום">${escapeHtml(endDateText)}</td>
+            <td class="col-school" data-label="בית ספר">${escapeHtml(course.School || '—')}</td>
+            <td class="col-authority" data-label="רשות">${escapeHtml(course.Authority || '—')}</td>
+            <td class="col-course" data-label="קורס">${escapeHtml(course.Program || '—')}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const monthTitleId = `endCoursesMonthTitle-${groupIndex}`;
+
+    return `
+      <section class="end-courses-month-group">
+        <div id="${monthTitleId}" class="end-courses-month-title">${escapeHtml(group.monthLabel)}</div>
+        <div class="end-courses-table-wrap table-container" role="region" aria-labelledby="${monthTitleId}" tabindex="0">
+          <table class="end-courses-table">
+            <colgroup>
+              <col class="col-end-date">
+              <col class="col-school">
+              <col class="col-authority">
+              <col class="col-course">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>תאריך סיום</th>
+                <th>בית ספר</th>
+                <th>רשות</th>
+                <th>קורס</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="4" class="end-courses-empty" data-label="מצב">אין קורסים לחודש זה</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    `;
+  }).join('');
+
+  view.innerHTML = `
+    <div class="end-courses-page">
+      <h2 class="end-courses-page-title">תאריכי סיום קורסים</h2>
+      <div class="end-courses-search-wrap">
+        <input
+          id="endCoursesSearch"
+          class="end-courses-search-input"
+          type="search"
+          dir="rtl"
+          placeholder="חיפוש בטבלה..."
+          aria-label="חיפוש בטבלת תאריכי סיום"
+        />
+      </div>
+      <div class="end-courses-content">
+        ${monthSections || '<div class="end-courses-empty">אין קורסים עם תאריך סיום</div>'}
+      </div>
+    </div>
+  `;
+
+  const searchInput = view.querySelector('#endCoursesSearch');
+  if(searchInput){
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim().toLowerCase();
+      view.querySelectorAll('.end-courses-month-group').forEach(monthGroup => {
+        let hasVisibleRows = false;
+        monthGroup.querySelectorAll('.end-courses-table tbody tr.end-courses-row').forEach(row => {
+          const rowText = row.innerText.toLowerCase();
+          const isVisible = !query || rowText.includes(query);
+          row.style.display = isVisible ? '' : 'none';
+          if(isVisible) hasVisibleRows = true;
+        });
+        monthGroup.style.display = hasVisibleRows ? '' : 'none';
+      });
+    });
+  }
+
+  view.querySelectorAll('.end-courses-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const index = Number(row.dataset.courseIndex);
+      const course = courses[index];
+      if(course) openEndDateDetail(course);
+    });
+  });
+}
+
+function openEndDateDetail(course){
+  const dates = (course.Dates || [])
+    .filter(d => d instanceof Date && !isNaN(d.getTime()))
+    .sort((a, b) => a - b);
+
+  const endDateText = course.End instanceof Date && !isNaN(course.End.getTime())
+    ? course.End.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : '—';
+
+  const dateItems = dates.map((d, i) => {
+    const dateStr = d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return `<li class="end-detail-meeting-item"><span>${dateStr}</span><span>מפגש ${i + 1}</span></li>`;
+  }).join('');
+
+  sideContent.innerHTML = `
+    <div class="end-detail-panel">
+      <div class="end-detail-title">${escapeHtml(course.Program || '—')}</div>
+      <div class="end-detail-meta-grid">
+        <div class="end-detail-meta-item"><span>בית ספר</span><strong>${escapeHtml(course.School || '—')}</strong></div>
+        <div class="end-detail-meta-item"><span>רשות</span><strong>${escapeHtml(course.Authority || '—')}</strong></div>
+        <div class="end-detail-meta-item"><span>תאריך סיום</span><strong>${escapeHtml(endDateText)}</strong></div>
+      </div>
+      <div class="end-detail-section-title">מפגשים (${dates.length})</div>
+      <ul class="end-detail-meetings-list">${dateItems || '<li class="end-detail-empty">אין תאריכים</li>'}</ul>
+    </div>
+  `;
+  openSidePanel();
+}
+
+goCalendar.onclick = ()=>{
+  window.mode = 'month';
+  currentDate = clampDateToDataRange(new Date());
+  render();
+};
+document.getElementById('goToday').onclick = ()=>{
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  currentDate = clampDateToDataRange(today);
+
+  if(window.mode === 'summary'){
+    const key = `${today.getFullYear()}-${today.getMonth()}`;
+    const options = [...summaryMonth.options].map(o=>o.value);
+    const index = options.indexOf(key);
+    if(index >= 0){
+      summaryMonth.selectedIndex = index;
+  }
+  }
+
+  if(window.mode === 'instructors'){
+    renderInstructors.selectedMonthValue =
+      `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  }
+
+  render();
+};
+managerFilter.onchange=render;
+employeeFilter.onchange=render;
+document.getElementById('clearFilters').onclick=()=>{managerFilter.value='';employeeFilter.value='';render();};
+summaryMonth.onchange=render;
+
+const sideBackdrop = document.getElementById('side-backdrop');
+
+function isManagerOverlayOpen(){
+  return !!document.querySelector('.manager-overlay-bg, .manager-details-overlay');
+}
+
+function syncBodyScrollLock(){
+  const shouldLock = (!!side && side.classList.contains('open')) ||
+                     (!!daySheet && !daySheet.classList.contains('day-sheet-hidden')) ||
+                     isManagerOverlayOpen();
+  if(shouldLock){
+    if(view.dataset.savedScroll === undefined){
+      view.dataset.savedScroll = view.scrollTop;
+    }
+    view.style.overflow = 'hidden';
+  } else {
+    const saved = view.dataset.savedScroll;
+    view.style.overflow = '';
+    if(saved !== undefined){
+      view.scrollTop = parseInt(saved, 10);
+      delete view.dataset.savedScroll;
+    }
+  }
+}
+
+function closeManagerOverlay(){
+  document.querySelectorAll('.manager-overlay-bg, .manager-details-overlay').forEach(el => el.remove());
+  syncBodyScrollLock();
+}
+
+function closeSidePanel(){
+  console.log('סגירת פאנל צדדי');
+  side.classList.remove('open');
+  sideBackdrop.classList.remove('active');
+  syncBodyScrollLock();
+}
+
+function closeDaySheet(){
+  if(!daySheet || !daySheetBackdrop) return;
+  daySheet.classList.add('day-sheet-hidden');
+  daySheetBackdrop.classList.add('day-sheet-hidden');
+  syncBodyScrollLock();
+}
+
+function closeAllOverlays(){
+  closeSidePanel();
+  closeDaySheet();
+  closeManagerOverlay();
+}
+
+function openSidePanel(){
+  closeAllOverlays();
+  sideContent.scrollTop = 0;
+  side.classList.add('open');
+  if(isMobile()){
+    sideBackdrop.classList.add('active');
+  }
+  syncBodyScrollLock();
+}
+
+function openDaySheet(title, htmlContent){
+  if(!daySheet || !daySheetBackdrop || !daySheetContent) return;
+  closeAllOverlays();
+  daySheetTitle.textContent = title || 'פרטי יום';
+  daySheetContent.innerHTML = htmlContent || '';
+  daySheetContent.scrollTop = 0;
+  daySheet.classList.remove('day-sheet-hidden');
+  daySheetBackdrop.classList.remove('day-sheet-hidden');
+
+  syncBodyScrollLock();
+  applyNotesBoxColor();
+}
+
+document.addEventListener('click', function (e) {
+  if (e.target.closest('#closeSide')) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeSidePanel();
+  }
+});
+
+document.addEventListener('touchend', function (e) {
+  if (e.target.closest('#closeSide')) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeSidePanel();
+  }
+}, { passive: false });
+
+sideBackdrop.addEventListener('click', closeSidePanel);
+sideBackdrop.addEventListener('touchend', e=>{ e.preventDefault(); closeSidePanel(); }, { passive: false });
+
+if(daySheetClose) daySheetClose.addEventListener('click', closeDaySheet);
+if(daySheetBackdrop){
+  daySheetBackdrop.addEventListener('click', closeDaySheet);
+  daySheetBackdrop.addEventListener('touchend', e=>{ e.preventDefault(); closeDaySheet(); }, { passive: false });
+}
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    closeAllOverlays();
+  }
+});
+
+/* ===== סגירת bottom-sheet בהחלקה למטה (swipe down) ===== */
+(function(){
+  let _tx = 0, _ty = 0;
+  side.addEventListener('touchstart', e=>{
+    _tx = e.touches[0].clientX;
+    _ty = e.touches[0].clientY;
+  }, { passive: true });
+  side.addEventListener('touchend', e=>{
+    const dx = Math.abs(e.changedTouches[0].clientX - _tx);
+    const dy = e.changedTouches[0].clientY - _ty;
+    // החלקה למטה (סגירה) — לפחות 60px ואנכית יותר מאופקית
+    if(dy > 60 && dx < dy * 0.8 && sideContent.scrollTop <= 0){
+      closeSidePanel();
+  }
+  }, { passive: true });
+})();
+
+initFromRawData();
+
+window.addEventListener('popstate', (e)=>{
+  if(isMobile() && (window.mode === 'month' || window.mode === 'week')){
+    closeAllOverlays();
+    view.innerHTML = '';
+    renderMobileMonth();
+  }
+});

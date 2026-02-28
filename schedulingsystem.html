@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מערכת שיבוצים חכמה</title>
+<script src="feature-flags.js"></script>
+
+<style>
+  *{box-sizing:border-box}
+  html, body{
+    margin:0;
+    padding:0;
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+  body{
+    -webkit-text-size-adjust:100%;
+    font-family: Arial, sans-serif;
+    background:#f4f6f9;
+    color:#0f172a;
+  }
+  img{max-width:100%;height:auto}
+  button,input,select{width:100%;max-width:100%}
+  .app-wrapper{
+    width:100%;
+    max-width:1200px;
+    margin:0 auto;
+    padding:16px;
+  }
+  .page-shell{
+    width:100%;
+    margin:0 auto;
+    padding:0;
+  }
+  h1{margin:0;font-size:22px}
+  .header-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .scheduling-page .grid{
+    display:grid;
+    grid-template-columns:280px 1fr;
+    gap:16px;
+  }
+  .col{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .suggestion-wrapper{ display:block; }
+  .suggestion-wrapper .card{ max-width:none; width:100%; }
+  .courses-wrapper{
+    display:flex;
+    justify-content:center;
+  }
+  .courses-wrapper .card{
+    max-width:260px;
+    width:100%;
+  }
+  .card{
+    background:#fff;
+    padding:18px;
+    border-radius:14px;
+    box-shadow:0 6px 22px rgba(0,0,0,.08);
+  }
+  .row{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+  }
+  label{
+    display:block;font-size:13px;font-weight:800;
+    color:#2563eb;margin:8px 0 6px
+  }
+  select,input,button{
+    width:100%;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid #cbd5e1;
+    font-size:14px;
+    background:#fff;
+  }
+  button{
+    margin-top:12px;
+    background:#2563eb;
+    color:#fff;
+    border:none;
+    font-weight:900;
+    cursor:pointer;
+  }
+  button:hover{background:#1e40af}
+  button{
+    width:100%;
+    padding:12px;
+    font-size:16px;
+    border-radius:8px;
+  }
+  .note{
+    margin-top:10px;
+    font-size:12px;
+    color:#64748b;
+    line-height:1.6;
+  }
+  .status{
+    display:none;
+    margin-top:10px;
+    padding:10px 12px;
+    border-radius:12px;
+    font-size:13px;
+    line-height:1.6;
+  }
+  .status.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .status.ok{background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8}
+
+  /* tables */
+  .table-wrap,.table-wrapper{width:100%;overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px}
+  table{width:100%;border-collapse:collapse}
+  th,td{
+    padding:10px 12px;
+    border-bottom:1px solid #eef2f7;
+    text-align:right;
+    font-size:13px;
+    white-space:nowrap;
+  }
+  th{background:#f1f5f9;font-weight:900}
+  tr:hover td{background:#fafcff}
+  .small{font-size:12px;color:#64748b;font-weight:700}
+  /* suggestions list */
+  .list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0;min-height:200px}
+  .result-card{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    padding:12px 0;
+    border-bottom:1px solid #eee;
+    font-size:14px;
+    line-height:1.4;
+  }
+  .result-card div{word-break:break-word;}
+  .item-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .card-title{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:12px;
+    border-bottom:1px solid #e5e7eb;
+    padding-bottom:8px;
+  }
+  .result-date{
+    font-weight:700;
+    margin-bottom:6px;
+  }
+  .item-sub{font-size:12px;color:#64748b;font-weight:700}
+  .options{
+    display:block;
+  }
+  .opt{
+    display:block;
+    padding:6px 0;
+    font-size:13px;
+    font-weight:700;
+  }
+  .muted{color:#94a3b8;font-weight:700}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;
+  }
+  .search{
+    width:230px;
+    max-width:100%;
+    height:34px;
+    padding:5px 10px;
+    font-size:14px;
+  }
+  .back-dashboard-btn{
+    background:#f8b4d9;
+    color:#fff;
+    border:none;
+    width:auto;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:6px 12px;
+    height:32px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:0;
+  }
+  .back-dashboard-btn:hover{ opacity:.9; background:#f8b4d9; }
+
+  @media (max-width: 992px){
+    .scheduling-page .grid{
+      grid-template-columns:1fr;
+    }
+  }
+
+  @media (max-width: 640px){
+    .app-wrapper{padding:12px;}
+    .card{padding:14px;}
+  }
+
+  @media (max-width: 480px){
+    .scheduling-page .row{
+      grid-template-columns: 1fr;
+    }
+    .topbar{
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .search{
+      width: 100%;
+    }
+    h1{font-size:18px;}
+    .header-row{flex-wrap:wrap;}
+  }
+
+  /* Scheduling table - compact mode */
+  .scheduling-page .table-wrap{
+    max-width: 100%;
+    overflow: auto;
+  }
+
+  /* הכי חשוב: קומפקטיות */
+  .scheduling-page table{
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  /* כותרות ותאים */
+  .scheduling-page th,
+  .scheduling-page td{
+    padding: 4px 6px;
+    border: 1px solid #e2e8f0;
+    vertical-align: middle;
+  }
+
+  /* כותרת קומפקטית */
+  .scheduling-page th{
+    font-weight: 800;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 2;
+  }
+
+  /* שורות נמוכות יותר */
+  .scheduling-page tr{
+    height: 26px;
+  }
+
+  /* עמודות מספרים (ID וכו') */
+  .scheduling-page td.num,
+  .scheduling-page th.num{
+    text-align: center;
+    width: 1%;
+  }
+
+  /* עמודות טקסט קצר */
+  .scheduling-page td.short,
+  .scheduling-page th.short{
+    width: 1%;
+  }
+
+  /* עמודות ארוכות – לקצץ עם ... */
+  .scheduling-page td.ellipsis{
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .loading-placeholder{height:80px;}
+</style>
+</head>
+
+<body>
+<script>
+if (!window.ENABLE_SCHEDULING) {
+  window.location.replace('index.html');
+}
+</script>
+  <div class="app-wrapper">
+  <div class="page-shell scheduling-page">
+  <div class="header-row">
+  <h1>📌 מערכת שיבוצים </h1>
+    <button class="back-dashboard-btn" onclick="goBackToDashboard()">
+      ⬅ חזרה
+    </button>
+  </div>
+
+  <div class="grid">
+
+    <div class="col">
+      <div class="suggestion-wrapper">
+        <div class="card">
+          <div class="card-title">הצעת שיבוצים</div>
+
+          <div class="row">
+            <div>
+              <label>רשות יעד</label>
+              <select id="authoritySelect">
+                <option value="" disabled selected hidden>בחר רשות</option>
+              </select>
+            </div>
+            <div>
+              <label>כמות ימים להציג</label>
+              <select id="daysLimit">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="30">30</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>אפשרויות לכל תאריך</label>
+              <select id="topN">
+                <option value="3" selected>Top 3</option>
+                <option value="5">Top 5</option>
+              </select>
+            </div>
+            <div>
+              <label>משך קורס (דקות)</label>
+              <input id="durationMin" type="number" value="120" min="30" step="5"/>
+            </div>
+          </div>
+
+          <button id="runButton">מצא שיבוץ </button>
+
+          <div class="status" id="statusBox2"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="topbar">
+          <div style="font-weight:900;">תוצאות שיבוץ</div>
+          <div class="small" id="metaInfo"></div>
+        </div>
+
+        <div class="list" id="resultsList">
+          <div class="loading-placeholder muted">לחץ “מצא שיבוץ” כדי להציג תוצאות.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="courses-wrapper">
+        <div class="card">
+        <div class="topbar">
+          <input class="search" id="coursesSearch" placeholder="חיפוש מדריך..." oninput="renderCoursesTableFromLast()"/>
+        </div>
+
+        <div class="table-wrap table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th class="ellipsis">מדריך</th>
+                <th class="num short">כמות קורסים</th>
+              </tr>
+            </thead>
+            <tbody id="coursesBody">
+              <tr><td colspan="2" class="muted">טוען…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="status" id="statusBoxCourses"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+  </div>
+
+<script type="module" src="scheduling-app.js"></script>
+
+</body>
+</html>
