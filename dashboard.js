@@ -2357,8 +2357,11 @@ function renderEndDates(){
       .map(course => {
         const endDateText = course.End.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const courseIndex = courses.indexOf(course);
+        const searchText = [endDateText, course.School, course.Authority, course.Program]
+          .map(s => (s || '').toLowerCase())
+          .join(' ');
         return `
-          <tr class="end-courses-row" data-course-index="${courseIndex}">
+          <tr class="end-courses-row" data-course-index="${courseIndex}" data-search="${escapeHtml(searchText)}">
             <td class="col-end-date" data-label="תאריך סיום">${escapeHtml(endDateText)}</td>
             <td class="col-school" data-label="בית ספר">${escapeHtml(course.School || '—')}</td>
             <td class="col-authority" data-label="רשות">${escapeHtml(course.Authority || '—')}</td>
@@ -2424,7 +2427,7 @@ function renderEndDates(){
       view.querySelectorAll('.end-courses-month-group').forEach(monthGroup => {
         let hasVisibleRows = false;
         monthGroup.querySelectorAll('.end-courses-table tbody tr.end-courses-row').forEach(row => {
-          const rowText = row.innerText.toLowerCase();
+          const rowText = (row.dataset.search || row.textContent).toLowerCase();
           const isVisible = !query || rowText.includes(query);
           row.style.display = isVisible ? '' : 'none';
           if(isVisible) hasVisibleRows = true;
