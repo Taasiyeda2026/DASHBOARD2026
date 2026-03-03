@@ -154,6 +154,7 @@ const goCalendar = document.getElementById('goCalendar');
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
 const summaryMonth=document.getElementById('summaryMonth');
+let activeSidePanelType = '';
 
 function updateSchedulingButtonVisibility(){
   const btn = document.getElementById('btnScheduling');
@@ -1596,6 +1597,48 @@ function openMissingCourses(year, month){
   });
 
   openSidePanel();
+  activeSidePanelType = 'missing-courses';
+}
+
+function openFutureOpenings(year, month){
+  const nextMonthStart = new Date(year, month + 1, 1);
+  nextMonthStart.setHours(0,0,0,0);
+
+  const futureCourses = rawData.filter(r => {
+    if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return false;
+    const startDate = getCourseStartDate(r);
+    if(!startDate) return false;
+    startDate.setHours(0,0,0,0);
+    return startDate >= nextMonthStart;
+  });
+
+  const sortedFutureCourses = sortByDateAndTime(
+    futureCourses.map(r => toDateAndTimeSortable(r, getCourseStartDate(r), r.StartTime))
+  );
+
+  sideContent.innerHTML = `
+    <h2>קורסים נפתחים בעתיד</h2>
+    <div class="subtitle">${sortedFutureCourses.length} קורסים</div>
+    <div style="border-top:1px solid var(--border); margin:10px 0;"></div>
+  `;
+
+  sortedFutureCourses.forEach(r => {
+    const startDate = getCourseStartDate(r);
+    const instructor = (r.Employee && r.Employee.trim()) ? r.Employee : '—';
+
+    sideContent.innerHTML += `
+      <div class="course-card">
+        <div style="font-weight:800;font-size:16px;margin-bottom:6px">${r.Program || '—'}</div>
+        <div>📅 פתיחה: ${startDate ? startDate.toLocaleDateString('he-IL') : '—'}</div>
+        <div>🌍 רשות: ${r.Authority || '—'}</div>
+        <div>📘 קורס: ${r.Program || '—'}</div>
+        <div>👤 מדריך: ${instructor}</div>
+      </div>
+    `;
+  });
+
+  openSidePanel();
+  activeSidePanelType = 'future-openings';
 }
 
 function openManagerOverlay(mgr, year, month){
@@ -1756,7 +1799,7 @@ function renderSummary(){
         <div class="kpi-number">${activeThisMonth}</div>
     </div>
 
-      <div class="kpi-small green">
+      <div class="kpi-small green" data-action="future-openings" role="button" aria-label="קורסים נפתחים בעתיד" style="cursor:pointer">
         <div class="kpi-title">נפתחים בעתיד</div>
         <div class="kpi-number">${startingFuture}</div>
     </div>
@@ -1823,6 +1866,16 @@ function renderSummary(){
     if(e.target.closest('[data-action="missing"]')){
       e.stopPropagation();
       openMissingCourses(currentYear, currentMonth);
+      return;
+    }
+
+    if(e.target.closest('[data-action="future-openings"]')){
+      e.stopPropagation();
+      if(side.classList.contains('open') && activeSidePanelType === 'future-openings'){
+        closeSidePanel();
+        return;
+      }
+      openFutureOpenings(currentYear, currentMonth);
       return;
     }
 
@@ -2541,6 +2594,7 @@ function closeSidePanel(){
   console.log('סגירת פאנל צדדי');
   side.classList.remove('open');
   sideBackdrop.classList.remove('active');
+  activeSidePanelType = '';
   syncBodyScrollLock();
 }
 
