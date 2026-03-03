@@ -2592,8 +2592,12 @@ function closeManagerOverlay(){
 
 function closeSidePanel(){
   console.log('סגירת פאנל צדדי');
+  const side = document.getElementById('side');
+  if(!side) return;
   side.classList.remove('open');
-  sideBackdrop.classList.remove('active');
+  if(sideBackdrop){
+    sideBackdrop.classList.remove('active');
+  }
   activeSidePanelType = '';
   syncBodyScrollLock();
 }
@@ -2612,10 +2616,12 @@ function closeAllOverlays(){
 }
 
 function openSidePanel(){
+  const side = document.getElementById('side');
+  if(!side) return;
   closeAllOverlays();
   sideContent.scrollTop = 0;
   side.classList.add('open');
-  if(isMobile()){
+  if(isMobile() && sideBackdrop){
     sideBackdrop.classList.add('active');
   }
   syncBodyScrollLock();
