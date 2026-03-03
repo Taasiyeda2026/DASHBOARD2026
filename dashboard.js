@@ -1644,69 +1644,6 @@ function openManagerOverlay(mgr, year, month){
   openSidePanel();
 }
 
-function openFutureCoursesPanel(data, nextMonthStart) {
-  if (!nextMonthStart) {
-    const now = new Date();
-    nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    nextMonthStart.setHours(0,0,0,0);
-  }
-
-  const futureCourses = data.filter(r => {
-    if (String(r.EventType || '').trim().toUpperCase() !== 'COURSE') return false;
-    const startDate = getCourseStartDate(r);
-    if (!startDate) return false;
-    const d = new Date(startDate);
-    d.setHours(0,0,0,0);
-    return d >= nextMonthStart;
-  });
-
-  futureCourses.sort((a, b) => {
-    const da = getCourseStartDate(a);
-    const db = getCourseStartDate(b);
-    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
-  });
-
-  if (futureCourses.length === 0) {
-    sideContent.innerHTML = '<p style="padding:16px;color:#64748b;">אין קורסים נפתחים בעתיד</p>';
-  } else {
-    const rows = futureCourses.map(r => {
-      const startDate = getCourseStartDate(r);
-      const dateStr = startDate ? startDate.toLocaleDateString('he-IL') : '—';
-      const authority = String(r.Authority || '').trim() || '—';
-      const program = String(r.Program || r.School || '').trim() || '—';
-      const instructor = String(r.Employee || '').trim() || '—';
-      return `<tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;">${dateStr}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;">${authority}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;">${program}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;">${instructor}</td>
-      </tr>`;
-    }).join('');
-
-    sideContent.innerHTML = `
-      <div style="padding:0 16px 16px;">
-        <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:#0f172a;">
-          קורסים נפתחים בעתיד (${futureCourses.length})
-        </h3>
-        <div style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:right;">
-            <thead>
-              <tr style="background:#f1f5f9;">
-                <th style="padding:6px 8px;font-weight:600;color:#475569;">תאריך</th>
-                <th style="padding:6px 8px;font-weight:600;color:#475569;">רשות</th>
-                <th style="padding:6px 8px;font-weight:600;color:#475569;">קורס</th>
-                <th style="padding:6px 8px;font-weight:600;color:#475569;">מדריך</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </div>`;
-  }
-
-  openSidePanel();
-}
-
 function renderSummary(){
   const selectedValue = summaryMonth.value;
 
@@ -1819,8 +1756,8 @@ function renderSummary(){
         <div class="kpi-number">${activeThisMonth}</div>
     </div>
 
-      <div class="kpi-small green" data-action="future-courses" style="cursor:pointer;" title="לחץ לפירוט">
-        <div class="kpi-title">נפתחים בעתיד ›</div>
+      <div class="kpi-small green">
+        <div class="kpi-title">נפתחים בעתיד</div>
         <div class="kpi-number">${startingFuture}</div>
     </div>
 
@@ -1881,13 +1818,6 @@ function renderSummary(){
   view.appendChild(wrap);
 
   wrap.addEventListener('click', function(e){
-
-    // === נפתחים בעתיד ===
-    if(e.target.closest('[data-action="future-courses"]')){
-      e.stopPropagation();
-      openFutureCoursesPanel(rawData, nextMonthStart);
-      return;
-    }
 
     // === חסר מדריך ===
     if(e.target.closest('[data-action="missing"]')){
