@@ -214,6 +214,7 @@ function switchDualRoleView(){
   if(window._dualViewMode === 'admin'){
     // Switch to instructor view
     window._dualViewMode = 'instructor';
+    document.body.dataset.role = 'instructor';
     rawData = normalizeData(window.personalData || []);
     btnSummary.style.display = 'none';
     btnInstructors.style.display = 'none';
@@ -226,6 +227,7 @@ function switchDualRoleView(){
   } else {
     // Switch to admin view
     window._dualViewMode = 'admin';
+    document.body.dataset.role = 'both';
     rawData = normalizeData(window.allAdminData || []);
     btnSummary.style.display = '';
     btnInstructors.style.display = '';
@@ -1051,7 +1053,7 @@ function renderInstructorGridMonth(){
   wrap.appendChild(grid);
   view.appendChild(wrap);
 
-  if(window.currentUserRole === 'instructor'){
+  if(window.currentUserRole === 'instructor' || window._dualViewMode === 'instructor'){
     const currentYear = y;
     const currentMonth = m;
     const currentEmployeeID = String(window.currentUserEmployeeID || window.EmployeeID || '').trim();
@@ -1797,7 +1799,7 @@ function renderSummary(){
     );
 
     const isAllowed =
-      window.currentUserRole === 'admin'
+      (window.currentUserRole === 'admin' && window._dualViewMode !== 'instructor')
         ? true
         : r.EmployeeID == (window.currentUserEmployeeID || window.EmployeeID);
 
