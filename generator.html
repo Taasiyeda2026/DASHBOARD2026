@@ -114,7 +114,7 @@ h1{font-size:22px;font-weight:700;color:#1e293b;margin-bottom:6px}
           <div style="font-weight:600;margin-bottom:6px;color:#334155">codes.xlsx</div>
           <div class="schema-item"><span class="schema-key">EmployeeID</span><span class="schema-req">*</span></div>
           <div class="schema-item"><span class="schema-key">EntryCode</span><span class="schema-req">*</span></div>
-          <div class="schema-item"><span class="schema-key">Role</span><span class="schema-req">*</span> <span style="color:#64748b">(instructor / admin)</span></div>
+          <div class="schema-item"><span class="schema-key">Role</span><span class="schema-req">*</span> <span style="color:#64748b">(instructor / admin / both)</span></div>
           <div class="schema-item"><span class="schema-key">Employee, InstructorManager</span></div>
           <div class="schema-item"><span class="schema-key">EmploymentType</span></div>
           <div class="schema-item"><span class="schema-key">HomeAuthority</span></div>
@@ -399,7 +399,10 @@ async function generateFullZip(){
 
   const instructorManagersByEmployeeId = new Map(
     s.codesData
-      .filter(r => String(r.Role ?? '').trim().toLowerCase() === 'instructor')
+      .filter(r => {
+        const role = String(r.Role ?? '').trim().toLowerCase();
+        return role === 'instructor' || role === 'both';
+      })
       .map(r => [String(r.EmployeeID ?? '').trim(), String(r.InstructorManager ?? '').trim()])
   );
 
@@ -442,6 +445,26 @@ async function generateFullZip(){
       const name = NameField || EmployeeID;
       adminsFolder.file(`${hash}.json`, JSON.stringify({name, data: allCourses}, null, 2));
       log.innerHTML += `<div class="log-row log-ok"><span class="icon">✓</span> מנהל: <strong>${name||EmployeeID}</strong> — ${allCourses.length} קורסים</div>`;
+      adminCount++;
+    } else if(Role === 'both'){
+      const instructorManager = String(row.InstructorManager ?? '').trim();
+      const personalCourses = s.mainData
+        .filter(r => Number(r.EmployeeID) === Number(EmployeeID))
+        .map(course => normalizeCourse(course, { InstructorManager: instructorManager }));
+
+      const allCourses = s.mainData.map(course => {
+        const employeeId = String(course.EmployeeID ?? '').trim();
+        return normalizeCourse(course, { InstructorManager: instructorManagersByEmployeeId.get(employeeId) || '' });
+      });
+
+      const name = NameField || personalCourses[0]?.Employee || EmployeeID;
+      adminsFolder.file(`${hash}.json`, JSON.stringify({
+        name,
+        role: 'both',
+        data: allCourses,
+        personalData: personalCourses
+      }, null, 2));
+      log.innerHTML += `<div class="log-row log-ok"><span class="icon">✓</span> מנהל+מדריך: <strong>${name||EmployeeID}</strong> — ${allCourses.length} קורסים (${personalCourses.length} אישיים)</div>`;
       adminCount++;
     } else {
       skipped++;

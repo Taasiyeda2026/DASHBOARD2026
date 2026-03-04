@@ -167,15 +167,23 @@ async function login(){
 function startApp(jsonData, role, hash, remember){
   const records = Array.isArray(jsonData) ? jsonData : (jsonData.data || []);
   const name = !Array.isArray(jsonData) ? (jsonData.name || '') : '';
+
+  // Detect dual role (manager + instructor)
+  const effectiveRole = (!Array.isArray(jsonData) && jsonData.role === 'both') ? 'both' : role;
+  if(effectiveRole === 'both'){
+    window.allAdminData = records;
+    window.personalData = (!Array.isArray(jsonData) && jsonData.personalData) ? jsonData.personalData : [];
+  }
+
   rawData = records;
-  userRole = role;
-  window.currentUserRole = role;
-  document.body.dataset.role = role;
+  userRole = effectiveRole;
+  window.currentUserRole = effectiveRole;
+  document.body.dataset.role = effectiveRole;
 
   if(remember !== null){
     const store = remember ? localStorage : sessionStorage;
     store.setItem('dash_hash', hash);
-    store.setItem('dash_role', role);
+    store.setItem('dash_role', effectiveRole);
     if(name) store.setItem('dash_name', name);
   }
   window.EmployeeID = sessionStorage.getItem('dash_empId') || '';
@@ -214,13 +222,22 @@ async function resumeSession(){
   const role = localStorage.getItem('dash_role') || sessionStorage.getItem('dash_role');
   if(!hash || !role) return false;
 
-  const path = role === 'admin'
-    ? `./data/admins/${hash}.json`
-    : `./data/instructors/${hash}.json`;
-
   showLoader();
   try{
-    const json = await fetchJsonWithErrors(path);
+    let json;
+    if(role === 'admin'){
+      json = await fetchJsonWithErrors(`./data/admins/${hash}.json`);
+    } else if(role === 'both'){
+      // 'both' files can be in either instructors (existing) or admins (generator)
+      try{
+        json = await fetchJsonWithErrors(`./data/instructors/${hash}.json`);
+      }catch(e){
+        if(e.message !== 'not_found') throw e;
+        json = await fetchJsonWithErrors(`./data/admins/${hash}.json`);
+      }
+    } else {
+      json = await fetchJsonWithErrors(`./data/instructors/${hash}.json`);
+    }
     startApp(json, role, hash, null);
     return true;
   }catch(_e){
