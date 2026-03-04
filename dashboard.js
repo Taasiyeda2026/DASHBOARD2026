@@ -122,7 +122,7 @@ async function loadNotesJson(){
 }
 
 function getEmploymentTypeForEmployeeId(employeeId){
-  if(userRole === 'instructor') return '—';
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor') return '—';
 
   const id = String(employeeId ?? '').trim();
   if(!id) return '—';
@@ -130,7 +130,7 @@ function getEmploymentTypeForEmployeeId(employeeId){
   return employmentTypeByEmployeeId.get(id) || '—';
 }
 function enforceInstructorMode(){
-  if(userRole === 'instructor'){
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor'){
     window.mode = 'month';
   }
 }
@@ -193,15 +193,61 @@ if(userRole === 'instructor'){
   window.mode = 'month';
 }
 
+// Dual role: manager + instructor — only for employee 1500
+window._dualViewMode = 'admin'; // 'admin' | 'instructor'
+if(userRole === 'both'){
+  // Start in admin view — all buttons visible by default
+  // Add toggle button
+  (function addDualRoleToggle(){
+    const navModes = document.querySelector('.nav-modes');
+    if(!navModes) return;
+    const btn = document.createElement('button');
+    btn.id = 'btnDualRoleToggle';
+    btn.style.cssText = 'background:#7c3aed;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;';
+    btn.textContent = 'תצוגת מדריך';
+    btn.onclick = switchDualRoleView;
+    navModes.appendChild(btn);
+  })();
+}
+
+function switchDualRoleView(){
+  if(window._dualViewMode === 'admin'){
+    // Switch to instructor view
+    window._dualViewMode = 'instructor';
+    rawData = normalizeData(window.personalData || []);
+    btnSummary.style.display = 'none';
+    btnInstructors.style.display = 'none';
+    btnMonth.style.display = 'none';
+    btnWeek.style.display = 'none';
+    if(filtersEl) filtersEl.style.display = 'none';
+    window.mode = 'month';
+    const toggleBtn = document.getElementById('btnDualRoleToggle');
+    if(toggleBtn) toggleBtn.textContent = 'תצוגת מנהל';
+  } else {
+    // Switch to admin view
+    window._dualViewMode = 'admin';
+    rawData = normalizeData(window.allAdminData || []);
+    btnSummary.style.display = '';
+    btnInstructors.style.display = '';
+    btnMonth.style.display = '';
+    btnWeek.style.display = '';
+    if(filtersEl) filtersEl.style.display = '';
+    window.mode = 'summary';
+    const toggleBtn = document.getElementById('btnDualRoleToggle');
+    if(toggleBtn) toggleBtn.textContent = 'תצוגת מדריך';
+  }
+  render();
+}
+
 let dataRange=null;
 let _mode='month';
 Object.defineProperty(window, 'mode', {
   get(){ return _mode; },
   set(value){
-    if(userRole === 'instructor'){
+    if(userRole === 'instructor' || window._dualViewMode === 'instructor'){
       _mode = 'month';
       return;
-  }
+    }
     _mode = value;
   },
   configurable: false
@@ -452,13 +498,13 @@ function getInstructorManager(r){
 }
 
 function getManagerForCourseViews(r){
-  return userRole === 'instructor' ? getInstructorManager(r) : getCourseManager(r);
+  return (userRole === 'instructor' || window._dualViewMode === 'instructor') ? getInstructorManager(r) : getCourseManager(r);
 }
 
 
 function isEventVisibleToCurrentUser(record){
   if(!isEvent(record)) return true;
-  if(userRole !== 'instructor') return true;
+  if(userRole !== 'instructor' && window._dualViewMode !== 'instructor') return true;
 
   const eventEmployeeId = String(record.EmployeeID || '').trim();
   const currentEmployeeId = String(window.EmployeeID || '').trim();
@@ -561,12 +607,12 @@ function canGoPrev(){
   if(!dataRange) return false;
 
   if(window.mode === 'month'){
-    if(userRole === 'instructor' && isMobile()){
+    if((userRole === 'instructor' || window._dualViewMode === 'instructor') && isMobile()){
       // מדריך במובייל – ניווט שבועי
       const temp = new Date(currentDate);
       temp.setDate(temp.getDate() - 7);
       return temp >= getMinAllowedMonth();
-  }
+    }
     const temp = new Date(currentDate);
     temp.setMonth(temp.getMonth()-1);
 
@@ -590,12 +636,12 @@ function canGoNext(){
   if(!dataRange) return false;
 
   if(window.mode === 'month'){
-    if(userRole === 'instructor' && isMobile()){
+    if((userRole === 'instructor' || window._dualViewMode === 'instructor') && isMobile()){
       // מדריך במובייל – ניווט שבועי
       const temp = new Date(currentDate);
       temp.setDate(temp.getDate() + 7);
       return weekOverlapsDataRange(temp);
-  }
+    }
     const temp = new Date(currentDate);
     temp.setMonth(temp.getMonth()+1);
     return temp.getFullYear() < dataRange.max.getFullYear() ||
@@ -696,7 +742,7 @@ async function initFromRawData(){
   updateSchedulingButtonVisibility();
   updateEndDatesButtonVisibility();
 
-  window.mode='month';
+  window.mode = (userRole === 'both') ? 'summary' : 'month';
 
   if(userRole === 'instructor'){
     await loadSchedulingJson();
@@ -815,7 +861,7 @@ function render(){
   view.classList.toggle('view-enddates', window.mode === 'enddates');
   closeSidePanel();
 
-  if(userRole === 'instructor' || window.mode === 'summary' || window.mode === 'instructors' || window.mode === 'enddates' || isMobile()){
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor' || window.mode === 'summary' || window.mode === 'instructors' || window.mode === 'enddates' || isMobile()){
     filtersEl.style.display = 'none';
   }else{
     filtersEl.style.display = 'flex';
@@ -851,12 +897,12 @@ function render(){
 }
 
 function renderMonthView(){
-  if(userRole === 'instructor'){
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor'){
     if(isMobile()){
       renderInstructorMobileWeek();
-  } else {
+    } else {
       renderInstructorGridMonth();
-  }
+    }
     return;
   }
   if(isMobile()){
@@ -1412,7 +1458,7 @@ const PROGRAM_COLORS = {
 function getProgramColor(name){ return PROGRAM_COLORS[name] || '#1e293b'; }
 
 function shouldUseInstructorDaySheet(){
-  return userRole === 'instructor' && window.mode === 'month' && window.innerWidth <= 768;
+  return (userRole === 'instructor' || window._dualViewMode === 'instructor') && window.mode === 'month' && window.innerWidth <= 768;
 }
 
 function buildGroupedDetailsContent(items){
@@ -2299,7 +2345,7 @@ document.getElementById('prev').onclick = ()=>{
   }
   }
   else if(window.mode==='month'){
-    if(userRole === 'instructor' && isMobile()){
+    if((userRole === 'instructor' || window._dualViewMode === 'instructor') && isMobile()){
       // מדריך במובייל – ניווט שבועי
       const temp = new Date(currentDate);
       temp.setDate(temp.getDate() - 7);
@@ -2337,7 +2383,7 @@ document.getElementById('next').onclick = ()=>{
   }
   }
   else if(window.mode==='month'){
-    if(userRole === 'instructor' && isMobile()){
+    if((userRole === 'instructor' || window._dualViewMode === 'instructor') && isMobile()){
       // מדריך במובייל – ניווט שבועי
       const temp = new Date(currentDate);
       temp.setDate(temp.getDate() + 7);
@@ -2359,18 +2405,18 @@ btnMonth.onclick = ()=>{
   render();
 };
 btnWeek.onclick = ()=>{
-  if(userRole === 'instructor') return;
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor') return;
   window.mode='week';
   currentDate = clampDateToDataRange(new Date());
   render();
 };
 btnSummary.onclick = ()=>{
-  if(userRole === 'instructor') return;
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor') return;
   window.mode='summary';
   render();
 };
 btnInstructors.onclick = ()=>{
-  if(userRole === 'instructor') return;
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor') return;
   window.mode='instructors';
   render();
 };
