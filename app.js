@@ -76,8 +76,15 @@ function showLogin(){
       </div>
     </div>
   `;
+  document.getElementById('empId').focus();
   document.getElementById('empCode').addEventListener('keydown', e => { if(e.key === 'Enter') login(); });
-  document.getElementById('empId').addEventListener('keydown', e => { if(e.key === 'Enter') document.getElementById('empCode').focus(); });
+  document.getElementById('empId').addEventListener('keydown', e => {
+    if(e.key === 'Enter') {
+      const code = document.getElementById('empCode').value.trim();
+      if(code) login();
+      else document.getElementById('empCode').focus();
+    }
+  });
 }
 
 function setLoginError(message){
@@ -119,7 +126,7 @@ async function login(){
   setLoginError('');
   const id = document.getElementById('empId').value.trim();
   const code = document.getElementById('empCode').value.trim();
-  if(!id || !code) return;
+  if(!id || !code) { setLoginError('יש להזין מספר עובד וקוד אישי.'); return; }
 
   const hash = await sha256(id + code + SALT);
   const remember = document.getElementById('rememberMe')?.checked ?? false;
