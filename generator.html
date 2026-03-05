@@ -397,8 +397,30 @@ async function generateFullZip(){
 
   const authorityLocations = buildAuthorityLocations(s.distanceData);
 
+  // Merge rows where same EmployeeID has both 'instructor' and 'admin' → treat as 'both'
+  const _empRoleMap = new Map();
+  for(const row of s.codesData){
+    const empId = String(row.EmployeeID ?? '').trim();
+    const role = String(row.Role ?? '').trim().toLowerCase();
+    if(!_empRoleMap.has(empId)) _empRoleMap.set(empId, {});
+    if(role === 'instructor' || role === 'admin') _empRoleMap.get(empId)[role] = row;
+  }
+  const _mergedIds = new Set();
+  const processedCodesData = [];
+  for(const row of s.codesData){
+    const empId = String(row.EmployeeID ?? '').trim();
+    const emp = _empRoleMap.get(empId) || {};
+    if(emp.instructor && emp.admin){
+      if(_mergedIds.has(empId)) continue;
+      _mergedIds.add(empId);
+      processedCodesData.push({ ...emp.admin, Role: 'both', InstructorManager: emp.instructor.InstructorManager || '' });
+    } else {
+      processedCodesData.push(row);
+    }
+  }
+
   const instructorManagersByEmployeeId = new Map(
-    s.codesData
+    processedCodesData
       .filter(r => {
         const role = String(r.Role ?? '').trim().toLowerCase();
         return role === 'instructor' || role === 'both';
@@ -407,10 +429,10 @@ async function generateFullZip(){
   );
 
   let instructorCount = 0, adminCount = 0, skipped = 0;
-  const total = s.codesData.length;
+  const total = processedCodesData.length;
 
   for(let idx = 0; idx < total; idx++){
-    const row = s.codesData[idx];
+    const row = processedCodesData[idx];
     const EmployeeID = String(row.EmployeeID ?? '').trim();
     const EntryCode = String(row.EntryCode ?? '').trim();
     const Role = String(row.Role ?? '').trim().toLowerCase();
