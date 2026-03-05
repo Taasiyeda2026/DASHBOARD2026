@@ -164,7 +164,7 @@
         46135,
         46156
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -219,7 +219,7 @@
         46135,
         46156
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -274,7 +274,7 @@
         46135,
         46156
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -736,176 +736,6 @@
       "EmployeeID": 1501,
       "StartTime": 0.4895833333333327,
       "EndTime": 0.5451388888888881,
-      "Date1": 46086,
-      "Date2": 46093,
-      "Date3": 46100,
-      "Date4": 46121,
-      "Date5": 46128,
-      "Date6": 46135,
-      "Date7": 46142,
-      "Date8": 46149,
-      "Date9": 46156,
-      "Date10": 46170,
-      "Date11": "",
-      "Date12": "",
-      "Date13": "",
-      "Date14": "",
-      "Date15": "",
-      "Date16": "",
-      "Date17": "",
-      "Date18": "",
-      "Date19": "",
-      "Date20": "",
-      "Date21": "",
-      "Date22": "",
-      "Date23": "",
-      "Date24": "",
-      "Date25": "",
-      "Date26": "",
-      "Date27": "",
-      "Date28": "",
-      "Date29": "",
-      "Date30": "",
-      "End": 46170,
-      "MonthEnd": 5,
-      "MonthStart": 3,
-      "Dates": [
-        46086,
-        46093,
-        46100,
-        46121,
-        46128,
-        46135,
-        46142,
-        46149,
-        46156,
-        46170
-      ],
-      "InstructorManager": "גיל נאמן"
-    },
-    {
-      "EventType": "COURSE",
-      "Authority": "כנרת",
-      "School": "כנרת (ע\"ש נעמי שמר)",
-      "Program": "טכנולוגיות החלל",
-      "CourseManager": "גיל נאמן",
-      "Employee": "סוהא סאלם",
-      "EmployeeID": 1501,
-      "StartTime": 0.4201388888888885,
-      "EndTime": 0.47569444444444386,
-      "Date1": 46092,
-      "Date2": 46099,
-      "Date3": 46127,
-      "Date4": 46141,
-      "Date5": 46148,
-      "Date6": 46155,
-      "Date7": 46162,
-      "Date8": 46169,
-      "Date9": 46176,
-      "Date10": "",
-      "Date11": "",
-      "Date12": "",
-      "Date13": "",
-      "Date14": "",
-      "Date15": "",
-      "Date16": "",
-      "Date17": "",
-      "Date18": "",
-      "Date19": "",
-      "Date20": "",
-      "Date21": "",
-      "Date22": "",
-      "Date23": "",
-      "Date24": "",
-      "Date25": "",
-      "Date26": "",
-      "Date27": "",
-      "Date28": "",
-      "Date29": "",
-      "Date30": "",
-      "End": 46176,
-      "MonthEnd": 6,
-      "MonthStart": 3,
-      "Dates": [
-        46092,
-        46099,
-        46127,
-        46141,
-        46148,
-        46155,
-        46162,
-        46169,
-        46176
-      ],
-      "InstructorManager": "גיל נאמן"
-    },
-    {
-      "EventType": "COURSE",
-      "Authority": "כנרת",
-      "School": "כנרת (ע\"ש נעמי שמר)",
-      "Program": "ביומימיקרי לחטיבה",
-      "CourseManager": "גיל נאמן",
-      "Employee": "סוהא סאלם",
-      "EmployeeID": 1501,
-      "StartTime": 0.4895833333333327,
-      "EndTime": 0.5451388888888881,
-      "Date1": 46092,
-      "Date2": 46099,
-      "Date3": 46127,
-      "Date4": 46141,
-      "Date5": 46148,
-      "Date6": 46155,
-      "Date7": 46162,
-      "Date8": 46169,
-      "Date9": 46176,
-      "Date10": 46183,
-      "Date11": "",
-      "Date12": "",
-      "Date13": "",
-      "Date14": "",
-      "Date15": "",
-      "Date16": "",
-      "Date17": "",
-      "Date18": "",
-      "Date19": "",
-      "Date20": "",
-      "Date21": "",
-      "Date22": "",
-      "Date23": "",
-      "Date24": "",
-      "Date25": "",
-      "Date26": "",
-      "Date27": "",
-      "Date28": "",
-      "Date29": "",
-      "Date30": "",
-      "End": 46183,
-      "MonthEnd": 6,
-      "MonthStart": 3,
-      "Dates": [
-        46092,
-        46099,
-        46127,
-        46141,
-        46148,
-        46155,
-        46162,
-        46169,
-        46176,
-        46183
-      ],
-      "InstructorManager": "גיל נאמן"
-    },
-    {
-      "EventType": "COURSE",
-      "Authority": "כנרת",
-      "School": "כנרת (ע\"ש נעמי שמר)",
-      "Program": "ביומימיקרי",
-      "CourseManager": "גיל נאמן",
-      "Employee": "סוהא סאלם",
-      "EmployeeID": 1501,
-      "StartTime": 0.3437499999999999,
-      "EndTime": 0.40277777777777746,
       "Date1": 46092,
       "Date2": 46099,
       "Date3": 46127,
@@ -6153,7 +5983,7 @@
         46159,
         46166
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -6208,7 +6038,7 @@
         46131,
         46138
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -6267,7 +6097,7 @@
         46173,
         46180
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -6383,7 +6213,7 @@
         46181,
         46195
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -6442,7 +6272,7 @@
         46174,
         46181
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "COURSE",
@@ -7014,7 +6844,7 @@
       "Dates": [
         46105
       ],
-      "InstructorManager": "לינוי שמואל מזרחי"
+      "InstructorManager": ""
     },
     {
       "EventType": "EVENT",
