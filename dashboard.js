@@ -27,6 +27,11 @@ function escapeHtml(str){
     .replace(/'/g,"&#039;");
 }
 
+const API_URL = "https://script.google.com/macros/s/AKfycbzRs3A6xmOIXxv3LUy2xZoiFXDSZEiKQqq6veGeTrOpwu8bWmA7BYm9Ldfuz2WVOPIbrw/exec";
+async function saveZoomScheduling(data){
+  return saveZoomAssignment(data);
+}
+
 function normalizeData(data){
   return data.map(r=>({
     ...r,
@@ -67,6 +72,27 @@ function toDateAndTimeSortable(item, date, start) {
     date,
     start: start || '99:99'
   };
+}
+
+function createHourSelect(value){
+  const select = document.createElement('select');
+  select.className = 'zoom-time-select';
+
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = '—';
+  select.appendChild(blank);
+
+  for(let h = 8; h <= 18; h++){
+    const hour = String(h).padStart(2, '0') + ':00';
+    const opt = document.createElement('option');
+    opt.value = hour;
+    opt.textContent = hour;
+    if(hour === value) opt.selected = true;
+    select.appendChild(opt);
+  }
+
+  return select;
 }
 
 rawData = normalizeData(rawData);
@@ -150,6 +176,7 @@ const btnWeek=document.getElementById('btnWeek');
 const btnSummary=document.getElementById('btnSummary');
 const btnInstructors=document.getElementById('btnInstructors');
 const btnEndDates=document.getElementById('btnEndDates');
+const btnZoom=document.getElementById('btnZoom');
 const goCalendar = document.getElementById('goCalendar');
 const managerFilter=document.getElementById('managerFilter');
 const employeeFilter=document.getElementById('employeeFilter');
@@ -165,9 +192,9 @@ function updateSchedulingButtonVisibility(){
     return;
   }
 
-  const id = String(window.EmployeeID || '').trim();
-
-  if(id === '6000' || id === '8000'){
+  // Show the scheduling button for all admins (not instructors)
+  const isAdmin = (userRole === 'admin' || userRole === 'both') && window._dualViewMode !== 'instructor';
+  if(isAdmin){
     btn.style.display = '';
   }else{
     btn.style.display = 'none';
@@ -184,6 +211,15 @@ function updateEndDatesButtonVisibility(){
   }
 }
 
+function updateZoomButtonVisibility(){
+  if(!btnZoom) return;
+  if(userRole === 'instructor'){
+    btnZoom.style.display = 'none';
+  }else{
+    btnZoom.style.display = '';
+  }
+}
+
 if(userRole === 'instructor'){
   btnSummary.style.display = 'none';
   btnInstructors.style.display = 'none';
@@ -195,18 +231,38 @@ if(userRole === 'instructor'){
 
 // Dual role: manager + instructor — only for employee 1500
 window._dualViewMode = 'admin'; // 'admin' | 'instructor'
+function getDualRoleToggleLabel(){
+  return window._dualViewMode === 'admin' ? 'תצוגת מדריך' : 'תצוגת מנהל';
+}
+
+function syncDualRoleToggleButtons(){
+  const label = getDualRoleToggleLabel();
+  document.querySelectorAll('.dual-role-toggle-btn').forEach((btn)=>{
+    btn.textContent = label;
+  });
+}
+
+function createDualRoleToggle(targetEl, extraClass=''){
+  if(!targetEl) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `dual-role-toggle-btn ${extraClass}`.trim();
+  btn.onclick = switchDualRoleView;
+  targetEl.appendChild(btn);
+}
+
 if(userRole === 'both'){
   // Start in admin view — all buttons visible by default
-  // Add toggle button
+  // Add toggle button for desktop and mobile
   (function addDualRoleToggle(){
     const navModes = document.querySelector('.nav-modes');
-    if(!navModes) return;
-    const btn = document.createElement('button');
-    btn.id = 'btnDualRoleToggle';
-    btn.style.cssText = 'background:#7c3aed;color:#fff;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;';
-    btn.textContent = 'תצוגת מדריך';
-    btn.onclick = switchDualRoleView;
-    navModes.appendChild(btn);
+    createDualRoleToggle(navModes, 'desktop-only');
+
+    const navContainer = document.querySelector('.nav.week-header');
+    createDualRoleToggle(navContainer, 'mobile-only');
+
+    syncDualRoleToggleButtons();
   })();
 }
 
@@ -220,10 +276,9 @@ function switchDualRoleView(){
     btnInstructors.style.display = 'none';
     btnMonth.style.display = 'none';
     btnWeek.style.display = 'none';
+    if(btnZoom) btnZoom.style.display = 'none';
     if(filtersEl) filtersEl.style.display = 'none';
     window.mode = 'month';
-    const toggleBtn = document.getElementById('btnDualRoleToggle');
-    if(toggleBtn) toggleBtn.textContent = 'תצוגת מנהל';
   } else {
     // Switch to admin view
     window._dualViewMode = 'admin';
@@ -233,11 +288,11 @@ function switchDualRoleView(){
     btnInstructors.style.display = '';
     btnMonth.style.display = '';
     btnWeek.style.display = '';
+    if(btnZoom) btnZoom.style.display = '';
     if(filtersEl) filtersEl.style.display = '';
     window.mode = 'summary';
-    const toggleBtn = document.getElementById('btnDualRoleToggle');
-    if(toggleBtn) toggleBtn.textContent = 'תצוגת מדריך';
   }
+  syncDualRoleToggleButtons();
   render();
 }
 
@@ -255,6 +310,14 @@ Object.defineProperty(window, 'mode', {
   configurable: false
 });
 const isMobile = () => window.innerWidth < 800;
+
+function logViewRuntimeState(context = 'render'){
+  const currentViewMode = window._dualViewMode || userRole;
+  console.log(`[${context}] viewMode:`, currentViewMode);
+  console.log(`[${context}] screenWidth:`, window.innerWidth);
+  console.log(`[${context}] isMobile:`, isMobile());
+}
+
 let openWeekId = null;
 let currentDate=new Date(); currentDate.setHours(0,0,0,0);
 const dayNames=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -322,16 +385,37 @@ function hasStrongSaturation(colorValue) {
   return saturation >= 0.2;
 }
 
-function instructorColor(name) {
-  const mappedColor = getEmployeeColor(name);
-  const hasMappedColor = mappedColor !== '#f1f5f9' && mappedColor !== '#ffffff';
+const instructorColors = [
+  '#b2ebf2',
+  '#f8bbd0',
+  '#fff9c4',
+  '#ffe0b2',
+  '#c8e6c9',
+  '#bbdefb',
+  '#e0f7fa',
+  '#fce4ec',
+  '#fff3e0',
+  '#f3e5f5',
+  '#e3f2fd',
+  '#ffebee'
+];
 
-  if (hasMappedColor && hasStrongSaturation(mappedColor)) {
-    return ensureColorContrast(mappedColor);
+const instructorColorMap = {};
+
+function getInstructorPaletteColor(name) {
+  const instructor = String(name || '').trim();
+  if (!instructor) return instructorColors[0];
+
+  if (!instructorColorMap[instructor]) {
+    const index = Object.keys(instructorColorMap).length % instructorColors.length;
+    instructorColorMap[instructor] = instructorColors[index];
   }
 
-  const hue = hashStringToHue(String(name || ''));
-  return ensureColorContrast(`hsl(${hue} 70% 52%)`);
+  return instructorColorMap[instructor];
+}
+
+function instructorColor(name) {
+  return getInstructorPaletteColor(name);
 }
 
 function toRgbTuple(colorValue) {
@@ -672,12 +756,14 @@ function updateModeButtons(){
   btnSummary.classList.remove('active');
   btnInstructors.classList.remove('active');
   if(btnEndDates) btnEndDates.classList.remove('active');
+  if(btnZoom) btnZoom.classList.remove('active');
 
   if(window.mode === 'month') btnMonth.classList.add('active');
   if(window.mode === 'week') btnWeek.classList.add('active');
   if(window.mode === 'summary') btnSummary.classList.add('active');
   if(window.mode === 'instructors') btnInstructors.classList.add('active');
   if(window.mode === 'enddates' && btnEndDates) btnEndDates.classList.add('active');
+  if(window.mode === 'zoom' && btnZoom) btnZoom.classList.add('active');
 }
 
 function endDate(r){
@@ -743,8 +829,9 @@ async function initFromRawData(){
 
   updateSchedulingButtonVisibility();
   updateEndDatesButtonVisibility();
+  updateZoomButtonVisibility();
 
-  window.mode = (userRole === 'both') ? 'summary' : 'month';
+  window.mode = (userRole === 'instructor') ? 'month' : 'summary';
 
   if(userRole === 'instructor'){
     await loadSchedulingJson();
@@ -851,7 +938,9 @@ function fitViewToScreen() {
 }
 window.addEventListener('resize', fitViewToScreen);
 
-function render(){
+async function render(){
+
+  logViewRuntimeState('render');
 
   enforceInstructorMode();
   view.innerHTML=''; view.style.display=''; view.style.flexDirection=''; view.style.alignItems=''; view.style.justifyContent=''; view.style.width=''; view.scrollTop=0; window.scrollTo(0,0); document.documentElement.scrollTop=0; document.body.scrollTop=0; view.classList.toggle('week-mode', window.mode === 'week');
@@ -861,9 +950,10 @@ function render(){
   view.classList.toggle('view-summary', window.mode === 'summary');
   view.classList.toggle('view-managers', window.mode === 'instructors');
   view.classList.toggle('view-enddates', window.mode === 'enddates');
+  view.classList.toggle('view-zoom', window.mode === 'zoom');
   closeSidePanel();
 
-  if(userRole === 'instructor' || window._dualViewMode === 'instructor' || window.mode === 'summary' || window.mode === 'instructors' || window.mode === 'enddates' || isMobile()){
+  if(userRole === 'instructor' || window._dualViewMode === 'instructor' || window.mode === 'summary' || window.mode === 'instructors' || window.mode === 'enddates' || window.mode === 'zoom' || isMobile()){
     filtersEl.style.display = 'none';
   }else{
     filtersEl.style.display = 'flex';
@@ -881,6 +971,9 @@ function render(){
   else if(window.mode==='enddates'){
     renderEndDates();
   }
+  else if(window.mode==='zoom'){
+    await renderZoom();
+  }
   else{
     renderMonthView();
   }
@@ -888,7 +981,7 @@ function render(){
   updateNavButtons();
   updateModeButtons();
 
-  if(window.mode === 'month' || window.mode === 'enddates'){
+  if(window.mode === 'month' || window.mode === 'enddates' || window.mode === 'zoom'){
     goCalendar.style.display = 'none';
   } else {
     goCalendar.style.display = 'inline-flex';
@@ -1021,6 +1114,7 @@ function renderInstructorGridMonth(){
       const instructorName = firstItem.Employee || firstItem.Instructor || firstItem.EmployeeName || '';
       const eventColor = g.type === 'holiday' ? '#cbd5e1' : instructorColor(instructorName);
       applyInstructorColorVars(pill, eventColor);
+      pill.style.backgroundColor = eventColor;
       if(g.type === 'holiday') pill.classList.add('holiday');
       if(g.type === 'holiday') pill.addEventListener('click', e => e.stopPropagation());
       const txt = firstItem.Program || '';
@@ -1398,7 +1492,9 @@ function buildDay(date,data){
     const evDiv = document.createElement('div');
     const first = g.items[0];
     const instructorName = first.Employee || first.Instructor || first.EmployeeName || '';
-    applyInstructorColorVars(evDiv, instructorColor(instructorName));
+    const eventColor = g.type === 'holiday' ? '#cbd5e1' : instructorColor(instructorName);
+    applyInstructorColorVars(evDiv, eventColor);
+    evDiv.style.backgroundColor = eventColor;
 
     if(g.type === 'holiday') {
       evDiv.className = 'event schedule-card holiday';
@@ -1689,6 +1785,38 @@ function openFutureOpenings(year, month){
   activeSidePanelType = 'future-openings';
 }
 
+function openJuneWarningCourses(juneWarningCourses){
+  const sortedJuneWarningCourses = sortByDateAndTime(
+    juneWarningCourses.map(r => toDateAndTimeSortable(r, getCourseStartDate(r), r.StartTime))
+  );
+
+  sideContent.innerHTML = `
+    <h2>⚠ חודש יוני</h2>
+    <div class="subtitle">${sortedJuneWarningCourses.length} קורסים</div>
+    <div style="border-top:1px solid var(--border); margin:10px 0;"></div>
+  `;
+
+  sortedJuneWarningCourses.forEach(r => {
+    const startDate = getCourseStartDate(r);
+    const courseEndDate = getCourseEndDate(r);
+    const instructor = (r.Employee && r.Employee.trim()) ? r.Employee : '—';
+
+    sideContent.innerHTML += `
+      <div class="course-card">
+        <div>🌍 רשות: ${r.Authority || '—'}</div>
+        <div>🏫 בית ספר: ${r.School || '—'}</div>
+        <div>📘 תוכנית: ${r.Program || '—'}</div>
+        <div>👤 מדריך: ${instructor}</div>
+        <div>📅 תאריך התחלה: ${startDate ? startDate.toLocaleDateString('he-IL') : '—'}</div>
+        <div>🏁 תאריך סיום: ${courseEndDate ? courseEndDate.toLocaleDateString('he-IL') : '—'}</div>
+      </div>
+    `;
+  });
+
+  openSidePanel();
+  activeSidePanelType = 'june-warning';
+}
+
 function openManagerOverlay(mgr, year, month){
   const courses = rawData.filter(isCourse);
   const mgrCourses = courses.filter(r=>getCourseManager(r) === mgr);
@@ -1762,6 +1890,11 @@ function renderSummary(){
   }
 
   const courses = rawData.filter(isCourse);
+  const juneWarningCutoff = new Date('2026-06-18');
+  const juneWarningCourses = courses.filter(c => {
+    const courseEndDate = getCourseEndDate(c);
+    return courseEndDate && courseEndDate > juneWarningCutoff;
+  });
 
   const activeThisMonth = rawData.filter(r => {
     if(String(r.EventType || '').trim().toUpperCase() !== 'COURSE')
@@ -1835,6 +1968,104 @@ function renderSummary(){
 
   const wrap = document.createElement('div');
   wrap.className = 'summary-wrapper';
+
+  const instructorHoursButton = document.createElement('button');
+  instructorHoursButton.type = 'button';
+  instructorHoursButton.className = 'summary-action-btn instructor-hours-button';
+  instructorHoursButton.innerHTML = 'סה"כ שעות <span class="ihb-arrow" aria-hidden="true">▼</span>';
+  instructorHoursButton.setAttribute('aria-expanded', 'false');
+
+  const instructorHoursPanel = document.createElement('section');
+  instructorHoursPanel.className = 'summary-instructor-hours-panel instructor-hours-panel';
+
+  const selectedMonth = currentMonth;
+  const selectedYear = currentYear;
+
+  const instructorHoursMap = {};
+  let totalHoursAll = 0;
+
+  rawData.forEach(record => {
+    if(String(record.EventType || '').trim().toUpperCase() !== 'COURSE') return;
+
+    const instructorName = String(record.Employee || '').trim();
+    if(!instructorName) return;
+    if(!Array.isArray(record.Dates)) return;
+
+    record.Dates.forEach(date => {
+      const sessionDate = new Date(date);
+      if(Number.isNaN(sessionDate.getTime())) return;
+      if(sessionDate.getMonth() !== selectedMonth) return;
+      if(sessionDate.getFullYear() !== selectedYear) return;
+
+      if(!instructorHoursMap[instructorName]){
+        instructorHoursMap[instructorName] = { sessions: 0, totalHours: 0 };
+      }
+
+      instructorHoursMap[instructorName].sessions += 1;
+      instructorHoursMap[instructorName].totalHours += 2;
+      totalHoursAll += 2;
+    });
+  });
+
+  const instructorRows = Object.entries(instructorHoursMap)
+    .map(([name, totals]) => ({
+      name,
+      sessions: totals.sessions,
+      totalHours: totals.totalHours
+    }))
+    .sort((a,b) => b.totalHours - a.totalHours || b.sessions - a.sessions || a.name.localeCompare(b.name, 'he'));
+
+  if(instructorRows.length){
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'table-container';
+
+    const table = document.createElement('table');
+    table.className = 'summary-instructor-hours-table instructor-hours-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>מדריך</th>
+          <th>שעות</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${instructorRows.map(row => `
+          <tr>
+            <td>${escapeHtml(row.name)}</td>
+            <td>${row.totalHours}</td>
+          </tr>
+        `).join('')}
+        <tr>
+          <td><strong>סה״כ</strong></td>
+          <td><strong>${totalHoursAll}</strong></td>
+        </tr>
+      </tbody>
+    `;
+
+    tableWrap.appendChild(table);
+    instructorHoursPanel.appendChild(tableWrap);
+  } else {
+    const emptyState = document.createElement('div');
+    emptyState.className = 'summary-instructor-hours-empty';
+    emptyState.textContent = 'אין מפגשי קורס בחודש הנבחר.';
+    instructorHoursPanel.appendChild(emptyState);
+  }
+
+  instructorHoursButton.onclick = () => {
+    const willOpen = !instructorHoursPanel.classList.contains('is-open');
+    instructorHoursPanel.classList.toggle('is-open', willOpen);
+    instructorHoursButton.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) {
+      const arrow = instructorHoursButton.querySelector('.ihb-arrow');
+      if (arrow) {
+        arrow.classList.remove('ihb-bounce');
+        void arrow.offsetWidth;
+        arrow.classList.add('ihb-bounce');
+        setTimeout(() => arrow.classList.remove('ihb-bounce'), 900);
+      }
+    }
+  };
+
   wrap.innerHTML = `
     <div class="kpi-total">
       <div class="kpi-title">סה"כ קורסים פעילים</div>
@@ -1856,6 +2087,11 @@ function renderSummary(){
         <div class="kpi-title">סדנאות וסיורים</div>
         <div class="kpi-number">${dailyCount}</div>
     </div>
+
+      <div class="kpi-small" data-action="june-warning" role="button" aria-label="חודש יוני" style="cursor:pointer;background:#fee2e2;border:1px solid #ef4444;color:#7f1d1d;">
+        <div class="kpi-title">⚠ חודש יוני</div>
+        <div class="kpi-number" style="color:#7f1d1d;font-weight:900;">${juneWarningCourses.length}</div>
+    </div>
     </div>
 
     ${missingInstructorCount > 0 ? `
@@ -1864,6 +2100,7 @@ function renderSummary(){
     </div>
     ` : ''}
   `;
+
   const managers = [...new Set(rawData.filter(isCourse).map(r=>getCourseManager(r)).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'he'));
   
@@ -1906,6 +2143,8 @@ function renderSummary(){
     split.appendChild(col);
   });
   wrap.appendChild(split);
+  wrap.appendChild(instructorHoursButton);
+  wrap.appendChild(instructorHoursPanel);
   view.appendChild(wrap);
 
   wrap.addEventListener('click', function(e){
@@ -1924,6 +2163,16 @@ function renderSummary(){
         return;
       }
       openFutureOpenings(currentYear, currentMonth);
+      return;
+    }
+
+    if(e.target.closest('[data-action="june-warning"]')){
+      e.stopPropagation();
+      if(side.classList.contains('open') && activeSidePanelType === 'june-warning'){
+        closeSidePanel();
+        return;
+      }
+      openJuneWarningCourses(juneWarningCourses);
       return;
     }
 
@@ -2427,6 +2676,760 @@ if(btnEndDates){
     window.mode='enddates';
     render();
   };
+}
+
+if(btnZoom){
+  btnZoom.onclick = ()=>{
+    if(userRole === 'instructor' || window._dualViewMode === 'instructor') return;
+    window.mode='zoom';
+    render();
+  };
+}
+
+// ─── ZOOM management helpers ──────────────────────────────────────────────────
+function zoomCourseKey(dayNum, course) {
+  return `${dayNum}|${course.Employee||''}|${course.Program||''}|${course.StartTime||''}`;
+}
+function zoomCourseId(dayNum, course){
+  const directId = course?.Id ?? course?.CourseId ?? course?.id;
+  if(directId != null && String(directId).trim() !== '') return String(directId).trim();
+  return zoomCourseKey(dayNum, course);
+}
+async function loadZoomAssignments(){
+  try {
+    const res = await fetch(API_URL, { cache:"no-store" });
+    const data = await res.json();
+    window.zoomReadOnlyMode = false;
+    return data;
+  } catch(err){
+    console.error("Failed loading zoom assignments", err);
+    console.error('Zoom API connection failed');
+    window.zoomReadOnlyMode = true;
+    return [];
+  }
+}
+async function loadCoursesFromGoogle() {
+  try {
+    const res = await fetch(API_URL + '?type=courses', { cache: 'no-store' });
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch(err) {
+    console.error('Failed loading courses from Google', err);
+    return [];
+  }
+}
+async function loadZoomAssignmentsFromGoogle() {
+  try {
+    const res = await fetch(API_URL + '?type=assignments', { cache: 'no-store' });
+    const data = await res.json();
+    window.zoomReadOnlyMode = false;
+    return Array.isArray(data) ? data : [];
+  } catch(err) {
+    console.error('Failed loading zoom assignments from Google', err);
+    window.zoomReadOnlyMode = true;
+    return [];
+  }
+}
+async function saveZoomAssignment(data){
+  try {
+    const body = new URLSearchParams();
+    body.append("CourseId",   data.CourseId   || "");
+    body.append("Date",       data.Date       || "");
+    body.append("Program",    data.Program    || "");
+    body.append("Employee",   data.Employee   || "");
+    body.append("EmployeeID", data.EmployeeID || "");
+    body.append("StartTime",  data.StartTime  || "");
+    body.append("EndTime",    data.EndTime    || "");
+    body.append("ZoomAccount",data.ZoomAccount|| "");
+    body.append("Notes",      data.Notes      || "");
+    const res = await fetch(API_URL, { method: "POST", body });
+    const result = await res.json();
+    return result;
+  } catch(err){
+    console.error("Failed saving zoom assignment", err);
+    throw err;
+  }
+}
+
+function canAssignZoom(){
+  const employeeId = String(window.EmployeeID || '').trim();
+  return employeeId === '8000' || employeeId === '6000';
+}
+
+function notifyZoomNoPermission(){
+  const message = 'אין הרשאה לבצע שיבוץ';
+  console.warn(message);
+  alert(message);
+}
+
+function mapZoomAssignmentsByCourseKey(rows){
+  const mapped = {};
+  if(Array.isArray(rows)){
+    rows.forEach((row)=>{
+      const courseKey = String(row?.CourseId || row?.courseId || row?.courseKey || row?.CourseKey || '').trim();
+      if(!courseKey) return;
+      const account = row?.ZoomAccount || row?.zoom || row?.Zoom || row?.account || null;
+      const notes = row?.Notes || row?.notes || '';
+      mapped[courseKey] = {
+        account,
+        notes,
+        startTime: row?.StartTime || row?.startTime || '',
+        endTime: row?.EndTime || row?.endTime || '',
+        conflict: false
+      };
+    });
+    return mapped;
+  }
+
+  if(rows && typeof rows === 'object'){
+    Object.entries(rows).forEach(([courseKey, value])=>{
+      const account = value?.ZoomAccount || value?.zoom || value?.Zoom || value?.account || null;
+      const notes = value?.Notes || value?.notes || '';
+      mapped[String(courseKey)] = {
+        account,
+        notes,
+        startTime: value?.StartTime || value?.startTime || '',
+        endTime: value?.EndTime || value?.endTime || '',
+        conflict: !!value?.conflict
+      };
+    });
+  }
+
+  return mapped;
+}
+
+function zoomDateString(dayNum){
+  const d = new Date(2026, 2, dayNum);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function persistZoomAssignment(dayNum, course){
+  if(window.zoomReadOnlyMode) return;
+  if(!canAssignZoom()){
+    notifyZoomNoPermission();
+    return;
+  }
+
+  const courseKey = zoomCourseId(dayNum, course);
+  const assignment = window.zoomAssignments?.[courseKey] || {};
+  const startTime = assignment.startTime || course.StartTime || '';
+  const endTime = assignment.endTime || course.EndTime || '';
+  await saveZoomAssignment({
+    CourseId: courseKey,
+    Date: course.Date || zoomDateString(dayNum),
+    Program: course.Program || '',
+    Employee: course.Employee || '',
+    EmployeeID: String(course.EmployeeID || ''),
+    StartTime: startTime,
+    EndTime: endTime,
+    ZoomAccount: assignment.account || '',
+    Notes: assignment.notes || ''
+  });
+}
+
+async function persistZoomAssignmentsForDay(dayNum, dayCourses){
+  for (const course of dayCourses) {
+    await persistZoomAssignment(dayNum, course);
+  }
+}
+
+async function ensureZoomAssignmentsLoaded(){
+  if(window.zoomAssignmentsLoaded) return;
+  const zoomAssignments = await loadZoomAssignments();
+  window.zoomAssignments = mapZoomAssignmentsByCourseKey(zoomAssignments);
+  window.zoomAssignmentsLoaded = true;
+}
+function zoomTimeToMinutes(t) {
+  if (!t) return null;
+  const parts = String(t).split(':');
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10);
+}
+function zoomTimesOverlap(s1, e1, s2, e2) {
+  if (s1 == null || e1 == null || s2 == null || e2 == null) return false;
+  return s1 < e2 && s2 < e1;
+}
+function copyZoomLink(url, btn) {
+  const orig = btn.textContent;
+  const done = () => { btn.textContent = orig + ' ✓'; setTimeout(() => { btn.textContent = orig; }, 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(() => { zoomFallbackCopy(url); done(); });
+  } else { zoomFallbackCopy(url); done(); }
+}
+function zoomFallbackCopy(text) {
+  const ta = Object.assign(document.createElement('textarea'), { value: text });
+  document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+}
+async function autoAssignZoomDay(dayNum, dayCourses) {
+  const ACCOUNTS = ['Z1', 'Z2', 'Z3'];
+  const assignedSlots = [];
+  const toAssign = dayCourses
+    .slice()
+    .sort((a, b) => {
+      const aKey = zoomCourseId(dayNum, a);
+      const bKey = zoomCourseId(dayNum, b);
+      const aStart = window.zoomAssignments[aKey]?.startTime || a.StartTime || '';
+      const bStart = window.zoomAssignments[bKey]?.startTime || b.StartTime || '';
+      return aStart.localeCompare(bStart);
+    });
+
+  dayCourses.forEach(c => {
+    const k = zoomCourseId(dayNum, c);
+    if (window.zoomAssignments[k]) {
+      window.zoomAssignments[k].account = null;
+      window.zoomAssignments[k].conflict = false;
+    }
+  });
+
+  function isZoomBusy(startMin, endMin, account) {
+    return assignedSlots.some(slot =>
+      slot.zoom === account && zoomTimesOverlap(startMin, endMin, slot.startMin, slot.endMin)
+    );
+  }
+
+  function isInstructorBusy(startMin, endMin, employee) {
+    return assignedSlots.some(slot =>
+      slot.employee === employee && zoomTimesOverlap(startMin, endMin, slot.startMin, slot.endMin)
+    );
+  }
+
+  function pickZoomForSlot(startMin, endMin, preferred, employee) {
+    const ordered = preferred ? [preferred, ...ACCOUNTS.filter(a => a !== preferred)] : ACCOUNTS;
+    for (const acc of ordered) {
+      if (!isZoomBusy(startMin, endMin, acc) && !isInstructorBusy(startMin, endMin, employee)) {
+        return acc;
+      }
+    }
+    return null;
+  }
+
+  toAssign.forEach(course => {
+    const key = zoomCourseId(dayNum, course);
+    const assignment = window.zoomAssignments[key] || {};
+    const s = zoomTimeToMinutes(assignment.startTime || course.StartTime);
+    const e = zoomTimeToMinutes(assignment.endTime || course.EndTime);
+    const emp = course.Employee || '';
+
+    let preferred = null;
+    assignedSlots.forEach(slot => {
+      if (slot.employee === emp && slot.endMin === s) preferred = slot.zoom;
+    });
+
+    const assigned = pickZoomForSlot(s, e, preferred, emp);
+
+    if (assigned) {
+      assignedSlots.push({ startMin: s, endMin: e, employee: emp, zoom: assigned });
+      window.zoomAssignments[key].account = assigned;
+      window.zoomAssignments[key].conflict = false;
+    } else {
+      window.zoomAssignments[key].conflict = true;
+    }
+  });
+  await persistZoomAssignmentsForDay(dayNum, dayCourses);
+}
+// ─── End ZOOM helpers ─────────────────────────────────────────────────────────
+
+async function renderZoom() {
+  titleEl.textContent = 'ניהול מפגשי ZOOM';
+  if (window.zoomWeekPage === undefined) window.zoomWeekPage = 0;
+  if (!window.zoomSubView) window.zoomSubView = 'calendar';
+
+  const WEEK_PAGES = [
+    { days: [8, 9, 10, 11, 12, 13] },
+    { days: [15, 16, 17, 18, 19] },
+    { days: [22, 23] },
+  ];
+  const ZOOM_LINKS_MAP = {
+    Z1: 'https://zoom.us/j/6023602336?omn=96962875568',
+    Z2: 'https://zoom.us/j/7601360450?omn=98989531483',
+    Z3: 'https://zoom.us/j/97448258082',
+  };
+  const HDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+  // Load fresh data from Google Sheets
+  const [googleCourses, rawAssignments] = await Promise.all([
+    loadCoursesFromGoogle(),
+    loadZoomAssignmentsFromGoogle()
+  ]);
+  window.zoomGoogleCourses = googleCourses;
+  window.zoomAssignments = mapZoomAssignmentsByCourseKey(rawAssignments);
+
+  const courses = googleCourses;
+  const currentPage = WEEK_PAGES[window.zoomWeekPage];
+  const weekRangeLabel = formatZoomWeekRange(currentPage.days);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'zoom-page';
+
+  const header = document.createElement('div');
+  header.className = 'zoom-header';
+
+  // ── Z1 / Z2 / Z3 copy buttons ──
+  const linksBar = document.createElement('div');
+  linksBar.className = 'zoom-links-bar';
+[['Z1', 'Zoom1', 'zoom-btn-1'], ['Z2', 'Zoom2', 'zoom-btn-2'], ['Z3', 'Zoom3', 'zoom-btn-3']].forEach(([key, label, cls]) => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'zoom-link-btn zoom-btn ' + cls;
+  btn.textContent = label;
+  btn.addEventListener('click', () => copyZoomLink(ZOOM_LINKS_MAP[key], btn));
+  linksBar.appendChild(btn);
+  });
+  header.appendChild(linksBar);
+  const caption = document.createElement('p');
+  caption.className = 'zoom-links-caption';
+  caption.textContent = 'לחיצה מעתיקה את קישור הפגישה';
+  header.appendChild(caption);
+
+  // ── Sub-nav: יומן שבועי / הכנת שיבוץ ──
+  const subNav = document.createElement('div');
+  subNav.className = 'zoom-sub-nav';
+  [['calendar', 'יומן שבועי'], ['prep', 'הכנת שיבוץ']].forEach(([sv, label]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'zoom-sub-btn zoom-tab' + (window.zoomSubView === sv ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => { window.zoomSubView = sv; renderZoom(); });
+    subNav.appendChild(btn);
+  });
+  header.appendChild(subNav);
+
+  // ── Week navigation ──
+  const weekNav = document.createElement('div');
+  weekNav.className = 'zoom-week-nav';
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button'; prevBtn.className = 'zoom-week-arrow'; prevBtn.textContent = '▶';
+  prevBtn.disabled = window.zoomWeekPage === 0;
+  prevBtn.addEventListener('click', () => { window.zoomWeekPage--; renderZoom(); });
+  const weekLabel = document.createElement('span');
+  weekLabel.className = 'zoom-week-label';
+  weekLabel.setAttribute('dir', 'ltr');
+  weekLabel.textContent = weekRangeLabel;
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button'; nextBtn.className = 'zoom-week-arrow'; nextBtn.textContent = '◀';
+  nextBtn.disabled = window.zoomWeekPage === WEEK_PAGES.length - 1;
+  nextBtn.addEventListener('click', () => { window.zoomWeekPage++; renderZoom(); });
+  weekNav.append(prevBtn, weekLabel, nextBtn);
+  header.appendChild(weekNav);
+  wrap.appendChild(header);
+
+  // ── Main content ──
+  const content = document.createElement('div');
+  content.className = 'zoom-content';
+  if (window.zoomSubView === 'calendar') {
+    renderZoomCalendar(content, courses, currentPage.days, HDAYS);
+  } else {
+    renderZoomPrep(content, courses, currentPage.days, HDAYS);
+  }
+  wrap.appendChild(content);
+  view.innerHTML = '';
+  view.appendChild(wrap);
+}
+
+function formatZoomWeekRange(days) {
+  if (!Array.isArray(days) || days.length === 0) return '';
+  const sortedDays = days.slice().sort((a, b) => a - b);
+  const start = new Date(2026, 2, sortedDays[0]);
+  const end = new Date(2026, 2, sortedDays[sortedDays.length - 1]);
+  const format = (dateObj) => {
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const yy = String(dateObj.getFullYear()).slice(-2);
+    return `${dd}.${mm}.${yy}`;
+  };
+  return `\u200E${format(start)} - ${format(end)}\u200E`;
+}
+
+function zoomPastelColor(instructorName) {
+  const [r, g, b] = toRgbTuple(instructorColor(instructorName || ''))
+    .split(',')
+    .map(v => Number(v.trim()));
+  const blend = (value) => Math.round((value * 0.35) + (255 * 0.65));
+  return `rgb(${blend(r)}, ${blend(g)}, ${blend(b)})`;
+}
+
+function computeZoomOverlapLayout(items) {
+  const sorted = items.slice().sort((a, b) => (a.startMin - b.startMin) || (a.endMin - b.endMin));
+  const groups = [];
+  let currentGroup = null;
+
+  sorted.forEach(item => {
+    if (!currentGroup || item.startMin >= currentGroup.endMax) {
+      currentGroup = { endMax: item.endMin, items: [item] };
+      groups.push(currentGroup);
+      return;
+    }
+    currentGroup.items.push(item);
+    currentGroup.endMax = Math.max(currentGroup.endMax, item.endMin);
+  });
+
+  groups.forEach(group => {
+    const active = [];
+    let colCount = 0;
+    const groupItems = group.items.sort((a, b) => (a.startMin - b.startMin) || (a.endMin - b.endMin));
+    groupItems.forEach(item => {
+      for (let i = active.length - 1; i >= 0; i--) {
+        if (active[i].endMin <= item.startMin) active.splice(i, 1);
+      }
+
+      const usedCols = new Set(active.map(ev => ev._overlapIndex));
+      let colIndex = 0;
+      while (usedCols.has(colIndex)) colIndex++;
+
+      item._overlapIndex = colIndex;
+      active.push(item);
+      colCount = Math.max(colCount, active.length);
+    });
+
+    groupItems.forEach(item => {
+      item._overlapCount = colCount || 1;
+    });
+  });
+
+  return sorted;
+}
+
+function renderZoomCalendar(container, courses, days, hdays) {
+  const DAY_START  = 8 * 60;
+  const DAY_END    = 16 * 60;
+  const displayDays = days.slice().reverse(); // ראשון מופיע בצד ימין
+  const ZOOM_ACCOUNT_ORDER = { Z1: 1, Z2: 2, Z3: 3 };
+
+  // Gather assigned items for this week
+  const assignedItems = [];
+  displayDays.forEach(dayNum => {
+    const dateStr = zoomDateString(dayNum);
+    const dayCourses = courses.filter(c => String(c.Date || '').trim() === dateStr);
+    dayCourses.forEach(course => {
+      const asgn = window.zoomAssignments[zoomCourseId(dayNum, course)];
+      if (asgn && asgn.account) {
+        const startMin = zoomTimeToMinutes(asgn.startTime || course.StartTime);
+        const endMin   = zoomTimeToMinutes(asgn.endTime   || course.EndTime);
+        assignedItems.push({
+          dayNum, course, account: asgn.account,
+          courseId: zoomCourseId(dayNum, course),
+          startMin,
+          endMin,
+        });
+      }
+    });
+  });
+
+  const grid = document.createElement('div');
+  grid.className = 'zoom-cal-grid';
+
+  const calendarContainer = document.createElement('div');
+  calendarContainer.className = 'zoom-calendar-container';
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'zoom-cal-header';
+  const timeHdr = document.createElement('div');
+  timeHdr.className = 'zoom-cal-timecol-header';
+  header.appendChild(timeHdr);
+  displayDays.forEach(dayNum => {
+    const date = new Date(2026, 2, dayNum);
+    const cell = document.createElement('div');
+    cell.className = 'zoom-cal-day-header';
+    cell.innerHTML =
+      `<strong>יום ${hdays[date.getDay()]}</strong>` +
+      `<span>${String(dayNum).padStart(2, '0')}.03</span>`;
+    header.appendChild(cell);
+  });
+  grid.appendChild(header);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'zoom-cal-body';
+
+  // Time column
+  const timeCol = document.createElement('div');
+  timeCol.className = 'zoom-cal-timecol';
+  for (let h = 8; h <= 16; h++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'zoom-cal-timeslot-label';
+    lbl.textContent = String(h).padStart(2, '0') + ':00';
+    timeCol.appendChild(lbl);
+  }
+  body.appendChild(timeCol);
+
+  // Day columns
+  displayDays.forEach(dayNum => {
+    const dayItems = assignedItems.filter(item => item.dayNum === dayNum);
+    const col = document.createElement('div');
+    col.className = 'zoom-cal-daycol';
+    for (let h = 8; h < 16; h++) {
+      const slot = document.createElement('div');
+      slot.className = 'zoom-cal-slot';
+
+      const slotStart = h * 60;
+      const slotEnd = slotStart + 60;
+      const slotItems = dayItems
+        .filter(({ startMin, endMin }) => {
+          const s = Math.max(startMin != null ? startMin : DAY_START, DAY_START);
+          const e = Math.min(endMin != null ? endMin : s + 120, DAY_END);
+          return s < slotEnd && e > slotStart;
+        })
+        .sort((a, b) => {
+          const accCmp = (ZOOM_ACCOUNT_ORDER[a.account] || 99) - (ZOOM_ACCOUNT_ORDER[b.account] || 99);
+          if (accCmp !== 0) return accCmp;
+          return (a.course.Employee || '').localeCompare(b.course.Employee || '', 'he');
+        });
+
+      if (slotItems.length >= 3) slot.classList.add('zoom-cal-slot--crowded');
+      if (slotItems.length) {
+        const slotList = document.createElement('div');
+        slotList.className = 'zoom-slot';
+        slotItems.forEach(({ account, course, courseId }) => {
+          const line = document.createElement('div');
+          const accountKey = String(account || '').toLowerCase();
+          line.className = `zoom-line zoom-${accountKey}`;
+          line.title = [
+            `קורס: ${course.Program || ''}`,
+            `רשות: ${course.Authority || ''}`,
+            `בית ספר: ${course.School || ''}`,
+            `מדריך: ${course.Employee || ''}`,
+            `שעה: ${(course.StartTime || '')}${course.EndTime ? '–' + course.EndTime : ''}`,
+            `CourseId: ${courseId}`
+          ].join('\n');
+          line.innerHTML = `<strong>${escapeHtml(account || '')}</strong><span>${escapeHtml(course.Employee || '')}</span>`;
+          slotList.appendChild(line);
+        });
+        slot.appendChild(slotList);
+      }
+
+      col.appendChild(slot);
+    }
+    body.appendChild(col);
+  });
+  grid.appendChild(body);
+  calendarContainer.appendChild(grid);
+  container.appendChild(calendarContainer);
+
+  if (assignedItems.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'zoom-empty';
+    empty.textContent = 'אין שיבוצי ZOOM לשבוע זה. עברו למסך הכנת שיבוץ כדי לבצע שיבוץ יומי.';
+    container.appendChild(empty);
+  }
+}
+
+function renderZoomPrep(container, courses, days, hdays) {
+  const area = document.createElement('div');
+  area.className = 'zoom-days-area';
+
+  days.forEach(dayNum => {
+    const date = new Date(2026, 2, dayNum);
+    const displayDate = String(dayNum).padStart(2, '0') + '.03.26';
+    const dateStr = zoomDateString(dayNum);
+    const dayCourses = courses
+      .filter(c => String(c.Date || '').trim() === dateStr)
+      .slice()
+      .sort((a, b) => (a.StartTime || '').localeCompare(b.StartTime || ''));
+
+    if (!dayCourses.length) return;
+
+    const card = document.createElement('div');
+    card.className = 'zoom-day-card';
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'zoom-day-title';
+    titleDiv.textContent = 'יום ' + hdays[date.getDay()] + ' – ' + displayDate;
+    card.appendChild(titleDiv);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.className = 'zoom-table-wrap';
+    const table = document.createElement('table');
+    table.className = 'zoom-table';
+    const thead = document.createElement('thead');
+    thead.innerHTML =
+      '<tr>' +
+      '<th style="width:2rem"><input type="checkbox" class="zoom-select-all" title="סמן הכל"></th>' +
+      '<th>ZOOM</th>' +
+      '<th>רשות</th>' +
+      '<th>בית ספר</th>' +
+      '<th>קורס</th>' +
+      '<th>מדריך</th>' +
+      '<th class="zoom-col-start">התחלה</th>' +
+      '<th class="zoom-col-end">סיום</th>' +
+      '<th>הערות</th>' +
+      '</tr>';
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    dayCourses.forEach(course => {
+      const key = zoomCourseId(dayNum, course);
+      if (!window.zoomAssignments[key]) {
+        window.zoomAssignments[key] = { account: null, notes: '', conflict: false };
+      }
+      const asgn = window.zoomAssignments[key];
+      asgn.startTime = asgn.startTime || course.StartTime || '';
+      asgn.endTime = asgn.endTime || course.EndTime || '';
+
+      const tr = document.createElement('tr');
+      if (asgn.account)   tr.classList.add('zoom-assigned-row');
+      if (asgn.conflict)  tr.classList.add('zoom-conflict-row');
+
+      // Checkbox cell
+      const tdCheck = document.createElement('td');
+      tdCheck.style.textAlign = 'center';
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.className = 'zoom-row-select';
+      tdCheck.appendChild(chk);
+      tr.appendChild(tdCheck);
+
+      // ZOOM cell: account badge
+      const tdZoom = document.createElement('td');
+      tdZoom.style.textAlign = 'center';
+      tdZoom.style.whiteSpace = 'nowrap';
+      const badge = document.createElement('span');
+      badge.style.marginRight = '5px';
+      badge.className = 'zoom-account-badge' + (asgn.account ? ' zoom-account-badge-' + asgn.account.toLowerCase() : '');
+      badge.textContent = asgn.account || '';
+      tdZoom.append(badge);
+      tr.appendChild(tdZoom);
+
+      // Data cells
+      [
+        ['רשות',    course.Authority],
+        ['בית ספר', course.School],
+        ['קורס',    course.Program],
+        ['מדריך',   course.Employee],
+      ].forEach(([label, val]) => {
+        const td = document.createElement('td');
+        td.setAttribute('data-label', label);
+        td.textContent = val || '—';
+        tr.appendChild(td);
+      });
+
+      const tdStart = document.createElement('td');
+      tdStart.className = 'zoom-col-start';
+      tdStart.setAttribute('data-label', 'התחלה');
+      const startInput = createHourSelect(asgn.startTime || course.StartTime);
+
+      const tdEnd = document.createElement('td');
+      tdEnd.className = 'zoom-col-end';
+      tdEnd.setAttribute('data-label', 'סיום');
+      const endInput = createHourSelect(asgn.endTime || course.EndTime);
+
+      if (!asgn.endTime && startInput.value) {
+        const startHour = parseInt(startInput.value.split(':')[0], 10);
+        if (!Number.isNaN(startHour)) {
+          const endHour = Math.min(startHour + 1, 18);
+          endInput.value = String(endHour).padStart(2, '0') + ':00';
+        }
+      }
+
+      asgn.startTime = startInput.value;
+      asgn.endTime = endInput.value;
+
+      startInput.addEventListener('change', async () => {
+        const startHour = parseInt(startInput.value.split(':')[0], 10);
+        if (!Number.isNaN(startHour)) {
+          const endHour = Math.min(startHour + 1, 18);
+          endInput.value = String(endHour).padStart(2, '0') + ':00';
+        }
+        asgn.startTime = startInput.value;
+        asgn.endTime = endInput.value;
+        await persistZoomAssignment(dayNum, course);
+      });
+
+      endInput.addEventListener('change', async () => {
+        asgn.endTime = endInput.value;
+        await persistZoomAssignment(dayNum, course);
+      });
+
+      tdStart.appendChild(startInput);
+      tdEnd.appendChild(endInput);
+      tr.appendChild(tdStart);
+      tr.appendChild(tdEnd);
+
+      // Notes
+      const tdNotes = document.createElement('td');
+      tdNotes.className = 'zoom-col-notes';
+      tdNotes.setAttribute('data-label', 'הערות');
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.className = 'zoom-notes-input'; inp.dir = 'rtl';
+      inp.placeholder = 'הערה...'; inp.value = asgn.notes || course.Notes || '';
+      if (!asgn.notes && course.Notes) asgn.notes = course.Notes;
+      inp.addEventListener('input', async () => {
+        window.zoomAssignments[key].notes = inp.value;
+        await persistZoomAssignment(dayNum, course);
+      });
+      tdNotes.appendChild(inp);
+      tr.appendChild(tdNotes);
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    card.appendChild(tableWrap);
+
+    // Wire select-all checkbox
+    const selectAllChk = thead.querySelector('.zoom-select-all');
+    if (selectAllChk) {
+      selectAllChk.addEventListener('change', () => {
+        tbody.querySelectorAll('.zoom-row-select').forEach(c => { c.checked = selectAllChk.checked; });
+      });
+      tbody.querySelectorAll('.zoom-row-select').forEach(c => {
+        c.addEventListener('change', () => {
+          const all  = Array.from(tbody.querySelectorAll('.zoom-row-select'));
+          selectAllChk.checked      = all.every(x => x.checked);
+          selectAllChk.indeterminate = !selectAllChk.checked && all.some(x => x.checked);
+        });
+      });
+    }
+
+    // Assign button
+    const assignBtn = document.createElement('button');
+    assignBtn.type = 'button';
+    assignBtn.className = 'zoom-assign-btn';
+    assignBtn.textContent = 'שיבוץ';
+    assignBtn.addEventListener('click', async () => {
+      if (!canAssignZoom()) { notifyZoomNoPermission(); return; }
+      // Only assign checked rows
+      const rowCheckboxes = Array.from(tbody.querySelectorAll('.zoom-row-select'));
+      const selectedCourses = dayCourses.filter((_, i) => rowCheckboxes[i] && rowCheckboxes[i].checked);
+
+      if (!selectedCourses.length) {
+        alert('יש לסמן לפחות קורס אחד לשיבוץ');
+        return;
+      }
+
+      assignBtn.disabled = true;
+      assignBtn.textContent = 'מבצע שיבוץ...';
+
+      // Load fresh assignments from Google before assigning
+      const freshAssignments = await loadZoomAssignmentsFromGoogle();
+      window.zoomAssignments = mapZoomAssignmentsByCourseKey(freshAssignments);
+
+      // Ensure selected courses have an entry in window.zoomAssignments
+      selectedCourses.forEach(c => {
+        const k = zoomCourseId(dayNum, c);
+        if (!window.zoomAssignments[k]) {
+          window.zoomAssignments[k] = { account: null, notes: '', startTime: c.StartTime || '', endTime: c.EndTime || '', conflict: false };
+        } else {
+          if (!window.zoomAssignments[k].startTime) window.zoomAssignments[k].startTime = c.StartTime || '';
+          if (!window.zoomAssignments[k].endTime)   window.zoomAssignments[k].endTime   = c.EndTime   || '';
+        }
+      });
+
+      // Perform assignment only for selected courses and save to Google Sheets
+      await autoAssignZoomDay(dayNum, selectedCourses);
+
+      assignBtn.textContent = 'שיבוץ';
+      assignBtn.disabled = false;
+      alert('השיבוץ הושלם');
+      await renderZoom();
+    });
+    card.appendChild(assignBtn);
+    area.appendChild(card);
+  });
+
+  container.appendChild(area);
 }
 
 function renderEndDates(){

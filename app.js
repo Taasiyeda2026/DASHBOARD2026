@@ -136,6 +136,14 @@ async function login(){
   try{
     try{
       const json = await fetchJsonWithErrors(`./data/instructors/${hash}.json`);
+      // Check if this user also has a 'both' role admin file
+      try{
+        const adminJson = await fetchJsonWithErrors(`./data/admins/${hash}.json`);
+        if(!Array.isArray(adminJson) && adminJson.role === 'both'){
+          startApp(adminJson, 'admin', hash, remember);
+          return;
+        }
+      }catch(_){}
       startApp(json, 'instructor', hash, remember);
       return;
     }catch(e){
@@ -180,13 +188,35 @@ function startApp(jsonData, role, hash, remember){
   window.currentUserRole = effectiveRole;
   document.body.dataset.role = effectiveRole;
 
+  if(!window.EmployeeID){
+    const savedEmployeeId = sessionStorage.getItem('dash_empId') || localStorage.getItem('dash_empId') || '';
+    window.EmployeeID = savedEmployeeId;
+  }
+
+  if(effectiveRole === 'both' && (!window.EmployeeID || !String(window.EmployeeID).trim())){
+    const personalEmployeeId = String(window.personalData?.[0]?.EmployeeID || '').trim();
+    if(personalEmployeeId){
+      window.EmployeeID = personalEmployeeId;
+      sessionStorage.setItem('dash_empId', personalEmployeeId);
+      localStorage.setItem('dash_empId', personalEmployeeId);
+    }
+  }
+
+  if(effectiveRole === 'both' && (!window.personalData || window.personalData.length === 0)){
+    const employeeId = String(window.EmployeeID || '').trim();
+    if(employeeId){
+      window.personalData = records.filter(r => String(r.EmployeeID || '').trim() === employeeId);
+    }
+  }
+
   if(remember !== null){
     const store = remember ? localStorage : sessionStorage;
     store.setItem('dash_hash', hash);
     store.setItem('dash_role', effectiveRole);
     if(name) store.setItem('dash_name', name);
+    if(window.EmployeeID) store.setItem('dash_empId', String(window.EmployeeID));
   }
-  window.EmployeeID = sessionStorage.getItem('dash_empId') || '';
+  window.EmployeeID = String(window.EmployeeID || sessionStorage.getItem('dash_empId') || localStorage.getItem('dash_empId') || '').trim();
 
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='flex';
@@ -203,6 +233,7 @@ function startApp(jsonData, role, hash, remember){
       localStorage.removeItem('dash_hash');
       localStorage.removeItem('dash_role');
       localStorage.removeItem('dash_name');
+      localStorage.removeItem('dash_empId');
       location.reload();
     };
   }
@@ -245,6 +276,7 @@ async function resumeSession(){
     localStorage.removeItem('dash_hash');
     localStorage.removeItem('dash_role');
     localStorage.removeItem('dash_name');
+    localStorage.removeItem('dash_empId');
     return false;
   }finally{
     hideLoader();

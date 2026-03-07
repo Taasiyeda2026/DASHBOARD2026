@@ -72,7 +72,7 @@ function renderCoursesTable(rows){
   });
 }
 
-export function renderCoursesTableFromLast(){
+function renderCoursesTableFromLast(){
   renderCoursesTable(lastCourseRows);
 }
 window.renderCoursesTableFromLast = renderCoursesTableFromLast;
@@ -96,7 +96,7 @@ async function boot(){
   }
 }
 
-export async function runSuggestions(){
+async function runSuggestions(){
   const targetAuthority = document.getElementById('authoritySelect').value;
   if (!targetAuthority) return;
 
@@ -121,12 +121,33 @@ export async function runSuggestions(){
 }
 window.runSuggestions = runSuggestions;
 
-document.getElementById("runButton")
-  .addEventListener("click", runSuggestions);
+const SCHEDULING_AUTHORIZED_IDS = ['6000', '8000'];
 
-export function goBackToDashboard(){
+function applySchedulingPermission(){
+  const empId = String(window.EmployeeID || sessionStorage.getItem('dash_empId') || '').trim();
+  const btn = document.getElementById('runButton');
+  if (!btn) return;
+
+  if (!SCHEDULING_AUTHORIZED_IDS.includes(empId)) {
+    btn.disabled = true;
+    btn.title = 'אין הרשאה לבצע שיבוץ';
+    showStatus('statusBox2', 'אין הרשאה לבצע שיבוץ', 'error');
+  }
+}
+
+document.getElementById("runButton")
+  .addEventListener("click", function(){
+    const empId = String(window.EmployeeID || sessionStorage.getItem('dash_empId') || '').trim();
+    if (!SCHEDULING_AUTHORIZED_IDS.includes(empId)) {
+      showStatus('statusBox2', 'אין הרשאה לבצע שיבוץ', 'error');
+      return;
+    }
+    runSuggestions();
+  });
+
+function goBackToDashboard(){
   location.href = 'index.html';
 }
 window.goBackToDashboard = goBackToDashboard;
 
-boot();
+boot().then(() => applySchedulingPermission());

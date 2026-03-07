@@ -1,0 +1,71 @@
+{
+  "name": "ליאל בן חמו",
+  "data": [
+    {
+      "EventType": "COURSE",
+      "Authority": "מ.א חוף אשקלון",
+      "School": "ניצני קטיף",
+      "Program": "ביומימיקרי ",
+      "CourseManager": "לינוי שמואל מזרחי",
+      "Employee": "ליאל בן חמו",
+      "EmployeeID": 1512,
+      "StartTime": 0.3437499999999999,
+      "EndTime": 0.4166666666666663,
+      "Date1": 46031,
+      "Date2": 46038,
+      "Date3": 46045,
+      "Date4": 46052,
+      "Date5": 46055,
+      "Date6": 46069,
+      "Date7": 46101,
+      "Date8": 46122,
+      "End": 46122,
+      "MonthEnd": 4,
+      "MonthStart": 1,
+      "Dates": [
+        46031,
+        46038,
+        46045,
+        46052,
+        46055,
+        46069,
+        46101,
+        46122
+      ],
+      "InstructorManager": "לינוי שמואל מזרחי"
+    },
+    {
+      "EventType": "COURSE",
+      "Authority": "מ.א חוף אשקלון",
+      "School": "ניצן",
+      "Program": "בינה מלאכותית",
+      "CourseManager": "לינוי שמואל מזרחי",
+      "Employee": "ליאל בן חמו",
+      "EmployeeID": 1512,
+      "StartTime": 0.36805555555555536,
+      "EndTime": 0.4513888888888884,
+      "Date1": 45991,
+      "Date2": 45998,
+      "Date3": 46019,
+      "Date4": 46026,
+      "Date5": 46033,
+      "Date6": 46040,
+      "Date7": 46047,
+      "Date8": 46055,
+      "End": 46055,
+      "MonthEnd": 2,
+      "MonthStart": 11,
+      "Dates": [
+        45991,
+        45998,
+        46019,
+        46026,
+        46033,
+        46040,
+        46047,
+        46055
+      ],
+      "InstructorManager": "לינוי שמואל מזרחי"
+    }
+  ]
+}

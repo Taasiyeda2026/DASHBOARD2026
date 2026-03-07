@@ -15,8 +15,9 @@ window.EmployeeID = window.EmployeeID || sessionStorage.getItem('dash_empId') ||
     return;
   }
 
-  const id = String(window.EmployeeID || '').trim();
-  if (id !== '6000' && id !== '8000') {
+  // Allow all admins through; the run-scheduling action is restricted inside the system
+  const role = sessionStorage.getItem('dash_role') || localStorage.getItem('dash_role') || '';
+  if (role !== 'admin' && role !== 'both') {
     document.body.innerHTML =
       '<div style="font-family:Arial;padding:30px">אין הרשאה לעמוד זה.</div>';
     throw new Error('Unauthorized access');
