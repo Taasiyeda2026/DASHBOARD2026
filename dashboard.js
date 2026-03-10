@@ -2998,14 +2998,15 @@ async function renderZoom() {
   // Fall back to rawData if Google COURSES sheet is empty
   let courses = googleCourses;
   if (!courses.length) {
-    courses = [];
-    rawData.forEach(r => {
-      (r.Dates || []).forEach(d => {
-        if (!d) return;
+    courses = rawData
+      .filter(r => r.Date1)
+      .map(r => {
+        const d = parseDate(r.Date1);
+        if (!d) return null;
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         const dd = String(d.getDate()).padStart(2, '0');
-        courses.push({
+        return {
           Id: `raw-${r.EmployeeID || ''}-${yyyy}${mm}${dd}-${r.Program || ''}`,
           Date: `${yyyy}-${mm}-${dd}`,
           Authority: r.Authority || '',
@@ -3016,9 +3017,9 @@ async function renderZoom() {
           StartTime: r.StartTime || '',
           EndTime: r.EndTime || '',
           Notes: r.Notes || ''
-        });
-      });
-    });
+        };
+      })
+      .filter(Boolean);
   }
   const currentPage = WEEK_PAGES[window.zoomWeekPage];
   const weekRangeLabel = formatZoomWeekRange(currentPage.days);
