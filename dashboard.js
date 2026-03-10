@@ -3389,8 +3389,6 @@ function renderZoomPrep(container, courses, days, hdays) {
       .slice()
       .sort((a, b) => (a.StartTime || '').localeCompare(b.StartTime || ''));
 
-    if (!dayCourses.length) return;
-
     const card = document.createElement('div');
     card.className = 'zoom-day-card';
 
