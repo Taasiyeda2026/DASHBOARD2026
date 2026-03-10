@@ -2826,6 +2826,10 @@ function requestZoomCalendarRefresh(){
   });
   window.zoomCalendarDirty = true;
   console.log('[ZOOM][Calendar] zoomCalendarDirty=true');
+}
+
+function requestZoomCalendarRefresh(){
+  window.zoomCalendarDirty = true;
   refreshZoomCalendarView();
 }
 
