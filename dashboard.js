@@ -2741,17 +2741,28 @@ function normalizeZoomDateKey(value){
   }
   const raw = String(value).trim();
   if(!raw) return '';
+
+  // Keep date-only / ISO date keys timezone-stable for ZOOM.
+  // Never pass these through `new Date(...)` because timezone conversion can shift day.
   const isoLike = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if(isoLike) return `${isoLike[1]}-${isoLike[2]}-${isoLike[3]}`;
+
+  // Handle full ISO strings explicitly and preserve the encoded calendar date.
+  const isoDateTime = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T\s]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/);
+  if(isoDateTime) return `${isoDateTime[1]}-${isoDateTime[2]}-${isoDateTime[3]}`;
+
   const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if(slash){
     const yyyy = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
     return `${yyyy}-${String(Number(slash[2])).padStart(2,'0')}-${String(Number(slash[1])).padStart(2,'0')}`;
   }
-  const parsed = new Date(raw);
-  if(!Number.isNaN(parsed.getTime())){
-    return `${parsed.getFullYear()}-${String(parsed.getMonth()+1).padStart(2,'0')}-${String(parsed.getDate()).padStart(2,'0')}`;
+
+  const dotted = raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if(dotted){
+    const yyyy = dotted[3].length === 2 ? `20${dotted[3]}` : dotted[3];
+    return `${yyyy}-${String(Number(dotted[2])).padStart(2,'0')}-${String(Number(dotted[1])).padStart(2,'0')}`;
   }
+
   return '';
 }
 
