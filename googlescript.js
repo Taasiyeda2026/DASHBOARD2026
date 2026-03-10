@@ -1,124 +1,170 @@
-function getSheetByNameOrCreate_(name, headers) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(name);
+/**
+ * Google Apps Script Web App for Zoom assignments.
+ * Deploy settings:
+ *  - Execute as: Me
+ *  - Who has access: Anyone
+ */
 
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    if (headers && headers.length) {
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-  }
+const SHEETS = {
+  SETTINGS: 'SETTINGS',
+  EMPLOYEES: 'EMPLOYEES',
+  COURSES: 'COURSES',
+  ZOOM_ASSIGNMENTS: 'ZOOM_ASSIGNMENTS'
+};
 
-  return sheet;
-}
+const ZOOM_ASSIGNMENT_HEADERS = [
+  'CourseId',
+  'Date',
+  'Authority',
+  'School',
+  'Program',
+  'Employee',
+  'EmployeeID',
+  'StartTime',
+  'EndTime',
+  'ZoomAccount',
+  'Notes'
+];
 
-function getCoursesSheet_() {
-  return getSheetByNameOrCreate_(
-    "COURSES",
-    ["Id", "Date", "Authority", "School", "Program", "Employee", "EmployeeID", "StartTime", "EndTime"]
-  );
-}
+const COURSES_HEADERS = [
+  'Id',
+  'Date',
+  'Authority',
+  'School',
+  'Program',
+  'Employee',
+  'EmployeeID',
+  'StartTime',
+  'EndTime',
+  'Notes'
+];
 
-function getAssignmentsSheet_() {
-  return getSheetByNameOrCreate_(
-    "ZOOM_ASSIGNMENTS",
-    ["CourseId", "Date", "Program", "Employee", "EmployeeID", "StartTime", "EndTime", "ZoomAccount", "Notes"]
-  );
-}
-
-function sheetToObjects_(sheet) {
-  const values = sheet.getDataRange().getDisplayValues();
-  if (!values || values.length === 0) return [];
-
-  const headers = values[0];
-  const rows = values.slice(1);
-
-  return rows
-    .filter(row => row.some(cell => String(cell).trim() !== ""))
-    .map(row => {
-      const obj = {};
-      headers.forEach((header, i) => {
-        obj[header] = row[i] || "";
-      });
-      return obj;
-    });
-}
+const EMPLOYEES_HEADERS = [
+  'EmployeeID',
+  'Employee'
+];
 
 function doGet(e) {
-  const type = String((e && e.parameter && e.parameter.type) || "").trim().toLowerCase();
-
-  let data = [];
-
-  if (type === "courses") {
-    data = sheetToObjects_(getCoursesSheet_());
-  } else if (type === "assignments") {
-    data = sheetToObjects_(getAssignmentsSheet_());
-  } else {
-    data = {
-      status: "error",
-      message: "Missing or invalid 'type' parameter. Use ?type=courses or ?type=assignments"
-    };
+  const type = (e && e.parameter && e.parameter.type) || 'assignments';
+  if (type === 'courses') {
+    const rows = getSheetRowsAsObjects_(SHEETS.COURSES, COURSES_HEADERS);
+    return jsonResponse_(rows);
   }
-
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  if (type === 'employees') {
+    const rows = getSheetRowsAsObjects_(SHEETS.EMPLOYEES, EMPLOYEES_HEADERS);
+    return jsonResponse_(rows);
+  }
+  const rows = getSheetRowsAsObjects_(SHEETS.ZOOM_ASSIGNMENTS, ZOOM_ASSIGNMENT_HEADERS);
+  return jsonResponse_(rows);
 }
 
 function doPost(e) {
-  const sheet = getAssignmentsSheet_();
+  const payload = parsePostData_(e);
+  const normalized = {
+    CourseId:    String(payload.CourseId    || '').trim(),
+    Date:        String(payload.Date        || '').trim(),
+    Authority:   String(payload.Authority   || '').trim(),
+    School:      String(payload.School      || '').trim(),
+    Program:     String(payload.Program     || '').trim(),
+    Employee:    String(payload.Employee    || '').trim(),
+    EmployeeID:  String(payload.EmployeeID  || '').trim(),
+    StartTime:   String(payload.StartTime   || '').trim(),
+    EndTime:     String(payload.EndTime     || '').trim(),
+    ZoomAccount: String(payload.ZoomAccount || '').trim(),
+    Notes:       String(payload.Notes       || '').trim()
+  };
 
-  const courseId = String((e.parameter.CourseId || "")).trim();
-  const date = String((e.parameter.Date || "")).trim();
-  const program = String((e.parameter.Program || "")).trim();
-  const employee = String((e.parameter.Employee || "")).trim();
-  const employeeID = String((e.parameter.EmployeeID || "")).trim();
-  const startTime = String((e.parameter.StartTime || "")).trim();
-  const endTime = String((e.parameter.EndTime || "")).trim();
-  const zoomAccount = String((e.parameter.ZoomAccount || "")).trim();
-  const notes = String((e.parameter.Notes || "")).trim();
-
-  if (!courseId || !date || !employee || !employeeID || !startTime || !endTime) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        status: "error",
-        message: "Missing required fields"
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+  if (!normalized.CourseId) {
+    return jsonResponse_({ ok: false, error: 'CourseId is required' });
   }
 
-  const values = sheet.getDataRange().getDisplayValues();
-  let foundRow = -1;
+  upsertZoomAssignmentByCourseId_(normalized);
+  return jsonResponse_({ ok: true, CourseId: normalized.CourseId });
+}
 
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim() === courseId) {
-      foundRow = i + 1;
+function upsertZoomAssignmentByCourseId_(assignment) {
+  const sheet = getSheetByName_(SHEETS.ZOOM_ASSIGNMENTS);
+  ensureHeaders_(sheet, ZOOM_ASSIGNMENT_HEADERS);
+
+  const values = sheet.getDataRange().getValues();
+  const header = values[0] || ZOOM_ASSIGNMENT_HEADERS;
+  const courseIdCol = header.indexOf('CourseId') + 1;
+
+  if (courseIdCol <= 0) {
+    throw new Error('CourseId column is missing in ZOOM_ASSIGNMENTS');
+  }
+
+  let targetRow = -1;
+  for (let row = 1; row < values.length; row++) {
+    const existingCourseId = String(values[row][courseIdCol - 1] || '').trim();
+    if (existingCourseId === assignment.CourseId) {
+      targetRow = row + 1;
       break;
     }
   }
 
-  const rowData = [
-    courseId,
-    date,
-    program,
-    employee,
-    employeeID,
-    startTime,
-    endTime,
-    zoomAccount,
-    notes
-  ];
+  const rowData = ZOOM_ASSIGNMENT_HEADERS.map((key) => assignment[key] || '');
 
-  if (foundRow === -1) {
-    sheet.appendRow(rowData);
-  } else {
-    sheet.getRange(foundRow, 1, 1, rowData.length).setValues([rowData]);
+  if (targetRow > 0) {
+    sheet.getRange(targetRow, 1, 1, ZOOM_ASSIGNMENT_HEADERS.length).setValues([rowData]);
+    return;
   }
 
+  sheet.appendRow(rowData);
+}
+
+function getSheetRowsAsObjects_(sheetName, expectedHeaders) {
+  const sheet = getSheetByName_(sheetName);
+  ensureHeaders_(sheet, expectedHeaders);
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+
+  const header = values[0];
+  return values.slice(1).map((row) => {
+    const obj = {};
+    header.forEach((key, index) => {
+      obj[key] = row[index] ?? '';
+    });
+    return obj;
+  });
+}
+
+function ensureHeaders_(sheet, headers) {
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  const existing = headerRange.getValues()[0].map((cell) => String(cell || '').trim());
+  const same = headers.every((key, index) => existing[index] === key);
+  if (same) return;
+
+  headerRange.setValues([headers]);
+}
+
+function getSheetByName_(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) {
+    throw new Error(`Missing sheet: ${sheetName}`);
+  }
+  return sheet;
+}
+
+function parsePostData_(e) {
+  // URLSearchParams (application/x-www-form-urlencoded) → e.parameter
+  if (e && e.parameter && Object.keys(e.parameter).length > 0) {
+    return e.parameter;
+  }
+  // Fallback: JSON body
+  if (e && e.postData && e.postData.contents) {
+    try {
+      return JSON.parse(e.postData.contents);
+    } catch (err) {
+      return {};
+    }
+  }
+  return {};
+}
+
+function jsonResponse_(data) {
   return ContentService
-    .createTextOutput(JSON.stringify({
-      status: "ok",
-      CourseId: courseId
-    }))
+    .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
