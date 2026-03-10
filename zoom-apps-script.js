@@ -15,6 +15,8 @@ const SHEETS = {
 const ZOOM_ASSIGNMENT_HEADERS = [
   'CourseId',
   'Date',
+  'Authority',
+  'School',
   'Program',
   'Employee',
   'EmployeeID',
@@ -52,6 +54,8 @@ function doPost(e) {
   const normalized = {
     CourseId: String(payload.CourseId || '').trim(),
     Date: String(payload.Date || '').trim(),
+    Authority: String(payload.Authority || '').trim(),
+    School: String(payload.School || '').trim(),
     Program: String(payload.Program || '').trim(),
     Employee: String(payload.Employee || '').trim(),
     EmployeeID: String(payload.EmployeeID || '').trim(),

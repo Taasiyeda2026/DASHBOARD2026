@@ -3323,9 +3323,9 @@ function renderZoomPrep(container, courses, days, hdays) {
       const tdDate = document.createElement('td');
       tdDate.setAttribute('data-label', 'תאריך');
       const dateInp = document.createElement('input');
-      dateInp.type = 'text'; dateInp.className = 'zoom-field-input'; dateInp.dir = 'ltr';
+      dateInp.type = 'date'; dateInp.className = 'zoom-field-input'; dateInp.dir = 'ltr';
       dateInp.value = asgn.date || course.Date || '';
-      dateInp.addEventListener('input', async () => {
+      dateInp.addEventListener('change', async () => {
         asgn.date = dateInp.value;
         await persistZoomAssignment(dayNum, course);
       });
