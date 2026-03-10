@@ -2813,12 +2813,15 @@ function updateZoomAssignmentState(courseKey, patch){
   const key = String(courseKey).trim();
   if(!key) return;
   if(!window.zoomAssignments) window.zoomAssignments = {};
-  const base = window.zoomAssignments[key] || { account: null, notes: '', conflict: false };
-  const next = { ...base, ...patch };
-  if(next.startTime !== undefined) next.startTime = normalizeZoomTime(next.startTime);
-  if(next.endTime !== undefined) next.endTime = normalizeZoomTime(next.endTime);
-  if(next.date !== undefined) next.date = normalizeZoomDateKey(next.date);
-  window.zoomAssignments[key] = next;
+  if(!window.zoomAssignments[key]) {
+    window.zoomAssignments[key] = { account: null, notes: '', conflict: false };
+  }
+  // Mutate in-place so existing `asgn` references in event handlers stay valid
+  const next = window.zoomAssignments[key];
+  Object.assign(next, patch);
+  if(patch.startTime !== undefined) next.startTime = normalizeZoomTime(patch.startTime);
+  if(patch.endTime !== undefined) next.endTime = normalizeZoomTime(patch.endTime);
+  if(patch.date !== undefined) next.date = normalizeZoomDateKey(patch.date);
   console.log('[ZOOM][State] updateZoomAssignmentState', { key, patch, next });
 
   if(!window.zoomDataCache) window.zoomDataCache = {};
