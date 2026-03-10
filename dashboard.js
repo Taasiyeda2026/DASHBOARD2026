@@ -2864,6 +2864,7 @@ function zoomFallbackCopy(text) {
 }
 async function autoAssignZoomDay(dayNum, dayCourses) {
   const ACCOUNTS = ['Z1', 'Z2', 'Z3'];
+  let roundRobinIndex = 0;
   const assignedSlots = [];
   const toAssign = dayCourses
     .slice()
@@ -2896,9 +2897,15 @@ async function autoAssignZoomDay(dayNum, dayCourses) {
   }
 
   function pickZoomForSlot(startMin, endMin, preferred, employee) {
-    const ordered = preferred ? [preferred, ...ACCOUNTS.filter(a => a !== preferred)] : ACCOUNTS;
+    let ordered;
+    if (preferred) {
+      ordered = [preferred, ...ACCOUNTS.filter(a => a !== preferred)];
+    } else {
+      ordered = [...ACCOUNTS.slice(roundRobinIndex), ...ACCOUNTS.slice(0, roundRobinIndex)];
+    }
     for (const acc of ordered) {
       if (!isZoomBusy(startMin, endMin, acc) && !isInstructorBusy(startMin, endMin, employee)) {
+        if (!preferred) roundRobinIndex = (roundRobinIndex + 1) % ACCOUNTS.length;
         return acc;
       }
     }
