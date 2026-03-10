@@ -3006,10 +3006,13 @@ async function renderZoom() {
   caption.textContent = 'לחיצה מעתיקה את קישור הפגישה';
   header.appendChild(caption);
 
-  // ── Sub-nav: יומן שבועי / הכנת שיבוץ ──
+  // ── Sub-nav: יומן שבועי / הכנת שיבוץ (הכנת שיבוץ רק למורשים) ──
+  if (!canAssignZoom() && window.zoomSubView === 'prep') window.zoomSubView = 'calendar';
   const subNav = document.createElement('div');
   subNav.className = 'zoom-sub-nav';
-  [['calendar', 'יומן שבועי'], ['prep', 'הכנת שיבוץ']].forEach(([sv, label]) => {
+  const subViews = [['calendar', 'יומן שבועי']];
+  if (canAssignZoom()) subViews.push(['prep', 'הכנת שיבוץ']);
+  subViews.forEach(([sv, label]) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'zoom-sub-btn zoom-tab' + (window.zoomSubView === sv ? ' active' : '');
@@ -3041,7 +3044,7 @@ async function renderZoom() {
   // ── Main content ──
   const content = document.createElement('div');
   content.className = 'zoom-content';
-  if (window.zoomSubView === 'calendar') {
+  if (window.zoomSubView === 'calendar' || !canAssignZoom()) {
     renderZoomCalendar(content, courses, currentPage.days, HDAYS);
   } else {
     renderZoomPrep(content, courses, currentPage.days, HDAYS);
