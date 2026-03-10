@@ -2787,6 +2787,36 @@ function getZoomEmployeeMap(){
   return employeeMap;
 }
 
+function updateZoomAssignmentState(courseKey, patch){
+  if(!courseKey) return;
+  const key = String(courseKey).trim();
+  if(!key) return;
+  if(!window.zoomAssignments) window.zoomAssignments = {};
+  const base = window.zoomAssignments[key] || { account: null, notes: '', conflict: false };
+  const next = { ...base, ...patch };
+  if(next.startTime !== undefined) next.startTime = normalizeZoomTime(next.startTime);
+  if(next.endTime !== undefined) next.endTime = normalizeZoomTime(next.endTime);
+  if(next.date !== undefined) next.date = normalizeZoomDateKey(next.date);
+  window.zoomAssignments[key] = next;
+
+  if(!window.zoomDataCache) window.zoomDataCache = {};
+  if(!window.zoomDataCache.assignments) window.zoomDataCache.assignments = {};
+  window.zoomDataCache.assignments[key] = { ...window.zoomDataCache.assignments[key], ...next };
+}
+
+function refreshZoomCalendarView(){
+  if(window.mode !== 'zoom' || window.zoomSubView !== 'calendar') return;
+  const content = view.querySelector('.zoom-content');
+  if(!content) return;
+  content.innerHTML = '';
+  renderZoomCalendar(content, window.zoomCoursesForView || [], window.zoomDaysForView || [], window.zoomHdaysForView || []);
+}
+
+function requestZoomCalendarRefresh(){
+  window.zoomCalendarDirty = true;
+  refreshZoomCalendarView();
+}
+
 async function getZoomData(forceReload = false){
   if(!window.zoomDataCache) window.zoomDataCache = {};
   if(!forceReload && window.zoomDataCache.loaded){
@@ -2943,7 +2973,7 @@ async function persistZoomAssignment(dayNum, course){
   const assignment = window.zoomAssignments?.[courseKey] || {};
   const startTime = normalizeZoomTime(assignment.startTime || course.StartTime || '');
   const endTime = normalizeZoomTime(assignment.endTime || course.EndTime || '');
-  await saveZoomAssignment({
+  const payload = {
     CourseId:   courseKey,
     Date:       assignment.date      || course.Date      || zoomDateString(dayNum),
     Authority:  assignment.authority || course.Authority || '',
@@ -2955,7 +2985,21 @@ async function persistZoomAssignment(dayNum, course){
     EndTime:    endTime,
     ZoomAccount: assignment.account  || '',
     Notes:      assignment.notes     || ''
+  };
+  await saveZoomAssignment(payload);
+  updateZoomAssignmentState(courseKey, {
+    account: payload.ZoomAccount || null,
+    notes: payload.Notes || '',
+    startTime: payload.StartTime || '',
+    endTime: payload.EndTime || '',
+    date: payload.Date || '',
+    authority: payload.Authority || '',
+    school: payload.School || '',
+    program: payload.Program || '',
+    employee: payload.Employee || '',
+    employeeId: payload.EmployeeID || ''
   });
+  requestZoomCalendarRefresh();
 }
 
 async function persistZoomAssignmentsForDay(dayNum, dayCourses){
@@ -3119,6 +3163,9 @@ async function renderZoom() {
     EndTime: normalizeZoomTime(c.EndTime || c.endTime || '')
   }));
   const currentPage = WEEK_PAGES[window.zoomWeekPage];
+  window.zoomCoursesForView = courses;
+  window.zoomDaysForView = currentPage.days;
+  window.zoomHdaysForView = HDAYS;
   const weekRangeLabel = formatZoomWeekRange(currentPage.days);
 
   const wrap = document.createElement('div');
@@ -3274,10 +3321,12 @@ function renderZoomCalendar(container, courses, days, hdays) {
   const assignedItems = [];
   displayDays.forEach(dayNum => {
     const dateStr = zoomDateString(dayNum);
-    const dayCourses = courses.filter(c => normalizeZoomDateKey(c.Date || c.date || '') === dateStr);
-    dayCourses.forEach(course => {
+    const renderedKeys = new Set();
+    courses.forEach(course => {
       const key = zoomCourseId(dayNum, course);
       const asgn = window.zoomAssignments[key];
+      const effectiveDate = normalizeZoomDateKey(asgn?.date || course.Date || course.date || '');
+      if(effectiveDate !== dateStr) return;
       if (asgn && asgn.account) {
         const startTime = normalizeZoomTime(asgn.startTime || course.StartTime || '');
         const endTime = normalizeZoomTime(asgn.endTime || course.EndTime || '');
@@ -3291,7 +3340,33 @@ function renderZoomCalendar(container, courses, days, hdays) {
           startMin,
           endMin,
         });
+        renderedKeys.add(key);
       }
+    });
+
+    Object.entries(window.zoomAssignments || {}).forEach(([key, asgn]) => {
+      if(!asgn || !asgn.account || renderedKeys.has(key)) return;
+      const asgnDate = normalizeZoomDateKey(asgn.date || '');
+      if(asgnDate !== dateStr) return;
+      const startTime = normalizeZoomTime(asgn.startTime || '');
+      const endTime = normalizeZoomTime(asgn.endTime || '');
+      const startMin = zoomTimeToMinutes(startTime);
+      const endMin = zoomTimeToMinutes(endTime);
+      assignedItems.push({
+        dayNum,
+        course: {
+          Program: asgn.program || '',
+          Authority: asgn.authority || '',
+          School: asgn.school || '',
+          Employee: asgn.employee || ''
+        },
+        account: asgn.account,
+        courseId: key,
+        startTime,
+        endTime,
+        startMin,
+        endMin,
+      });
     });
   });
 
@@ -3775,6 +3850,21 @@ function renderZoomPrep(container, courses, days, hdays) {
 
       // Perform assignment only for selected courses and save to Google Sheets
       await autoAssignZoomDay(dayNum, selectedCourses);
+      requestZoomCalendarRefresh();
+
+      selectedCourses.forEach(c => {
+        const k = zoomCourseId(dayNum, c);
+        const row = rowByCourseKey[k];
+        if(!row) return;
+        const asgn = window.zoomAssignments[k] || {};
+        row.classList.toggle('zoom-assigned-row', !!asgn.account);
+        row.classList.toggle('zoom-conflict-row', !!asgn.conflict);
+        const rowBadge = row.querySelector('.zoom-account-badge');
+        if(rowBadge){
+          rowBadge.className = 'zoom-account-badge' + (asgn.account ? ` zoom-account-badge-${String(asgn.account).toLowerCase()}` : '');
+          rowBadge.textContent = asgn.account || '';
+        }
+      });
 
       selectedCourses.forEach(c => {
         const k = zoomCourseId(dayNum, c);
