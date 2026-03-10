@@ -95,6 +95,22 @@ function createHourSelect(value){
   return select;
 }
 
+const ZOOM_PROGRAMS = [
+  'בינה מלאכותית',
+  'ביומימיקרי',
+  'ביומימיקרי לחטיבה',
+  'השמיים אינם הגבול',
+  'התנסות בתעשייה',
+  'טכנולוגיות החלל',
+  'יישומי AI',
+  'מייקרים',
+  'מנהיגות ירוקה',
+  'משחקי קופסה',
+  'פורצות דרך',
+  'רוקחים עולם',
+  'תלמידים להייטק',
+];
+
 rawData = normalizeData(rawData);
 
 let schedulingJson = null;
@@ -2979,7 +2995,31 @@ async function renderZoom() {
   window.zoomGoogleCourses = googleCourses;
   window.zoomAssignments = mapZoomAssignmentsByCourseKey(rawAssignments);
 
-  const courses = googleCourses;
+  // Fall back to rawData if Google COURSES sheet is empty
+  let courses = googleCourses;
+  if (!courses.length) {
+    courses = [];
+    rawData.forEach(r => {
+      (r.Dates || []).forEach(d => {
+        if (!d) return;
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        courses.push({
+          Id: `raw-${r.EmployeeID || ''}-${yyyy}${mm}${dd}-${r.Program || ''}`,
+          Date: `${yyyy}-${mm}-${dd}`,
+          Authority: r.Authority || '',
+          School: r.School || '',
+          Program: r.Program || '',
+          Employee: r.Employee || '',
+          EmployeeID: String(r.EmployeeID || ''),
+          StartTime: r.StartTime || '',
+          EndTime: r.EndTime || '',
+          Notes: r.Notes || ''
+        });
+      });
+    });
+  }
   const currentPage = WEEK_PAGES[window.zoomWeekPage];
   const weekRangeLabel = formatZoomWeekRange(currentPage.days);
 
@@ -3285,10 +3325,15 @@ function addNewZoomRow(dayNum, tbody, defaultDate) {
   tdSchool.appendChild(schoolInp); tr.appendChild(tdSchool);
 
   const tdProg = document.createElement('td'); tdProg.setAttribute('data-label', 'קורס');
-  const progInp = document.createElement('input');
-  progInp.type = 'text'; progInp.className = 'zoom-field-input'; progInp.dir = 'rtl';
-  progInp.addEventListener('input', async () => { asgn.program = progInp.value; await persistZoomAssignment(dayNum, course); });
-  tdProg.appendChild(progInp); tr.appendChild(tdProg);
+  const progSelect = document.createElement('select'); progSelect.className = 'zoom-emp-select'; progSelect.dir = 'rtl';
+  const blankProgOpt2 = document.createElement('option'); blankProgOpt2.value = ''; blankProgOpt2.textContent = '— בחר —';
+  progSelect.appendChild(blankProgOpt2);
+  ZOOM_PROGRAMS.forEach(name => {
+    const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
+    progSelect.appendChild(opt);
+  });
+  progSelect.addEventListener('change', async () => { asgn.program = progSelect.value; await persistZoomAssignment(dayNum, course); });
+  tdProg.appendChild(progSelect); tr.appendChild(tdProg);
 
   const tdEmp = document.createElement('td'); tdEmp.setAttribute('data-label', 'מדריך');
   const empSelect = document.createElement('select'); empSelect.className = 'zoom-emp-select'; empSelect.dir = 'rtl';
@@ -3450,14 +3495,25 @@ function renderZoomPrep(container, courses, days, hdays) {
       // Program cell
       const tdProg = document.createElement('td');
       tdProg.setAttribute('data-label', 'קורס');
-      const progInp = document.createElement('input');
-      progInp.type = 'text'; progInp.className = 'zoom-field-input'; progInp.dir = 'rtl';
-      progInp.value = asgn.program || course.Program || '';
-      progInp.addEventListener('input', async () => {
-        asgn.program = progInp.value;
+      const progSelect = document.createElement('select');
+      progSelect.className = 'zoom-emp-select'; progSelect.dir = 'rtl';
+      const currentProg = asgn.program || course.Program || '';
+      const blankProgOpt = document.createElement('option'); blankProgOpt.value = ''; blankProgOpt.textContent = '— בחר —';
+      progSelect.appendChild(blankProgOpt);
+      if (!ZOOM_PROGRAMS.includes(currentProg) && currentProg) {
+        const opt = document.createElement('option'); opt.value = currentProg; opt.textContent = currentProg; opt.selected = true;
+        progSelect.appendChild(opt);
+      }
+      ZOOM_PROGRAMS.forEach(name => {
+        const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
+        if (name === currentProg) opt.selected = true;
+        progSelect.appendChild(opt);
+      });
+      progSelect.addEventListener('change', async () => {
+        asgn.program = progSelect.value;
         await persistZoomAssignment(dayNum, course);
       });
-      tdProg.appendChild(progInp);
+      tdProg.appendChild(progSelect);
       tr.appendChild(tdProg);
 
       // Employee dropdown cell
