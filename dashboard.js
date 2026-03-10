@@ -2836,11 +2836,12 @@ function requestZoomCalendarRefresh(){
   });
   window.zoomCalendarDirty = true;
   console.log('[ZOOM][Calendar] zoomCalendarDirty=true');
-}
-
-function requestZoomCalendarRefresh(){
-  window.zoomCalendarDirty = true;
-  refreshZoomCalendarView();
+  if(window.mode === 'zoom' && window.zoomSubView === 'calendar'){
+    console.log('[ZOOM][Calendar] in calendar subView; refreshing immediately');
+    refreshZoomCalendarView();
+  } else {
+    console.log('[ZOOM][Calendar] refresh deferred until calendar tab is active');
+  }
 }
 
 async function getZoomData(forceReload = false){
@@ -3257,11 +3258,24 @@ async function renderZoom() {
     btn.className = 'zoom-sub-btn zoom-tab' + (window.zoomSubView === sv ? ' active' : '');
     btn.textContent = label;
     btn.addEventListener('click', async () => {
+      const dirtyBeforeSwitch = !!window.zoomCalendarDirty;
       window.zoomSubView = sv;
       await renderZoom();
-      if(sv === 'calendar' && window.zoomCalendarDirty){
-        console.log('[ZOOM][Calendar] calendar tab clicked with dirty=true; refreshing');
+      let didRefreshAfterSwitch = false;
+      if(sv === 'calendar' && dirtyBeforeSwitch){
+        console.log('[ZOOM][Calendar] calendar tab clicked', {
+          dirtyBeforeSwitch,
+          dirtyAfterRender: !!window.zoomCalendarDirty
+        });
         refreshZoomCalendarView();
+        didRefreshAfterSwitch = true;
+      }
+      if(sv === 'calendar'){
+        console.log('[ZOOM][Calendar] calendar tab transition result', {
+          dirtyBeforeSwitch,
+          dirtyAfterRender: !!window.zoomCalendarDirty,
+          didRefreshAfterSwitch
+        });
       }
     });
     subNav.appendChild(btn);
