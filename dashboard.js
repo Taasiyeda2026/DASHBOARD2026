@@ -3866,6 +3866,20 @@ function renderZoomPrep(container, courses, days, hdays) {
         }
       });
 
+      selectedCourses.forEach(c => {
+        const k = zoomCourseId(dayNum, c);
+        const row = rowByCourseKey[k];
+        if(!row) return;
+        const asgn = window.zoomAssignments[k] || {};
+        row.classList.toggle('zoom-assigned-row', !!asgn.account);
+        row.classList.toggle('zoom-conflict-row', !!asgn.conflict);
+        const rowBadge = row.querySelector('.zoom-account-badge');
+        if(rowBadge){
+          rowBadge.className = 'zoom-account-badge' + (asgn.account ? ` zoom-account-badge-${String(asgn.account).toLowerCase()}` : '');
+          rowBadge.textContent = asgn.account || '';
+        }
+      });
+
       assignBtn.textContent = 'שיבוץ';
       assignBtn.disabled = false;
       alert('השיבוץ הושלם');
