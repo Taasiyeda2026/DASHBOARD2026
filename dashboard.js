@@ -3242,6 +3242,95 @@ function renderZoomCalendar(container, courses, days, hdays) {
   }
 }
 
+function addNewZoomRow(dayNum, tbody, defaultDate) {
+  const key = 'new-' + dayNum + '-' + Date.now();
+  const course = { Id: key, Date: defaultDate || zoomDateString(dayNum) };
+  window.zoomAssignments[key] = {
+    account: null, notes: '', conflict: false,
+    startTime: '', endTime: '',
+    date: defaultDate || zoomDateString(dayNum),
+    authority: '', school: '', program: '', employee: '', employeeId: ''
+  };
+  const asgn = window.zoomAssignments[key];
+
+  const tr = document.createElement('tr');
+
+  const tdCheck = document.createElement('td');
+  tdCheck.style.textAlign = 'center';
+  const chk = document.createElement('input'); chk.type = 'checkbox'; chk.className = 'zoom-row-select';
+  tdCheck.appendChild(chk); tr.appendChild(tdCheck);
+
+  const tdZoom = document.createElement('td');
+  tdZoom.style.textAlign = 'center'; tdZoom.style.whiteSpace = 'nowrap';
+  const badge = document.createElement('span'); badge.className = 'zoom-account-badge'; badge.textContent = '';
+  tdZoom.appendChild(badge); tr.appendChild(tdZoom);
+
+  const tdDate = document.createElement('td'); tdDate.setAttribute('data-label', 'תאריך');
+  const dateInp = document.createElement('input');
+  dateInp.type = 'date'; dateInp.className = 'zoom-field-input'; dateInp.dir = 'ltr';
+  dateInp.value = asgn.date;
+  dateInp.addEventListener('change', async () => { asgn.date = dateInp.value; await persistZoomAssignment(dayNum, course); });
+  tdDate.appendChild(dateInp); tr.appendChild(tdDate);
+
+  const tdAuth = document.createElement('td'); tdAuth.setAttribute('data-label', 'רשות');
+  const authInp = document.createElement('input');
+  authInp.type = 'text'; authInp.className = 'zoom-field-input'; authInp.dir = 'rtl';
+  authInp.addEventListener('input', async () => { asgn.authority = authInp.value; await persistZoomAssignment(dayNum, course); });
+  tdAuth.appendChild(authInp); tr.appendChild(tdAuth);
+
+  const tdSchool = document.createElement('td'); tdSchool.setAttribute('data-label', 'בית ספר');
+  const schoolInp = document.createElement('input');
+  schoolInp.type = 'text'; schoolInp.className = 'zoom-field-input'; schoolInp.dir = 'rtl';
+  schoolInp.addEventListener('input', async () => { asgn.school = schoolInp.value; await persistZoomAssignment(dayNum, course); });
+  tdSchool.appendChild(schoolInp); tr.appendChild(tdSchool);
+
+  const tdProg = document.createElement('td'); tdProg.setAttribute('data-label', 'קורס');
+  const progInp = document.createElement('input');
+  progInp.type = 'text'; progInp.className = 'zoom-field-input'; progInp.dir = 'rtl';
+  progInp.addEventListener('input', async () => { asgn.program = progInp.value; await persistZoomAssignment(dayNum, course); });
+  tdProg.appendChild(progInp); tr.appendChild(tdProg);
+
+  const tdEmp = document.createElement('td'); tdEmp.setAttribute('data-label', 'מדריך');
+  const empSelect = document.createElement('select'); empSelect.className = 'zoom-emp-select'; empSelect.dir = 'rtl';
+  const employeeMap = {};
+  rawData.forEach(r => { if (r.Employee && r.EmployeeID) employeeMap[r.Employee] = String(r.EmployeeID); });
+  const blankOpt = document.createElement('option'); blankOpt.value = ''; blankOpt.textContent = '— בחר —';
+  empSelect.appendChild(blankOpt);
+  Object.entries(employeeMap).sort(([a], [b]) => a.localeCompare(b, 'he')).forEach(([name, id]) => {
+    const opt = document.createElement('option'); opt.value = name; opt.dataset.id = id; opt.textContent = name;
+    empSelect.appendChild(opt);
+  });
+  empSelect.addEventListener('change', async () => {
+    const sel = empSelect.selectedOptions[0];
+    asgn.employee = sel.value; asgn.employeeId = sel.dataset.id || '';
+    await persistZoomAssignment(dayNum, course);
+  });
+  tdEmp.appendChild(empSelect); tr.appendChild(tdEmp);
+
+  const tdStart = document.createElement('td'); tdStart.className = 'zoom-col-start'; tdStart.setAttribute('data-label', 'התחלה');
+  const startInput = createHourSelect('');
+  const tdEnd = document.createElement('td'); tdEnd.className = 'zoom-col-end'; tdEnd.setAttribute('data-label', 'סיום');
+  const endInput = createHourSelect('');
+  startInput.addEventListener('change', async () => {
+    const h = parseInt(startInput.value.split(':')[0], 10);
+    if (!Number.isNaN(h)) endInput.value = String(Math.min(h + 1, 18)).padStart(2, '0') + ':00';
+    asgn.startTime = startInput.value; asgn.endTime = endInput.value;
+    await persistZoomAssignment(dayNum, course);
+  });
+  endInput.addEventListener('change', async () => { asgn.endTime = endInput.value; await persistZoomAssignment(dayNum, course); });
+  tdStart.appendChild(startInput); tr.appendChild(tdStart);
+  tdEnd.appendChild(endInput); tr.appendChild(tdEnd);
+
+  const tdNotes = document.createElement('td'); tdNotes.className = 'zoom-col-notes'; tdNotes.setAttribute('data-label', 'הערות');
+  const notesInp = document.createElement('input');
+  notesInp.type = 'text'; notesInp.className = 'zoom-notes-input'; notesInp.dir = 'rtl'; notesInp.placeholder = 'הערה...';
+  notesInp.addEventListener('input', async () => { asgn.notes = notesInp.value; await persistZoomAssignment(dayNum, course); });
+  tdNotes.appendChild(notesInp); tr.appendChild(tdNotes);
+
+  tbody.appendChild(tr);
+  dateInp.focus();
+}
+
 function renderZoomPrep(container, courses, days, hdays) {
   const area = document.createElement('div');
   area.className = 'zoom-days-area';
@@ -3521,7 +3610,17 @@ function renderZoomPrep(container, courses, days, hdays) {
       alert('השיבוץ הושלם');
       await renderZoom();
     });
-    card.appendChild(assignBtn);
+    const newRowBtn = document.createElement('button');
+    newRowBtn.type = 'button';
+    newRowBtn.className = 'zoom-new-row-btn';
+    newRowBtn.textContent = 'חדש';
+    newRowBtn.addEventListener('click', () => addNewZoomRow(dayNum, tbody, dateStr));
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'zoom-btn-row';
+    btnRow.appendChild(assignBtn);
+    btnRow.appendChild(newRowBtn);
+    card.appendChild(btnRow);
     area.appendChild(card);
   });
 
