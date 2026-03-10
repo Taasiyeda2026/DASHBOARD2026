@@ -2798,6 +2798,7 @@ function updateZoomAssignmentState(courseKey, patch){
   if(next.endTime !== undefined) next.endTime = normalizeZoomTime(next.endTime);
   if(next.date !== undefined) next.date = normalizeZoomDateKey(next.date);
   window.zoomAssignments[key] = next;
+  console.log('[ZOOM][State] updateZoomAssignmentState', { key, patch, next });
 
   if(!window.zoomDataCache) window.zoomDataCache = {};
   if(!window.zoomDataCache.assignments) window.zoomDataCache.assignments = {};
@@ -2805,11 +2806,26 @@ function updateZoomAssignmentState(courseKey, patch){
 }
 
 function refreshZoomCalendarView(){
+  console.log('[ZOOM][Calendar] refreshZoomCalendarView called', {
+    mode: window.mode,
+    subView: window.zoomSubView,
+    dirty: !!window.zoomCalendarDirty
+  });
   if(window.mode !== 'zoom' || window.zoomSubView !== 'calendar') return;
   const content = view.querySelector('.zoom-content');
   if(!content) return;
   content.innerHTML = '';
   renderZoomCalendar(content, window.zoomCoursesForView || [], window.zoomDaysForView || [], window.zoomHdaysForView || []);
+  window.zoomCalendarDirty = false;
+}
+
+function requestZoomCalendarRefresh(){
+  console.log('[ZOOM][Calendar] requestZoomCalendarRefresh called', {
+    mode: window.mode,
+    subView: window.zoomSubView
+  });
+  window.zoomCalendarDirty = true;
+  console.log('[ZOOM][Calendar] zoomCalendarDirty=true');
 }
 
 function requestZoomCalendarRefresh(){
@@ -3202,7 +3218,14 @@ async function renderZoom() {
     btn.type = 'button';
     btn.className = 'zoom-sub-btn zoom-tab' + (window.zoomSubView === sv ? ' active' : '');
     btn.textContent = label;
-    btn.addEventListener('click', () => { window.zoomSubView = sv; renderZoom(); });
+    btn.addEventListener('click', async () => {
+      window.zoomSubView = sv;
+      await renderZoom();
+      if(sv === 'calendar' && window.zoomCalendarDirty){
+        console.log('[ZOOM][Calendar] calendar tab clicked with dirty=true; refreshing');
+        refreshZoomCalendarView();
+      }
+    });
     subNav.appendChild(btn);
   });
   const refreshBtn = document.createElement('button');
@@ -3240,6 +3263,7 @@ async function renderZoom() {
   content.className = 'zoom-content';
   if (window.zoomSubView === 'calendar' || !canAssignZoom()) {
     renderZoomCalendar(content, courses, currentPage.days, HDAYS);
+    window.zoomCalendarDirty = false;
   } else {
     renderZoomPrep(content, courses, currentPage.days, HDAYS);
   }
@@ -3319,6 +3343,11 @@ function renderZoomCalendar(container, courses, days, hdays) {
 
   // Gather assigned items for this week
   const assignedItems = [];
+  console.log('[ZOOM][Calendar] renderZoomCalendar input', {
+    courses: Array.isArray(courses) ? courses.length : 0,
+    assignments: window.zoomAssignments ? Object.keys(window.zoomAssignments).length : 0,
+    days: Array.isArray(days) ? days.length : 0
+  });
   displayDays.forEach(dayNum => {
     const dateStr = zoomDateString(dayNum);
     const renderedKeys = new Set();
@@ -3369,6 +3398,7 @@ function renderZoomCalendar(container, courses, days, hdays) {
       });
     });
   });
+  console.log('[ZOOM][Calendar] assignedItems before build:', assignedItems.length);
 
   const grid = document.createElement('div');
   grid.className = 'zoom-cal-grid';
@@ -3472,12 +3502,13 @@ function renderZoomCalendar(container, courses, days, hdays) {
 function addNewZoomRow(dayNum, tbody, defaultDate) {
   const key = 'new-' + dayNum + '-' + Date.now();
   const course = { Id: key, Date: defaultDate || zoomDateString(dayNum) };
-  window.zoomAssignments[key] = {
+  updateZoomAssignmentState(key, {
     account: null, notes: '', conflict: false,
     startTime: '', endTime: '',
     date: defaultDate || zoomDateString(dayNum),
     authority: '', school: '', program: '', employee: '', employeeId: ''
-  };
+  });
+  requestZoomCalendarRefresh();
   const asgn = window.zoomAssignments[key];
 
   const tr = document.createElement('tr');
@@ -3617,7 +3648,7 @@ function renderZoomPrep(container, courses, days, hdays) {
     dayCourses.forEach(course => {
       const key = zoomCourseId(dayNum, course);
       if (!window.zoomAssignments[key]) {
-        window.zoomAssignments[key] = { account: null, notes: '', conflict: false };
+        updateZoomAssignmentState(key, { account: null, notes: '', conflict: false });
       }
       const asgn = window.zoomAssignments[key];
       asgn.startTime = normalizeZoomTime(asgn.startTime || course.StartTime || '');
@@ -3841,30 +3872,16 @@ function renderZoomPrep(container, courses, days, hdays) {
       selectedCourses.forEach(c => {
         const k = zoomCourseId(dayNum, c);
         if (!window.zoomAssignments[k]) {
-          window.zoomAssignments[k] = { account: null, notes: '', startTime: c.StartTime || '', endTime: c.EndTime || '', conflict: false };
+          updateZoomAssignmentState(k, { account: null, notes: '', startTime: c.StartTime || '', endTime: c.EndTime || '', conflict: false });
         } else {
-          if (!window.zoomAssignments[k].startTime) window.zoomAssignments[k].startTime = c.StartTime || '';
-          if (!window.zoomAssignments[k].endTime)   window.zoomAssignments[k].endTime   = c.EndTime   || '';
+          if (!window.zoomAssignments[k].startTime) updateZoomAssignmentState(k, { startTime: c.StartTime || '' });
+          if (!window.zoomAssignments[k].endTime)   updateZoomAssignmentState(k, { endTime: c.EndTime || '' });
         }
       });
 
       // Perform assignment only for selected courses and save to Google Sheets
       await autoAssignZoomDay(dayNum, selectedCourses);
       requestZoomCalendarRefresh();
-
-      selectedCourses.forEach(c => {
-        const k = zoomCourseId(dayNum, c);
-        const row = rowByCourseKey[k];
-        if(!row) return;
-        const asgn = window.zoomAssignments[k] || {};
-        row.classList.toggle('zoom-assigned-row', !!asgn.account);
-        row.classList.toggle('zoom-conflict-row', !!asgn.conflict);
-        const rowBadge = row.querySelector('.zoom-account-badge');
-        if(rowBadge){
-          rowBadge.className = 'zoom-account-badge' + (asgn.account ? ` zoom-account-badge-${String(asgn.account).toLowerCase()}` : '');
-          rowBadge.textContent = asgn.account || '';
-        }
-      });
 
       selectedCourses.forEach(c => {
         const k = zoomCourseId(dayNum, c);
