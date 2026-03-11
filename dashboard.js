@@ -3608,10 +3608,13 @@ function addNewZoomRow(dayNum, tbody, defaultDate) {
   const asgn = window.zoomAssignments[key];
 
   const tr = document.createElement('tr');
+  tr.dataset.zoomCourseKey = key;
 
   const tdCheck = document.createElement('td');
   tdCheck.style.textAlign = 'center';
   const chk = document.createElement('input'); chk.type = 'checkbox'; chk.className = 'zoom-row-select';
+  const selectAllChk = tbody.closest('table')?.querySelector('.zoom-select-all');
+  if (selectAllChk?.checked) chk.checked = true;
   tdCheck.appendChild(chk); tr.appendChild(tdCheck);
 
   const tdZoom = document.createElement('td');
@@ -3937,19 +3940,35 @@ function renderZoomPrep(container, courses, days, hdays) {
     tableWrap.appendChild(table);
     card.appendChild(tableWrap);
 
+    const dayCourseByKey = {};
+    dayCourses.forEach(course => {
+      const key = zoomCourseId(dayNum, course);
+      if (!dayCourseByKey[key]) dayCourseByKey[key] = course;
+    });
+
     // Wire select-all checkbox
     const selectAllChk = thead.querySelector('.zoom-select-all');
     if (selectAllChk) {
+      const syncSelectAllState = () => {
+        const all = Array.from(tbody.querySelectorAll('.zoom-row-select'));
+        if (!all.length) {
+          selectAllChk.checked = false;
+          selectAllChk.indeterminate = false;
+          return;
+        }
+        selectAllChk.checked = all.every(x => x.checked);
+        selectAllChk.indeterminate = !selectAllChk.checked && all.some(x => x.checked);
+      };
+
       selectAllChk.addEventListener('change', () => {
         tbody.querySelectorAll('.zoom-row-select').forEach(c => { c.checked = selectAllChk.checked; });
+        selectAllChk.indeterminate = false;
       });
-      tbody.querySelectorAll('.zoom-row-select').forEach(c => {
-        c.addEventListener('change', () => {
-          const all  = Array.from(tbody.querySelectorAll('.zoom-row-select'));
-          selectAllChk.checked      = all.every(x => x.checked);
-          selectAllChk.indeterminate = !selectAllChk.checked && all.some(x => x.checked);
-        });
+      tbody.addEventListener('change', e => {
+        if (!e.target || !e.target.classList || !e.target.classList.contains('zoom-row-select')) return;
+        syncSelectAllState();
       });
+      syncSelectAllState();
     }
 
     // Assign button
@@ -3960,8 +3979,28 @@ function renderZoomPrep(container, courses, days, hdays) {
     assignBtn.addEventListener('click', async () => {
       if (!canAssignZoom()) { notifyZoomNoPermission(); return; }
       // Only assign checked rows
-      const rowCheckboxes = Array.from(tbody.querySelectorAll('.zoom-row-select'));
-      const selectedCourses = dayCourses.filter((_, i) => rowCheckboxes[i] && rowCheckboxes[i].checked);
+      const selectedRows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.querySelector('.zoom-row-select')?.checked);
+      const selectedCourses = selectedRows
+        .map(row => {
+          const key = row.dataset.zoomCourseKey;
+          if (!key) return null;
+          const existing = dayCourseByKey[key];
+          if (existing) return existing;
+          const asgn = window.zoomAssignments?.[key] || {};
+          return {
+            Id: key,
+            Date: asgn.date || zoomDateString(dayNum),
+            Authority: asgn.authority || '',
+            School: asgn.school || '',
+            Program: asgn.program || '',
+            Employee: asgn.employee || '',
+            EmployeeID: asgn.employeeId || '',
+            StartTime: asgn.startTime || '',
+            EndTime: asgn.endTime || '',
+            Notes: asgn.notes || ''
+          };
+        })
+        .filter(Boolean);
 
       if (!selectedCourses.length) {
         alert('יש לסמן לפחות קורס אחד לשיבוץ');
@@ -3988,7 +4027,7 @@ function renderZoomPrep(container, courses, days, hdays) {
 
       selectedCourses.forEach(c => {
         const k = zoomCourseId(dayNum, c);
-        const rows = rowByCourseKey[k] || [];
+        const rows = rowByCourseKey[k] || Array.from(tbody.querySelectorAll('tr')).filter(row => row.dataset.zoomCourseKey === k);
         if(!rows.length) return;
         const asgn = window.zoomAssignments[k] || {};
         rows.forEach(row => {
