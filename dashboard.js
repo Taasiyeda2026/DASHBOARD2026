@@ -27,7 +27,7 @@ function escapeHtml(str){
     .replace(/'/g,"&#039;");
 }
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzImu0_MqAUxbZeiTyj33etfosKjBqR6hrd088UnR7syJX21c9505C3P063-Q3QTnBvYQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzHM0MOc-H6ui-fjaPkeu7MHuUeXPvJqMQaCc7ws09BFueFmkd35AfeFPTR8p9DOiSbdQ/exec";
 async function saveZoomScheduling(data){
   return saveZoomAssignment(data);
 }
@@ -2942,7 +2942,7 @@ async function saveZoomAssignment(data){
     body.append("EndTime",    data.EndTime    || "");
     body.append("ZoomAccount",data.ZoomAccount|| "");
     body.append("Notes",      data.Notes      || "");
-    body.append("UpdatedAt",  data.UpdatedAt  || new Date().toISOString());
+    body.append("UpdatedAt",  new Date().toISOString());
     const res = await fetch(API_URL, { method: "POST", body });
     const result = await res.json();
     return result;
@@ -3075,7 +3075,8 @@ async function persistZoomAssignment(dayNum, course){
     StartTime:  startTime,
     EndTime:    endTime,
     ZoomAccount: assignment.account  || '',
-    Notes:      assignment.notes     || ''
+    Notes:      assignment.notes     || '',
+    UpdatedAt:  new Date().toISOString()
   };
   await saveZoomAssignment(payload);
   updateZoomAssignmentState(courseKey, {
@@ -3595,17 +3596,19 @@ function renderZoomCalendar(container, courses, days, hdays) {
   }
 }
 
-function addNewZoomRow(dayNum, tbody, defaultDate) {
+async function addNewZoomRow(dayNum, tbody, defaultDate) {
   const key = 'new-' + dayNum + '-' + Date.now();
-  const course = { Date: defaultDate || zoomDateString(dayNum) };
+  const course = { Id: key, CourseId: key, Date: defaultDate || zoomDateString(dayNum) };
   updateZoomAssignmentState(key, {
     account: null, notes: '', conflict: false,
     startTime: '', endTime: '',
     date: defaultDate || zoomDateString(dayNum),
-    authority: '', school: '', program: '', employee: '', employeeId: '', courseId: ''
+    authority: '', school: '', program: '', employee: '', employeeId: '', courseId: key
   });
   requestZoomCalendarRefresh();
   const asgn = window.zoomAssignments[key];
+
+  await persistZoomAssignment(dayNum, course);
 
   const tr = document.createElement('tr');
   tr.dataset.zoomCourseKey = key;
@@ -4049,7 +4052,9 @@ function renderZoomPrep(container, courses, days, hdays) {
     newRowBtn.type = 'button';
     newRowBtn.className = 'zoom-new-row-btn';
     newRowBtn.textContent = 'חדש';
-    newRowBtn.addEventListener('click', () => addNewZoomRow(dayNum, tbody, dateStr));
+    newRowBtn.addEventListener('click', async () => {
+      await addNewZoomRow(dayNum, tbody, dateStr);
+    });
 
     const btnRow = document.createElement('div');
     btnRow.className = 'zoom-btn-row';
