@@ -23,7 +23,8 @@ const ZOOM_ASSIGNMENT_HEADERS = [
   'StartTime',
   'EndTime',
   'ZoomAccount',
-  'Notes'
+  'Notes',
+  'UpdatedAt'
 ];
 
 const COURSES_HEADERS = [
@@ -50,27 +51,35 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const payload = parsePostData_(e);
-  const normalized = {
-    CourseId: String(payload.CourseId || '').trim(),
-    Date: String(payload.Date || '').trim(),
-    Authority: String(payload.Authority || '').trim(),
-    School: String(payload.School || '').trim(),
-    Program: String(payload.Program || '').trim(),
-    Employee: String(payload.Employee || '').trim(),
-    EmployeeID: String(payload.EmployeeID || '').trim(),
-    StartTime: String(payload.StartTime || '').trim(),
-    EndTime: String(payload.EndTime || '').trim(),
-    ZoomAccount: String(payload.ZoomAccount || '').trim(),
-    Notes: String(payload.Notes || '').trim()
-  };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
 
-  if (!normalized.CourseId) {
-    return jsonResponse_({ ok: false, error: 'CourseId is required' });
+  try {
+    const payload = parsePostData_(e);
+    const normalized = {
+      CourseId: String(payload.CourseId || '').trim(),
+      Date: String(payload.Date || '').trim(),
+      Authority: String(payload.Authority || '').trim(),
+      School: String(payload.School || '').trim(),
+      Program: String(payload.Program || '').trim(),
+      Employee: String(payload.Employee || '').trim(),
+      EmployeeID: String(payload.EmployeeID || '').trim(),
+      StartTime: String(payload.StartTime || '').trim(),
+      EndTime: String(payload.EndTime || '').trim(),
+      ZoomAccount: String(payload.ZoomAccount || '').trim(),
+      Notes: String(payload.Notes || '').trim(),
+      UpdatedAt: String(payload.UpdatedAt || new Date().toISOString()).trim()
+    };
+
+    if (!normalized.CourseId) {
+      return jsonResponse_({ ok: false, error: 'CourseId is required' });
+    }
+
+    upsertZoomAssignmentByCourseId_(normalized);
+    return jsonResponse_({ ok: true, CourseId: normalized.CourseId });
+  } finally {
+    lock.releaseLock();
   }
-
-  upsertZoomAssignmentByCourseId_(normalized);
-  return jsonResponse_({ ok: true, CourseId: normalized.CourseId });
 }
 
 function upsertZoomAssignmentByCourseId_(assignment) {
