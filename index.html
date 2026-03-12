@@ -284,7 +284,7 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .zoom-week-arrow:hover:not(:disabled){background:#dbeafe;}
 .zoom-week-arrow:disabled{opacity:.35;cursor:default;}
 .zoom-week-label{font-size:13px;font-weight:800;color:#1e3a5f;min-width:170px;text-align:center;direction:ltr;unicode-bidi:isolate;}
-.zoom-calendar-container{width:1100px;margin:0 auto;}
+.zoom-calendar-container{width:100%;max-width:1100px;margin:0 auto;box-sizing:border-box;}
 .zoom-cal-grid{width:100%;direction:ltr;border:1px solid #dbe4ef;border-radius:14px;overflow-x:auto;overflow-y:visible;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.05);}
 .zoom-cal-header,
 .zoom-cal-body{
@@ -369,9 +369,11 @@ select,button{height:32px;border:1px solid var(--border);border-radius:8px;backg
 .zoom-new-row-btn:active{transform:translateY(1px);}
 .zoom-empty{text-align:center;color:#94a3b8;padding:32px;font-size:14px;}
 @media(max-width:800px){
+  .zoom-calendar-container{width:100%;}
   .zoom-cal-header,
-  .zoom-cal-body{grid-template-columns:60px repeat(6, minmax(130px, 1fr));}
+  .zoom-cal-body{grid-template-columns:60px repeat(var(--zoom-col-count, 2), minmax(0, 1fr));}
   .zoom-cal-timeslot-label{font-size:9px;padding:2px 1px 0;}
+  .zoom-table-wrap{overflow-x:auto;}
   .zoom-table thead{display:none;}
   .zoom-table,.zoom-table tbody,.zoom-table tr,.zoom-table td{display:block;width:100%;}
   .zoom-table tr{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;padding:6px 0;}

@@ -3442,7 +3442,15 @@ function computeZoomOverlapLayout(items) {
 function renderZoomCalendar(container, courses, days, hdays) {
   const DAY_START  = 8 * 60;
   const DAY_END    = 16 * 60;
-  const displayDays = days.slice().reverse(); // ראשון מופיע בצד ימין
+  let displayDays = days.slice().reverse(); // ראשון מופיע בצד ימין
+  if (window.innerWidth <= 800) {
+    const todayNum = new Date().getDate();
+    const tomorrowNum = todayNum + 1;
+    const mobileDays = days.filter(d => d === todayNum || d === tomorrowNum);
+    displayDays = mobileDays.length > 0
+      ? mobileDays.slice().reverse()
+      : days.slice(0, 2).reverse();
+  }
   const ZOOM_ACCOUNT_ORDER = { Z1: 1, Z2: 2, Z3: 3 };
 
   // Gather assigned items for this week
@@ -3514,6 +3522,7 @@ function renderZoomCalendar(container, courses, days, hdays) {
 
   const grid = document.createElement('div');
   grid.className = 'zoom-cal-grid';
+  grid.style.setProperty('--zoom-col-count', String(displayDays.length));
 
   const calendarContainer = document.createElement('div');
   calendarContainer.className = 'zoom-calendar-container';
