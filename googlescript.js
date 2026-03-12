@@ -6,7 +6,7 @@ const SHEETS = {
 };
 
 const ZOOM_ASSIGNMENT_HEADERS = [
-  'CourseId',
+  'RowId',
   'Date',
   'Authority',
   'School',
@@ -21,7 +21,7 @@ const ZOOM_ASSIGNMENT_HEADERS = [
 ];
 
 const COURSES_HEADERS = [
-  'Id',
+  'RowId',
   'Date',
   'Authority',
   'School',
@@ -42,12 +42,22 @@ function doGet(e) {
   const type = (e && e.parameter && e.parameter.type) || 'assignments';
 
   if (type === 'courses') {
-    const rows = getSheetRowsAsObjects_(SHEETS.COURSES, COURSES_HEADERS);
-    return jsonResponse_(rows);
+    return jsonResponse_(getSheetRowsAsObjects_(SHEETS.COURSES, COURSES_HEADERS));
   }
 
   if (type === 'employees') {
-    const rows = getSheetRowsAsObjects_(SHEETS.EMPLOYEES, EMPLOYEES_HEADERS);
+    return jsonResponse_(getSheetRowsAsObjects_(SHEETS.EMPLOYEES, EMPLOYEES_HEADERS));
+  }
+
+  if (type === 'authorities') {
+    const courses = getSheetRowsAsObjects_(SHEETS.COURSES, COURSES_HEADERS);
+    const rows = uniqueValuesByField_(courses, 'Authority').map((Authority) => ({ Authority }));
+    return jsonResponse_(rows);
+  }
+
+  if (type === 'schools') {
+    const courses = getSheetRowsAsObjects_(SHEETS.COURSES, COURSES_HEADERS);
+    const rows = uniqueValuesByField_(courses, 'School').map((School) => ({ School }));
     return jsonResponse_(rows);
   }
 
@@ -60,10 +70,15 @@ function doPost(e) {
   lock.waitLock(30000);
 
   try {
+    const requestType = (e && e.parameter && e.parameter.type) || 'assignment';
+    if (requestType !== 'assignment') {
+      return jsonResponse_({ ok: false, error: 'Unsupported POST type' });
+    }
+
     const payload = parsePostData_(e);
 
     const normalized = {
-      CourseId: String(payload.CourseId || '').trim(),
+      RowId: String(payload.RowId || '').trim(),
       Date: String(payload.Date || '').trim(),
       Authority: String(payload.Authority || '').trim(),
       School: String(payload.School || '').trim(),
@@ -77,18 +92,18 @@ function doPost(e) {
       UpdatedAt: String(payload.UpdatedAt || new Date().toISOString()).trim()
     };
 
-    if (!normalized.CourseId) {
-      return jsonResponse_({ ok: false, error: 'CourseId is required' });
+    if (!normalized.RowId) {
+      return jsonResponse_({ ok: false, error: 'RowId is required' });
     }
 
-    upsertZoomAssignmentByCourseId_(normalized);
-    return jsonResponse_({ ok: true, CourseId: normalized.CourseId });
+    upsertZoomAssignmentByRowId_(normalized);
+    return jsonResponse_({ ok: true, RowId: normalized.RowId });
   } finally {
     lock.releaseLock();
   }
 }
 
-function upsertZoomAssignmentByCourseId_(assignment) {
+function upsertZoomAssignmentByRowId_(assignment) {
   const sheet = getSheetByName_(SHEETS.ZOOM_ASSIGNMENTS);
   ensureHeaders_(sheet, ZOOM_ASSIGNMENT_HEADERS);
 
@@ -98,17 +113,17 @@ function upsertZoomAssignmentByCourseId_(assignment) {
   const headerMap = {};
   header.forEach((name, idx) => headerMap[name] = idx);
 
-  const courseIdIdx = headerMap['CourseId'];
+  const rowIdIdx = headerMap['RowId'];
   const updatedAtIdx = headerMap['UpdatedAt'];
 
-  if (courseIdIdx === undefined) {
-    throw new Error('CourseId column is missing in ZOOM_ASSIGNMENTS');
+  if (rowIdIdx === undefined) {
+    throw new Error('RowId column is missing in ZOOM_ASSIGNMENTS');
   }
 
   let targetRow = -1;
   for (let row = 1; row < values.length; row++) {
-    const existingCourseId = String(values[row][courseIdIdx] || '').trim();
-    if (existingCourseId === assignment.CourseId) {
+    const existingRowId = String(values[row][rowIdIdx] || '').trim();
+    if (existingRowId === assignment.RowId) {
       targetRow = row + 1;
       break;
     }
@@ -136,6 +151,15 @@ function upsertZoomAssignmentByCourseId_(assignment) {
 
   const rowData = header.map((key) => assignment[key] || '');
   sheet.appendRow(rowData);
+}
+
+function uniqueValuesByField_(rows, fieldName) {
+  const set = new Set();
+  rows.forEach((row) => {
+    const value = String((row && row[fieldName]) || '').trim();
+    if (value) set.add(value);
+  });
+  return Array.from(set).sort();
 }
 
 function getSheetRowsAsObjects_(sheetName, expectedHeaders) {
@@ -204,6 +228,10 @@ function getSheetByName_(sheetName) {
 }
 
 function parsePostData_(e) {
+  if (e && e.parameter && Object.keys(e.parameter).length > 0) {
+    return e.parameter;
+  }
+
   if (e && e.postData && e.postData.contents) {
     const type = (e.postData.type || '').toLowerCase();
 
@@ -225,10 +253,6 @@ function parsePostData_(e) {
       });
       return out;
     }
-  }
-
-  if (e && e.parameter && Object.keys(e.parameter).length > 0) {
-    return e.parameter;
   }
 
   return {};
